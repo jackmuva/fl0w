@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="${JEV_REPO:-jackmuva/jev-as-a-workflow}"
-VERSION="${JEV_VERSION:-latest}"
-INSTALL_DIR="${JEV_INSTALL_DIR:-${HOME}/.local/bin}"
-BIN_NAME="${JEV_BIN_NAME:-fl0w}"
+REPO="${FL0W_REPO:-jackmuva/fl0w}"
+VERSION="${FL0W_VERSION:-latest}"
+INSTALL_DIR="${FL0W_INSTALL_DIR:-${HOME}/.local/bin}"
+BIN_NAME="${FL0W_BIN_NAME:-fl0w}"
 
 usage() {
   cat <<EOF
 Usage: install.sh
 
 Environment variables:
-  JEV_VERSION      Release tag to install (default: latest)
-  JEV_INSTALL_DIR  Directory for the binary (default: ~/.local/bin)
-  JEV_BIN_NAME     Installed command name (default: fl0w)
-  JEV_REPO         GitHub repository (default: jackmuva/jev-as-a-workflow)
+  FL0W_VERSION      Release tag to install (default: latest)
+  FL0W_INSTALL_DIR  Directory for the binary (default: ~/.local/bin)
+  FL0W_BIN_NAME     Installed command name (default: fl0w)
+  FL0W_REPO         GitHub repository (default: jackmuva/fl0w)
 EOF
 }
 
