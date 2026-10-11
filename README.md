@@ -1,6 +1,6 @@
-# fl0w - Jev as a Workflow
+# fl0w
 
-fl0w is an agent harness that **puts Jev in the driver's seat**. Thinking of an agent as a workflow generator each turn is a decision point, Jev can pick from a variety of tools and actions for the next step in the workflow.
+fl0w is an agent harness that **puts Jev in the driver's seat** to drive AI workflows. Thinking of an agent as a workflow generator each turn is a decision point, Jev can pick from a variety of tools and actions for the next step in the workflow.
 
 <img src="/public/fl0w-ss.png" alt="fl0w screenshot" width="800" />
 
@@ -15,19 +15,19 @@ The design behind fl0w is two-fold:
 Install the latest release with curl (Linux and macOS):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jackmuva/jev-as-a-workflow/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | sh
 ```
 
 Install a specific version:
 
 ```bash
-JEV_VERSION=v0.1.15 curl -fsSL https://raw.githubusercontent.com/jackmuva/jev-as-a-workflow/main/install.sh | sh
+JEV_VERSION=v0.1.15 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | sh
 ```
 
 On Windows (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/jackmuva/jev-as-a-workflow/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/jackmuva/fl0w/main/install.ps1 | iex
 ```
 
 The installer downloads a standalone binary and installs it as `fl0w` (by default to `~/.local/bin` on Unix). No Bun runtime is required on the target machine.
@@ -76,7 +76,6 @@ fl0w run --workflow <path/to/workflow.json | workflow-id> [--input "extra instru
 - MCP servers that need OAuth must already be authorized: run `fl0w` interactively once,
   or copy the server's file from `~/.fl0w/mcp-auth/`. Unauthorized servers fail fast
   and the run continues without them.
-- Set `JAAW_HOME` to use a config directory other than `~/.fl0w`.
 
 Output is JSON lines on stdout, one per agent message, followed by a final result:
 
