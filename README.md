@@ -1,14 +1,14 @@
-# JaaW - Jev as a Workflow
+# fl0w - Jev as a Workflow
 
-JaaW is an agent harness that **puts Jev in the driver's seat**. Thinking of an agent as a workflow generator each turn is a decision point, Jev can pick from a variety of tools and actions for the next step in the workflow.
+fl0w is an agent harness that **puts Jev in the driver's seat**. Thinking of an agent as a workflow generator each turn is a decision point, Jev can pick from a variety of tools and actions for the next step in the workflow.
 
-<img src="/public/jaaw-ss.png" alt="JaaW screenshot" width="800" />
+<img src="/public/fl0w-ss.png" alt="fl0w screenshot" width="800" />
 
-The design behind JaaW is two-fold:
+The design behind fl0w is two-fold:
 
 1. **Explainability**: At each turn, you can see the Jev-generated probabilities (traces)
 
-2. **Agents as Workflows**: The UX for JaaW should feel like a workflow with a series of steps, more CLI tool than a "conversational intelligence"
+2. **Agents as Workflows**: The UX for fl0w should feel like a workflow with a series of steps, more CLI tool than a "conversational intelligence"
 
 ## Installation
 
@@ -30,7 +30,7 @@ On Windows (PowerShell):
 irm https://raw.githubusercontent.com/jackmuva/jev-as-a-workflow/main/install.ps1 | iex
 ```
 
-The installer downloads a standalone binary and installs it as `jaaw` (by default to `~/.local/bin` on Unix). No Bun runtime is required on the target machine.
+The installer downloads a standalone binary and installs it as `fl0w` (by default to `~/.local/bin` on Unix). No Bun runtime is required on the target machine.
 
 ## Setup
 
@@ -40,14 +40,14 @@ The installer downloads a standalone binary and installs it as `jaaw` (by defaul
 
 ### Configure
 
-On first launch, JaaW creates `~/.jaaw/` with default `config.json`, `mcp.json`,
+On first launch, fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`,
 `mcp-auth/`, and `tools/` directories. 
 
-1. Edit `~/.jaaw/config.json` to set your Vercel `aiGatewayApiKey` and preferred `llmModel`. Model names are found in [Vercel's mode list](https://vercel.com/ai-gateway/models).
+1. Edit `~/.fl0w/config.json` to set your Vercel `aiGatewayApiKey` and preferred `llmModel`. Model names are found in [Vercel's mode list](https://vercel.com/ai-gateway/models).
 
-2. \[Optional\] local skills can be placed in `~/.jaaw/skills/`.
+2. \[Optional\] local skills can be placed in `~/.fl0w/skills/`.
 
-3. \[Optional\] MCPs can be place in `~/.jaaw/mcp.json` and follow [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers).
+3. \[Optional\] MCPs can be place in `~/.fl0w/mcp.json` and follow [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers).
 
 4. \[Optional\] `AGENTS.md` files alongside your skills
 
@@ -58,7 +58,7 @@ Skills, MCPs, and templates can all be toggled in each session to keep the conte
 Run the installed binary:
 
 ```bash
-jaaw
+fl0w
 ```
 
 ### Headless workflow runs
@@ -66,17 +66,17 @@ jaaw
 Saved workflows can run without the TUI, e.g. from a script, cron job, or sandbox:
 
 ```bash
-jaaw run --workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"]
+fl0w run --workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"]
 ```
 
 - `--workflow` takes either a JSON file containing a workflow record, or the id of
-  a workflow saved in `~/.jaaw/jaaw-sqlite.db`.
+  a workflow saved in `~/.fl0w/fl0w-sqlite.db`.
 - `--input` is appended to the workflow as additional instructions (e.g. a webhook payload).
 - Headless runs never ask clarifying questions; the agent makes reasonable assumptions instead.
-- MCP servers that need OAuth must already be authorized: run `jaaw` interactively once,
-  or copy the server's file from `~/.jaaw/mcp-auth/`. Unauthorized servers fail fast
+- MCP servers that need OAuth must already be authorized: run `fl0w` interactively once,
+  or copy the server's file from `~/.fl0w/mcp-auth/`. Unauthorized servers fail fast
   and the run continues without them.
-- Set `JAAW_HOME` to use a config directory other than `~/.jaaw`.
+- Set `JAAW_HOME` to use a config directory other than `~/.fl0w`.
 
 Output is JSON lines on stdout, one per agent message, followed by a final result:
 
@@ -101,7 +101,7 @@ Build a local standalone binary:
 
 ```bash
 bun run build
-./jaaw
+./fl0w
 ```
 
 Build release binaries for all supported platforms:
@@ -163,7 +163,7 @@ src/
 
 ## How It Works
 
-1. **Startup** – `ensureJevHome()` creates `~/.jaaw/` and scaffolds default
+1. **Startup** – `ensureJevHome()` creates `~/.fl0w/` and scaffolds default
    `config.json`, `mcp.json`, `mcp-auth/`, and `tools/` when missing, then
    `loadAppConfig()` reads `config.json` and populates env vars (e.g.
    `AI_GATEWAY_API_KEY`, `LLM_MODEL`).
@@ -175,7 +175,7 @@ src/
    optional OAuth support). If MCP setup fails, a warning message is shown in the
    UI instead of crashing.
 4. **Tool loading** – `loadUserTools()` registers custom tools in the `user`
-   tool-server namespace from `~/.jaaw/tools`.
+   tool-server namespace from `~/.fl0w/tools`.
 5. **Capability discovery** – skills, MCP servers, user tools, and `AGENTS.md`
    files are discovered into a `CapabilityCatalog` and surfaced in the UI where
    they can be selectively enabled/toggled.

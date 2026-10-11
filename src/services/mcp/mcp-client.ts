@@ -16,7 +16,7 @@ import type {
 } from '../../models/mcp';
 import { MCP_CONFIG_PATH } from '../../constants';
 
-const CLIENT_INFO = { name: 'jaaw', version: '0.1.0' };
+const CLIENT_INFO = { name: 'fl0w', version: '0.1.0' };
 
 const isHttpConfig = (config: McpServerConfig): config is HttpServerConfig => 'url' in config;
 

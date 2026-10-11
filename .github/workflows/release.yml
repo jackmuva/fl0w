@@ -18,31 +18,31 @@ jobs:
         include:
           - label: linux-x64
             target: bun-linux-x64
-            artifact: jaaw-linux-x64
+            artifact: fl0w-linux-x64
             runner: ubuntu-latest
           - label: linux-arm64
             target: bun-linux-arm64
-            artifact: jaaw-linux-arm64
+            artifact: fl0w-linux-arm64
             runner: ubuntu-latest
           - label: linux-x64-musl
             target: bun-linux-x64-musl
-            artifact: jaaw-linux-x64-musl
+            artifact: fl0w-linux-x64-musl
             runner: ubuntu-latest
           - label: linux-arm64-musl
             target: bun-linux-arm64-musl
-            artifact: jaaw-linux-arm64-musl
+            artifact: fl0w-linux-arm64-musl
             runner: ubuntu-latest
           - label: darwin-x64
             target: bun-darwin-x64
-            artifact: jaaw-darwin-x64
+            artifact: fl0w-darwin-x64
             runner: ubuntu-latest
           - label: darwin-arm64
             target: bun-darwin-arm64
-            artifact: jaaw-darwin-arm64
+            artifact: fl0w-darwin-arm64
             runner: ubuntu-latest
           - label: windows-x64
             target: bun-windows-x64
-            artifact: jaaw-windows-x64.exe
+            artifact: fl0w-windows-x64.exe
             runner: windows-latest
 
     steps:
@@ -81,14 +81,14 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          sha256sum jaaw-* > SHA256SUMS
+          sha256sum fl0w-* > SHA256SUMS
           cat SHA256SUMS
 
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
-            dist/jaaw-*
+            dist/fl0w-*
             dist/SHA256SUMS
             install.sh
             install.ps1

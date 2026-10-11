@@ -105,7 +105,7 @@ const openBrowser = (url: string) => {
 };
 
 /**
- * Persists OAuth state per MCP server under ~/.jaaw/mcp-auth and
+ * Persists OAuth state per MCP server under ~/.fl0w/mcp-auth and
  * completes the authorization-code flow through a localhost redirect.
  */
 export class FileOAuthProvider implements OAuthClientProvider {
@@ -130,7 +130,7 @@ export class FileOAuthProvider implements OAuthClientProvider {
 
   get clientMetadata(): OAuthClientMetadata {
     return {
-      client_name: 'jaaw',
+      client_name: 'fl0w',
       redirect_uris: [this.redirectUrl],
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
@@ -163,7 +163,7 @@ export class FileOAuthProvider implements OAuthClientProvider {
   }
 
   async redirectToAuthorization(authorizationUrl: URL) {
-    if (HEADLESS) throw new Error(`MCP server "${this.serverName}" needs authorization; authorize it in interactive jaaw first`);
+    if (HEADLESS) throw new Error(`MCP server "${this.serverName}" needs authorization; authorize it in interactive fl0w first`);
     // listen before opening the browser so a fast redirect can't be missed
     this.pendingCode = waitForAuthCode(this.port, this.currentState);
     this.onAuthorize(this.serverName, authorizationUrl);

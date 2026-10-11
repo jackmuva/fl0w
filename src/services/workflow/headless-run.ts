@@ -16,7 +16,7 @@ const HEADLESS_INSTRUCTIONS = [
   'state it in your output, and continue executing the workflow to completion.',
 ].join(' ');
 
-const USAGE = 'Usage: jaaw run --workflow <path.json | workflow-id> [--input "<extra instructions>"]';
+const USAGE = 'Usage: fl0w run --workflow <path.json | workflow-id> [--input "<extra instructions>"]';
 
 /** Runs a saved workflow without the TUI. Streams JSON lines to stdout and returns the exit code. */
 export const runHeadless = async (argv: string[]): Promise<number> => {

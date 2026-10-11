@@ -111,7 +111,7 @@ export const executeWebFetch = async ({ url, format = 'markdown', timeout }: Web
 
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; jaaw/0.1.0)',
+      'User-Agent': 'Mozilla/5.0 (compatible; fl0w/0.1.0)',
       Accept: acceptHeader,
       'Accept-Language': 'en-US,en;q=0.9',
     },

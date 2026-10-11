@@ -1,9 +1,9 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-export const JEV_HOME = process.env.JAAW_HOME ?? join(homedir(), '.jaaw');
+export const JEV_HOME = process.env.FL0W_HOME ?? join(homedir(), '.fl0w');
 
-/** `jaaw run ...` runs a workflow without the TUI or any interactive prompts. */
+/** `fl0w run ...` runs a workflow without the TUI or any interactive prompts. */
 export const HEADLESS = Bun.argv[2] === 'run';
 
 export const APP_CONFIG_PATH = join(JEV_HOME, 'config.json');
@@ -33,4 +33,4 @@ export const LLM_MODEL = process.env.LLM_MODEL ?? DEFAULT_LLM_MODEL;
 
 export const USER_TOOL_SERVER = 'user';
 
-export const DB_PATH = join(JEV_HOME, 'jaaw-sqlite.db');
+export const DB_PATH = join(JEV_HOME, 'fl0w-sqlite.db');

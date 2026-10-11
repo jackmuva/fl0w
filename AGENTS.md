@@ -1,4 +1,4 @@
-# JaaW — Agent Guide
+# fl0w — Agent Guide
 
 Guidance for AI coding agents working in this repo. Sits alongside `README.md`
 (user docs) and `.cursor/` / `.claude/` tool config. May be discovered at
@@ -14,7 +14,7 @@ into reusable workflows.
 
 Key facts:
 - **Stack** — TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, `@modelcontextprotocol/sdk`, Vercel `ai` SDK.
-- **Config** — `config.json` in `JEV_HOME` (`~/.jaaw`) drives the app; fields
+- **Config** — `config.json` in `JEV_HOME` (`~/.fl0w`) drives the app; fields
   (e.g. `aiGatewayApiKey`, `llmModel`) load into `process.env` at startup.
 - **Agent model** — `LLM_MODEL` env (from `llmModel`, default `deepseek/deepseek-v4-flash`);
   `SYSTEM_ONE_MODEL` (default `typesafe-ai/jev`) drives planning.
@@ -24,7 +24,7 @@ Key facts:
   and skills catalog seed the conversation before the UI boots.
 - **Capabilities** — skills, MCP servers, `AGENTS.md`, and user tools are
   discovered and selectable from the UI.
-- **Persistence** — sessions in SQLite (`DB_PATH` → `JEV_HOME/jaaw-sqlite.db`,
+- **Persistence** — sessions in SQLite (`DB_PATH` → `JEV_HOME/fl0w-sqlite.db`,
   resume via `/resume`); workflows stored separately.
 - **Workflows** — sessions distill into reusable workflows (`/generate-workflow`
   `/run-workflow`) with required capabilities.
@@ -45,18 +45,18 @@ Key facts:
 | `bun install`                       | Install dependencies (first).                                        |
 | `bun dev`                           | Run in watch mode (`bun run --watch src/index.tsx`).                 |
 | `bun run lint`                      | Typecheck without emitting (`tsc --noEmit`).                         |
-| `bun run build`                     | Compile local executable (`bun build --compile --outfile jaaw`).     |
+| `bun run build`                     | Compile local executable (`bun build --compile --outfile fl0w`).     |
 | `bun run install:opentui-platforms` | Add all-platform/all-cpu `@opentui/core` (for cross-builds).         |
-| `bun run build:linux-x64`           | Cross-compile → `dist/jaaw-linux-x64`.                              |
-| `bun run build:linux-arm64`         | Cross-compile → `dist/jaaw-linux-arm64`.                            |
-| `bun run build:linux-x64-musl`      | Cross-compile → `dist/jaaw-linux-x64-musl`.                         |
-| `bun run build:linux-arm64-musl`    | Cross-compile → `dist/jaaw-linux-arm64-musl`.                       |
-| `bun run build:darwin-x64`          | Cross-compile → `dist/jaaw-darwin-x64`.                             |
-| `bun run build:darwin-arm64`        | Cross-compile → `dist/jaaw-darwin-arm64`.                           |
-| `bun run build:windows-x64`         | Cross-compile → `dist/jaaw-windows-x64.exe`.                        |
+| `bun run build:linux-x64`           | Cross-compile → `dist/fl0w-linux-x64`.                              |
+| `bun run build:linux-arm64`         | Cross-compile → `dist/fl0w-linux-arm64`.                            |
+| `bun run build:linux-x64-musl`      | Cross-compile → `dist/fl0w-linux-x64-musl`.                         |
+| `bun run build:linux-arm64-musl`    | Cross-compile → `dist/fl0w-linux-arm64-musl`.                       |
+| `bun run build:darwin-x64`          | Cross-compile → `dist/fl0w-darwin-x64`.                             |
+| `bun run build:darwin-arm64`        | Cross-compile → `dist/fl0w-darwin-arm64`.                           |
+| `bun run build:windows-x64`         | Cross-compile → `dist/fl0w-windows-x64.exe`.                        |
 | `bun run build:all`                 | Install all platforms, then build every target.                     |
 
-Artifacts land in `dist/`. The local build produces `./jaaw`.
+Artifacts land in `dist/`. The local build produces `./fl0w`.
 
 ---
 

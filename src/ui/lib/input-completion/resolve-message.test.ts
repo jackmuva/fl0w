@@ -21,7 +21,7 @@ describe("resolveUserMessage", () => {
     expect(typeof message.content).toBe("string")
     expect(message.content).toContain("explain @README.md")
     expect(message.content).toContain("[Attached: README.md]")
-    expect(message.content).toContain("JaaW")
+    expect(message.content).toContain("fl0w")
   })
 })
 
@@ -34,11 +34,11 @@ describe("parseUserAttachments", () => {
   })
 
   test("splits prompt text from attached file blocks", () => {
-    const content = "explain @README.md\n\n[Attached: README.md]\n# JaaW\n\n[Attached: package.json]\n{}"
+    const content = "explain @README.md\n\n[Attached: README.md]\n# fl0w\n\n[Attached: package.json]\n{}"
     expect(parseUserAttachments(content)).toEqual({
       prompt: "explain @README.md",
       attachments: [
-        { path: "README.md", content: "# JaaW" },
+        { path: "README.md", content: "# fl0w" },
         { path: "package.json", content: "{}" },
       ],
     })
