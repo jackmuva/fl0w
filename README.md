@@ -36,14 +36,17 @@ The installer downloads a standalone binary and installs it as `fl0w` (by defaul
 
 ### Requirements
 
-**Vercel AI Gateway API Key**: You can pick one up at [Vercel's website](https://vercel.com/ai-gateway), and allows you to toggle between different models.
+**Sign in** (recommended): run `fl0w login` and approve the code in your browser. Model calls are then proxied through the fl0w web service, so you don't need your own key. `fl0w whoami` shows the signed-in account and `fl0w logout` signs out.
+
+**Or bring your own Vercel AI Gateway API Key**: You can pick one up at [Vercel's website](https://vercel.com/ai-gateway). If `AI_GATEWAY_API_KEY` is set (env or `config.json`), fl0w calls the gateway directly and ignores `fl0w login`.
 
 ### Configure
 
 On first launch, fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`,
-`mcp-auth/`, and `tools/` directories. 
+and `tools/`. Sign-in tokens from `fl0w login` and MCP OAuth credentials are stored
+together in `~/.fl0w/auth.json` (mode 0600).
 
-1. Edit `~/.fl0w/config.json` to set your Vercel `aiGatewayApiKey` and preferred `llmModel`. Model names are found in [Vercel's mode list](https://vercel.com/ai-gateway/models).
+1. Edit `~/.fl0w/config.json` to set your preferred `llmModel` (and `aiGatewayApiKey` if you're not using `fl0w login`). Model names are found in [Vercel's mode list](https://vercel.com/ai-gateway/models).
 
 2. \[Optional\] local skills can be placed in `~/.fl0w/skills/`.
 
@@ -74,7 +77,7 @@ fl0w run --workflow <path/to/workflow.json | workflow-id> [--input "extra instru
 - `--input` is appended to the workflow as additional instructions (e.g. a webhook payload).
 - Headless runs never ask clarifying questions; the agent makes reasonable assumptions instead.
 - MCP servers that need OAuth must already be authorized: run `fl0w` interactively once,
-  or copy the server's file from `~/.fl0w/mcp-auth/`. Unauthorized servers fail fast
+  or copy `~/.fl0w/auth.json` (MCP credentials live under its `mcp` key). Unauthorized servers fail fast
   and the run continues without them.
 
 Output is JSON lines on stdout, one per agent message, followed by a final result:
@@ -148,6 +151,7 @@ src/
 │   │   ├── hooks/            # front-load / compaction / rewind hooks + tests + fixtures
 │   │   ├── user-tools/       # User tool discovery & loading (loader.ts)
 │   │   └── utils/            # jev-message, ask-question-state helpers
+│   ├── auth/             # fl0w login, auth.json store, localhost OAuth callback, gateway proxy provider
 │   ├── config/           # App config loading (loadAppConfig(), ensureJevHome())
 │   ├── mcp/              # mcp-client.ts & oauth-provider.ts
 │   └── workflow/         # build-message, extract-tool-calls, generate
@@ -163,9 +167,10 @@ src/
 ## How It Works
 
 1. **Startup** – `ensureJevHome()` creates `~/.fl0w/` and scaffolds default
-   `config.json`, `mcp.json`, `mcp-auth/`, and `tools/` when missing, then
+   `config.json`, `mcp.json`, and `tools/` when missing, then
    `loadAppConfig()` reads `config.json` and populates env vars (e.g.
-   `AI_GATEWAY_API_KEY`, `LLM_MODEL`).
+   `AI_GATEWAY_API_KEY`, `LLM_MODEL`). Without a gateway key, if `auth.json` has
+   `fl0w login` tokens, model calls are routed through fl0w-work's `/api/ai` proxy.
 2. **Front-loading** – workspace-root instructions, enabled `AGENTS.md` content,
    and an enabled skills catalog (from `discoverSkills()` and
    `discoverAgentsMd()`) seed the conversation.

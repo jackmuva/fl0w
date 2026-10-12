@@ -9,6 +9,8 @@ import {
 } from '../../constants';
 import type { AppConfig } from '../../models/config';
 import type { McpConfig } from '../../models/mcp';
+import { installFl0wGateway } from '../auth/gateway-provider';
+import { readFl0wAuth } from '../auth/token';
 
 export { APP_CONFIG_PATH };
 
@@ -20,9 +22,7 @@ const writeDefaultJsonIfMissing = async (path: string, content: unknown): Promis
 
 export async function loadAppConfig(path = APP_CONFIG_PATH): Promise<AppConfig> {
   const file = Bun.file(path);
-  if (!(await file.exists())) return {};
-
-  const config = await file.json() as AppConfig;
+  const config = await file.exists() ? await file.json() as AppConfig : {};
   if (
     config.aiGatewayApiKey
     && config.aiGatewayApiKey !== AI_GATEWAY_API_KEY_PLACEHOLDER
@@ -32,12 +32,15 @@ export async function loadAppConfig(path = APP_CONFIG_PATH): Promise<AppConfig> 
   if (config.llmModel) {
     process.env.LLM_MODEL = config.llmModel;
   }
+  // Without a user-supplied gateway key, route model calls through fl0w-work using `fl0w login` tokens.
+  if (!process.env.AI_GATEWAY_API_KEY && await readFl0wAuth()) {
+    installFl0wGateway();
+  }
   return config;
 }
 
 export async function ensureJevHome(home = JEV_HOME): Promise<void> {
   mkdirSync(home, { recursive: true });
-  await mkdir(join(home, 'mcp-auth'), { recursive: true, mode: 0o700 });
   await mkdir(join(home, 'tools'), { recursive: true });
 
   const defaultConfig: AppConfig = {

@@ -74,6 +74,7 @@ src/
 │   │   ├── hooks/         # front-load.ts, compaction.ts, rewind.ts (+ tests/fixtures)
 │   │   ├── user-tools/    # loader.ts
 │   │   └── utils/
+│   ├── auth/           # fl0w login, auth-store.ts (auth.json), callback-server.ts, gateway-provider.ts
 │   ├── config/app-config.ts   # loadAppConfig(), ensureJevHome()
 │   ├── mcp/            # mcp-client.ts, oauth-provider.ts
 │   ├── workflow/       # build-message.ts, extract-tool-calls.ts, generate.ts
@@ -86,7 +87,8 @@ src/
 ## How It Works
 
 1. **Startup** — `ensureJevHome()` scaffolds `JEV_HOME` (`config.json`, `mcp.json`,
-   `mcp-auth/`, `tools/`); `loadAppConfig()` reads config and populates env vars.
+   `tools/`); `loadAppConfig()` reads config and populates env vars. `auth.json` holds
+   `fl0w login` tokens and MCP OAuth state.
    Messages front-loaded so the UI renders immediately.
 2. **Front-loading** — workspace instructions, enabled `AGENTS.md` content, and the
    skills catalog (via `discoverSkills()`, `discoverAgentsMd()`) seed the conversation.

@@ -25,3 +25,16 @@ export async function retryModelCall<T>(fn: () => Promise<T>, attempts = 2): Pro
 
   throw lastError;
 }
+
+export function openBrowser(url: string): void {
+  const cmd = process.platform === "darwin"
+    ? ["open", url]
+    : process.platform === "win32"
+      ? ["cmd", "/c", "start", "", url]
+      : ["xdg-open", url];
+  try {
+    Bun.spawn(cmd, { stdout: "ignore", stderr: "ignore" });
+  } catch {
+    // no browser available; callers also print the URL
+  }
+}

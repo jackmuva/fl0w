@@ -54,7 +54,6 @@ describe('ensureJevHome', () => {
     const home = join(tempRoot, 'fresh-home');
     await ensureJevHome(home);
 
-    await access(join(home, 'mcp-auth'));
     await access(join(home, 'tools'));
 
     const config = JSON.parse(await Bun.file(join(home, 'config.json')).text());

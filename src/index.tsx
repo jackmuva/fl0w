@@ -8,6 +8,13 @@ import { mcpToolKey } from "./models/mcp"
 import { mcpClient } from "./services/mcp/mcp-client"
 
 await ensureJevHome()
+
+const ACCOUNT_COMMANDS = ["login", "logout", "whoami"]
+if (ACCOUNT_COMMANDS.includes(Bun.argv[2] ?? "")) {
+  const { runAccountCommand } = await import("./services/auth/commands")
+  process.exit(await runAccountCommand(Bun.argv[2]!))
+}
+
 await loadAppConfig()
 
 if (HEADLESS) {
