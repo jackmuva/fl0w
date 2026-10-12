@@ -21,7 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | sh
 Install a specific version:
 
 ```bash
-FL0W_VERSION=v0.1.18 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | sh
+FL0W_VERSION=v0.1.19 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | sh
 ```
 
 On Windows (PowerShell):
@@ -117,11 +117,11 @@ bun run build:all
 Create and push a new version tag:
 
 ```bash
-git tag -a v0.1.18 -m "v0.1.18"
-git push origin v0.1.18
+git tag -a v0.1.19 -m "v0.1.19"
+git push origin v0.1.19
 ```
 
-Replace `v0.1.18` with the version you are releasing. Tags are pushed to GitHub and picked up by the release workflow.
+Replace `v0.1.19` with the version you are releasing. Tags are pushed to GitHub and picked up by the release workflow.
 
 ## Project Structure
 
