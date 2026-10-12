@@ -8,14 +8,14 @@ import { mcpToolKey } from "./models/mcp"
 import { mcpClient } from "./services/mcp/mcp-client"
 
 await ensureJevHome()
+// Load before account commands so `fl0w login` knows whether config.json's aiGatewayApiKey takes precedence.
+await loadAppConfig()
 
 const ACCOUNT_COMMANDS = ["login", "logout", "whoami"]
 if (ACCOUNT_COMMANDS.includes(Bun.argv[2] ?? "")) {
   const { runAccountCommand } = await import("./services/auth/commands")
   process.exit(await runAccountCommand(Bun.argv[2]!))
 }
-
-await loadAppConfig()
 
 if (HEADLESS) {
   const { runHeadless } = await import("./services/workflow/headless-run")

@@ -6,10 +6,9 @@ export async function runAccountCommand(command: string): Promise<number> {
   try {
     if (command === 'login') {
       const auth = await login();
-      console.log(`Signed in as ${auth.user.email}. Model calls will go through ${FL0W_API_URL}.`);
-      if (process.env.AI_GATEWAY_API_KEY) {
-        console.log('Note: AI_GATEWAY_API_KEY is set, so fl0w will keep using your own key.');
-      }
+      console.log(process.env.AI_GATEWAY_API_KEY
+        ? `Signed in as ${auth.user.email}. An AI Gateway key is set (AI_GATEWAY_API_KEY or config.json's aiGatewayApiKey), so model calls will use it instead of ${FL0W_API_URL}.`
+        : `Signed in as ${auth.user.email}. Model calls will go through ${FL0W_API_URL}.`);
       return 0;
     }
     if (command === 'logout') {
