@@ -33,7 +33,25 @@ const parseToolKey = (key: string): { server: string, name: string } => {
   return { server: key.slice(0, slash), name: key.slice(slash + 1) };
 };
 
-const toolInvocationName = (toolKeyValue: string, server: string, name: string) => isDefaultToolKey(toolKeyValue) || isUserToolKey(toolKeyValue) ? name : `${server}_${name}`;
+const toolCallGenerationErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+const describeToolCallGenerationFailure = (
+  toolCalls: Awaited<ReturnType<typeof generateText>>['toolCalls'],
+  toolName: string,
+): string | undefined => {
+  const invalidMatch = toolCalls.find((call) => call.toolName === toolName && call.invalid);
+  if (invalidMatch?.error) return toolCallGenerationErrorMessage(invalidMatch.error);
+
+  const wrongTool = toolCalls.find((call) => !call.invalid && call.toolName !== toolName);
+  if (wrongTool) return `Model called "${wrongTool.toolName}" instead of "${toolName}".`;
+
+  const anyInvalid = toolCalls.find((call) => call.invalid);
+  if (anyInvalid?.error) return toolCallGenerationErrorMessage(anyInvalid.error);
+
+  if (toolCalls.length === 0) return 'Model returned no tool call.';
+  return undefined;
+};
 
 const generateRequiredToolCall = async ({
   instructions,
@@ -49,9 +67,17 @@ const generateRequiredToolCall = async ({
   toolName: string;
   maxAttempts?: number;
   forceRequired?: boolean;
-}) => {
+}): Promise<{ toolCall?: Awaited<ReturnType<typeof generateText>>['toolCalls'][number], failureReason?: string }> => {
+  let failureReason: string | undefined;
+
+  const pinnedToolChoice = { type: 'tool' as const, toolName: toolName as Extract<keyof typeof tools, string> };
+
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const toolChoice: ToolChoice<typeof tools> = forceRequired || attempt >= maxAttempts - 1 ? 'required' : { type: 'tool', toolName: toolName as Extract<keyof typeof tools, string> };
+    const toolChoice: ToolChoice<typeof tools> = Object.keys(tools).length === 1
+      ? pinnedToolChoice
+      : forceRequired || attempt >= maxAttempts - 1
+        ? 'required'
+        : pinnedToolChoice;
 
     try {
       const prompt = preparePrompt(instructions, messages);
@@ -64,15 +90,17 @@ const generateRequiredToolCall = async ({
       }));
       recordLlmUsage(result);
 
-      // 'required' lets the model pick any tool name (even ones it only saw in the prompt), so always match the requested tool
       const toolCall = result.toolCalls.find((call) => !call.invalid && call.toolName === toolName);
-      if (toolCall) return toolCall;
+      if (toolCall) return { toolCall };
+
+      failureReason = describeToolCallGenerationFailure(result.toolCalls, toolName) ?? failureReason;
     } catch (error) {
       if (!ToolChoiceViolationError.isInstance(error)) throw error;
+      failureReason = error.message;
     }
   }
 
-  return undefined;
+  return { failureReason };
 };
 
 const CREATE_PLAN_ACTION = 'CreatePlan';
@@ -260,7 +288,7 @@ ${toolList || '(none)'}
 
 Do not execute any steps or call any of the tools above yet; only call the CreatePlan tool with the plan as a markdown numbered list.`;
 
-  let toolCall = await generateRequiredToolCall({
+  let { toolCall } = await generateRequiredToolCall({
     instructions: planInstructions,
     messages: state.messages,
     tools: { CreatePlan: createPlanTool },
@@ -270,12 +298,12 @@ Do not execute any steps or call any of the tools above yet; only call the Creat
   });
 
   if (!toolCall) {
-    toolCall = await generateRequiredToolCall({
+    ({ toolCall } = await generateRequiredToolCall({
       instructions: planInstructions,
       messages: state.messages,
       tools: { CreatePlan: createPlanTool },
       toolName: CREATE_PLAN_ACTION,
-    });
+    }));
   }
 
   if (!toolCall) {
@@ -300,7 +328,7 @@ Do not execute any steps or call any of the tools above yet; only call the Creat
 };
 
 export const clarifyTaskNode = async (state: AgentState): Promise<AgentState> => {
-  const toolCall = await generateRequiredToolCall({
+  const { toolCall } = await generateRequiredToolCall({
     instructions: `You are helping clarify an ambiguous user task. Ask 1-3 focused follow-up questions to resolve what is unclear.
 
 
@@ -364,27 +392,27 @@ export const runToolNode = async (state: AgentState): Promise<AgentState> => {
   }
 
   const { server, name } = parseToolKey(selectedTool);
-  const toolName = toolInvocationName(selectedTool, server, name);
   const aiTool = tool({
     description: selected.description ?? `Call the ${selectedTool} tool`,
     inputSchema: jsonSchema<Record<string, unknown>>(selected.inputSchema as Record<string, unknown>),
   });
 
   const instructions = name === 'message_answer'
-    ? `The user asked a question. Call the ${toolName} tool with a clear, helpful answer based on the conversation and your knowledge.`
-    : `Call the ${toolName} tool with the arguments needed to make progress on the user's task.`;
+    ? `The user asked a question. Call the ${selectedTool} tool with a clear, helpful answer based on the conversation and your knowledge.`
+    : `Call the ${selectedTool} tool with the arguments needed to make progress on the user's task.`;
 
-  const toolCall = await generateRequiredToolCall({
+  const { toolCall, failureReason } = await generateRequiredToolCall({
     instructions,
     messages: state.messages,
-    tools: { [toolName]: aiTool },
-    toolName,
+    tools: { [selectedTool]: aiTool },
+    toolName: selectedTool,
   });
 
   if (!toolCall) {
+    const detail = failureReason ? `: ${failureReason}` : '.';
     const message: ModelMessage = {
       role: 'assistant',
-      content: `Could not determine arguments for ${selectedTool}.`,
+      content: `Could not determine arguments for ${selectedTool}${detail}`,
     };
     return { ...state, state: 'EXECUTE', messages: [...state.messages, jevMessage(message)] };
   }
