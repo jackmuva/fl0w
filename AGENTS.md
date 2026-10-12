@@ -19,9 +19,10 @@ Key facts:
 - **Agent model** — `LLM_MODEL` env (from `llmModel`, default `deepseek/deepseek-v4-flash`);
   `SYSTEM_ONE_MODEL` (default `typesafe-ai/jev`) drives planning.
 - **Auth** — CLI account commands (`fl0w login`, `logout`, `whoami`) sign in through
-  fl0w's hosted gateway (`FL0W_API_URL`, default `https://www.fl0w.work`); tokens and
-  MCP OAuth state live in `auth.json`. `AI_GATEWAY_API_KEY` (or `config.json`'s
-  `aiGatewayApiKey`) overrides to use your own key.
+  fl0w-work (`FL0W_API_URL`, default `https://www.fl0w.work`); tokens and MCP OAuth state
+  live in `auth.json`. Login also returns the user's own Vercel AI Gateway key, saved as
+  `config.json`'s `aiGatewayApiKey` unless the user already set one (there or via
+  `AI_GATEWAY_API_KEY`). Model calls always go directly to AI Gateway with that key.
 - **MCP** — configured servers auto-connect at startup (with OAuth); failure is
   non-fatal (UI warning).
 - **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content,
@@ -50,7 +51,7 @@ Key facts:
 | `bun dev`                           | Run in watch mode (`bun run --watch src/index.tsx`).                 |
 | `bun run lint`                      | Typecheck without emitting (`tsc --noEmit`).                         |
 | `bun run build`                     | Compile local executable (`bun build --compile --outfile fl0w`).     |
-| `fl0w login`                        | Sign in via fl0w's hosted gateway (browser + localhost PKCE callback).|
+| `fl0w login`                        | Sign in via fl0w-work (browser + localhost PKCE callback); saves an AI Gateway key.|
 | `fl0w logout`                       | Sign out and clear stored fl0w auth.                                 |
 | `fl0w whoami`                       | Print the signed-in account (exit 1 if not signed in).               |
 | `bun run install:opentui-platforms` | Add all-platform/all-cpu `@opentui/core` (for cross-builds).         |
@@ -81,7 +82,7 @@ src/
 │   │   ├── hooks/         # front-load.ts, compaction.ts, rewind.ts (+ tests/fixtures)
 │   │   ├── user-tools/    # loader.ts
 │   │   └── utils/
-│   ├── auth/           # commands (login/logout/whoami), token.ts (auth.json), callback-server.ts, gateway-provider.ts
+│   ├── auth/           # commands (login/logout/whoami), token.ts (auth.json), callback-server.ts
 │   ├── config/app-config.ts   # loadAppConfig(), ensureJevHome()
 │   ├── mcp/            # mcp-client.ts, oauth-provider.ts
 │   ├── workflow/       # build-message.ts, extract-tool-calls.ts, generate.ts

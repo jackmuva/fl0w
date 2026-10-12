@@ -36,9 +36,9 @@ The installer downloads a standalone binary and installs it as `fl0w` (by defaul
 
 ### Requirements
 
-**Sign in** (recommended): run `fl0w login` and approve the code in your browser. Model calls are then proxied through the fl0w web service, so you don't need your own key. `fl0w whoami` shows the signed-in account and `fl0w logout` signs out.
+**Sign in** (recommended): run `fl0w login` and approve the code in your browser. fl0w issues you a Vercel AI Gateway key (with a usage budget) and saves it as `aiGatewayApiKey` in `~/.fl0w/config.json`, so you don't need a Vercel account. `fl0w whoami` shows the signed-in account and `fl0w logout` signs out.
 
-**Or bring your own Vercel AI Gateway API Key**: You can pick one up at [Vercel's website](https://vercel.com/ai-gateway). If `AI_GATEWAY_API_KEY` is set (env or `config.json`), fl0w calls the gateway directly and ignores `fl0w login`.
+**Or bring your own Vercel AI Gateway API Key**: You can pick one up at [Vercel's website](https://vercel.com/ai-gateway). If `AI_GATEWAY_API_KEY` is set (env or `config.json`), `fl0w login` keeps it rather than replacing it with fl0w's key.
 
 ### Configure
 
@@ -46,7 +46,7 @@ On first launch, fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`,
 and `tools/`. Sign-in tokens from `fl0w login` and MCP OAuth credentials are stored
 together in `~/.fl0w/auth.json` (mode 0600).
 
-1. Edit `~/.fl0w/config.json` to set your preferred `llmModel` (and `aiGatewayApiKey` if you're not using `fl0w login`). Model names are found in [Vercel's mode list](https://vercel.com/ai-gateway/models).
+1. Edit `~/.fl0w/config.json` to set your preferred `llmModel` (`fl0w login` fills in `aiGatewayApiKey`, or set your own). Model names are found in [Vercel's mode list](https://vercel.com/ai-gateway/models).
 
 2. \[Optional\] local skills can be placed in `~/.fl0w/skills/`.
 
@@ -151,7 +151,7 @@ src/
 │   │   ├── hooks/            # front-load / compaction / rewind hooks + tests + fixtures
 │   │   ├── user-tools/       # User tool discovery & loading (loader.ts)
 │   │   └── utils/            # jev-message, ask-question-state helpers
-│   ├── auth/             # fl0w login, auth.json store, localhost OAuth callback, gateway proxy provider
+│   ├── auth/             # fl0w login, auth.json store, localhost OAuth callback
 │   ├── config/           # App config loading (loadAppConfig(), ensureJevHome())
 │   ├── mcp/              # mcp-client.ts & oauth-provider.ts
 │   └── workflow/         # build-message, extract-tool-calls, generate
@@ -169,8 +169,8 @@ src/
 1. **Startup** – `ensureJevHome()` creates `~/.fl0w/` and scaffolds default
    `config.json`, `mcp.json`, and `tools/` when missing, then
    `loadAppConfig()` reads `config.json` and populates env vars (e.g.
-   `AI_GATEWAY_API_KEY`, `LLM_MODEL`). Without a gateway key, if `auth.json` has
-   `fl0w login` tokens, model calls are routed through fl0w-work's `/api/ai` proxy.
+   `AI_GATEWAY_API_KEY`, `LLM_MODEL`). Model calls go straight to Vercel AI Gateway
+   with that key, which `fl0w login` writes to `config.json` if you don't have your own.
 2. **Front-loading** – workspace-root instructions, enabled `AGENTS.md` content,
    and an enabled skills catalog (from `discoverSkills()` and
    `discoverAgentsMd()`) seed the conversation.

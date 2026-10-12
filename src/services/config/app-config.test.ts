@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { access, mkdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { AI_GATEWAY_API_KEY_PLACEHOLDER, DEFAULT_LLM_MODEL } from '../../constants';
-import { ensureJevHome, loadAppConfig } from './app-config';
+import { ensureJevHome, loadAppConfig, saveFl0wGatewayKey } from './app-config';
 
 const tempRoot = join(import.meta.dir, '__fixtures__', 'app-config');
 let previousApiKey: string | undefined;
@@ -46,6 +46,48 @@ describe('loadAppConfig', () => {
     const config = await loadAppConfig(configPath);
     expect(config).toEqual({ aiGatewayApiKey: 'test-key' });
     expect(process.env.AI_GATEWAY_API_KEY).toBe('test-key');
+  });
+});
+
+describe('saveFl0wGatewayKey', () => {
+  const readConfig = async (path: string) => JSON.parse(await Bun.file(path).text());
+
+  test('replaces the placeholder, keeps other settings, and restricts permissions', async () => {
+    await mkdir(tempRoot, { recursive: true });
+    const configPath = join(tempRoot, 'config.json');
+    await writeFile(configPath, JSON.stringify({ aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER, llmModel: 'custom/model' }));
+
+    expect(await saveFl0wGatewayKey('fl0w-key', configPath)).toBe(true);
+    expect(await readConfig(configPath)).toEqual({ aiGatewayApiKey: 'fl0w-key', llmModel: 'custom/model' });
+    expect((await stat(configPath)).mode & 0o777).toBe(0o600);
+    expect(process.env.AI_GATEWAY_API_KEY).toBe('fl0w-key');
+  });
+
+  test('creates config.json when missing', async () => {
+    await mkdir(tempRoot, { recursive: true });
+    const configPath = join(tempRoot, 'config.json');
+
+    expect(await saveFl0wGatewayKey('fl0w-key', configPath)).toBe(true);
+    expect(await readConfig(configPath)).toEqual({ aiGatewayApiKey: 'fl0w-key' });
+  });
+
+  test('keeps a different user-supplied key in config.json', async () => {
+    await mkdir(tempRoot, { recursive: true });
+    const configPath = join(tempRoot, 'config.json');
+    await writeFile(configPath, JSON.stringify({ aiGatewayApiKey: 'own-key' }));
+
+    expect(await saveFl0wGatewayKey('fl0w-key', configPath)).toBe(false);
+    expect(await readConfig(configPath)).toEqual({ aiGatewayApiKey: 'own-key' });
+  });
+
+  test('keeps a user-supplied AI_GATEWAY_API_KEY env var', async () => {
+    await mkdir(tempRoot, { recursive: true });
+    const configPath = join(tempRoot, 'config.json');
+    await writeFile(configPath, JSON.stringify({ aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER }));
+    process.env.AI_GATEWAY_API_KEY = 'own-key';
+
+    expect(await saveFl0wGatewayKey('fl0w-key', configPath)).toBe(false);
+    expect(await readConfig(configPath)).toEqual({ aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER });
   });
 });
 

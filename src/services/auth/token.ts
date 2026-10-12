@@ -21,14 +21,15 @@ type TokenResponse = {
   refresh_token: string;
   expires_in: number;
   user: { id: string; email: string };
+  /** Only returned for the authorization_code grant (`fl0w login`). */
+  ai_gateway_api_key?: string;
 };
 
 type TokenRequest =
   | { grant_type: 'authorization_code', code: string, code_verifier: string }
   | { grant_type: 'refresh_token', refresh_token: string };
 
-/** Calls fl0w-work's CLI token endpoint. */
-export async function requestTokens(request: TokenRequest): Promise<Fl0wAuth> {
+export async function requestTokens(request: TokenRequest): Promise<{ auth: Fl0wAuth, aiGatewayApiKey?: string }> {
   const res = await fetch(`${FL0W_API_URL}/api/cli/token`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -40,10 +41,13 @@ export async function requestTokens(request: TokenRequest): Promise<Fl0wAuth> {
     throw new Fl0wAuthError(code, body.error_description ?? `fl0w sign-in failed (${code})`);
   }
   return {
-    accessToken: body.access_token,
-    refreshToken: body.refresh_token,
-    expiresAt: Date.now() + (body.expires_in ?? 0) * 1000,
-    user: body.user,
+    auth: {
+      accessToken: body.access_token,
+      refreshToken: body.refresh_token,
+      expiresAt: Date.now() + (body.expires_in ?? 0) * 1000,
+      user: body.user,
+    },
+    aiGatewayApiKey: body.ai_gateway_api_key,
   };
 }
 
@@ -64,7 +68,7 @@ let refreshing: Promise<Fl0wAuth> | null = null;
 const refresh = (auth: Fl0wAuth): Promise<Fl0wAuth> => {
   refreshing ??= (async () => {
     try {
-      const next = await requestTokens({ grant_type: 'refresh_token', refresh_token: auth.refreshToken });
+      const { auth: next } = await requestTokens({ grant_type: 'refresh_token', refresh_token: auth.refreshToken });
       await saveFl0wAuth(next);
       return next;
     } catch (error) {

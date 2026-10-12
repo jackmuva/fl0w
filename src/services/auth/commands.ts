@@ -1,14 +1,18 @@
-import { FL0W_API_URL } from '../../constants';
+import { saveFl0wGatewayKey } from '../config/app-config';
 import { login } from './login';
 import { clearFl0wAuth, readFl0wAuth } from './token';
 
 export async function runAccountCommand(command: string): Promise<number> {
   try {
     if (command === 'login') {
-      const auth = await login();
-      console.log(process.env.AI_GATEWAY_API_KEY
-        ? `Signed in as ${auth.user.email}. An AI Gateway key is set (AI_GATEWAY_API_KEY or config.json's aiGatewayApiKey), so model calls will use it instead of ${FL0W_API_URL}.`
-        : `Signed in as ${auth.user.email}. Model calls will go through ${FL0W_API_URL}.`);
+      const { auth, aiGatewayApiKey } = await login();
+      if (!aiGatewayApiKey) {
+        console.log(`Signed in as ${auth.user.email}, but fl0w couldn't issue an AI Gateway key. Try \`fl0w login\` again later, or set AI_GATEWAY_API_KEY.`);
+      } else if (await saveFl0wGatewayKey(aiGatewayApiKey)) {
+        console.log(`Signed in as ${auth.user.email}. Your fl0w AI Gateway key was saved to config.json.`);
+      } else {
+        console.log(`Signed in as ${auth.user.email}. Keeping your own AI Gateway key (AI_GATEWAY_API_KEY or config.json's aiGatewayApiKey); remove it and run \`fl0w login\` again to use fl0w's key.`);
+      }
       return 0;
     }
     if (command === 'logout') {

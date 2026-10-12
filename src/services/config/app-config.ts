@@ -1,5 +1,5 @@
 import { mkdirSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { chmod, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   AI_GATEWAY_API_KEY_PLACEHOLDER,
@@ -9,8 +9,6 @@ import {
 } from '../../constants';
 import type { AppConfig } from '../../models/config';
 import type { McpConfig } from '../../models/mcp';
-import { installFl0wGateway } from '../auth/gateway-provider';
-import { readFl0wAuth } from '../auth/token';
 
 export { APP_CONFIG_PATH };
 
@@ -32,11 +30,19 @@ export async function loadAppConfig(path = APP_CONFIG_PATH): Promise<AppConfig> 
   if (config.llmModel) {
     process.env.LLM_MODEL = config.llmModel;
   }
-  // Without a user-supplied gateway key, route model calls through fl0w-work using `fl0w login` tokens.
-  if (!process.env.AI_GATEWAY_API_KEY && await readFl0wAuth()) {
-    installFl0wGateway();
-  }
   return config;
+}
+
+export async function saveFl0wGatewayKey(key: string, path = APP_CONFIG_PATH): Promise<boolean> {
+  const file = Bun.file(path);
+  const config = await file.exists() ? await file.json() as AppConfig : {};
+  const configKey = config.aiGatewayApiKey === AI_GATEWAY_API_KEY_PLACEHOLDER ? undefined : config.aiGatewayApiKey;
+  const current = configKey ?? process.env.AI_GATEWAY_API_KEY;
+  if (current && current !== key) return false;
+  await writeFile(path, `${JSON.stringify({ ...config, aiGatewayApiKey: key }, null, 2)}\n`, { mode: 0o600 });
+  await chmod(path, 0o600);
+  process.env.AI_GATEWAY_API_KEY = key;
+  return true;
 }
 
 export async function ensureJevHome(home = JEV_HOME): Promise<void> {

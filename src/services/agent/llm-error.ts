@@ -1,6 +1,5 @@
 import { GatewayAuthenticationError } from '@ai-sdk/gateway';
 import { APICallError } from 'ai';
-import { NotLoggedInError } from '../auth/token';
 
 const isContextLimitError = (error: APICallError): boolean => {
   const statusCode = 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
@@ -23,17 +22,29 @@ const isContextLimitError = (error: APICallError): boolean => {
 
 const isMissingCredentialsError = (error: unknown): boolean => {
   for (let e = error; e; e = (e as { cause?: unknown }).cause) {
-    if (e instanceof NotLoggedInError || GatewayAuthenticationError.isInstance(e)) return true;
-    // The gateway provider wraps errors thrown from its fetch, so fall back to the message.
+    if (GatewayAuthenticationError.isInstance(e)) return true;
     const message = e instanceof Error ? e.message : '';
-    if (message.includes('fl0w login') || message.includes('Unauthenticated request to AI Gateway')) return true;
+    if (message.includes('Unauthenticated request to AI Gateway')) return true;
+  }
+  return false;
+};
+
+// AI Gateway rejects with 402 `quota_for_entity_exceeded`, which AI SDK may surface as a 500-class error.
+const isBudgetExceededError = (error: unknown): boolean => {
+  for (let e = error; e; e = (e as { cause?: unknown }).cause) {
+    if ((e as { statusCode?: number }).statusCode === 402) return true;
+    const message = e instanceof Error ? e.message : '';
+    if (message.includes('quota_for_entity_exceeded') || message.includes('Quota limit exceeded')) return true;
   }
   return false;
 };
 
 export const formatAgentRunError = (error: unknown): string => {
+  if (isBudgetExceededError(error)) {
+    return 'Your AI Gateway budget is used up. Set your own AI_GATEWAY_API_KEY (or config.json\'s aiGatewayApiKey) to keep going.';
+  }
   if (isMissingCredentialsError(error)) {
-    return 'No AI Gateway credentials. Run `fl0w login` to use fl0w\'s hosted gateway, or set AI_GATEWAY_API_KEY.';
+    return 'No valid AI Gateway key. Run `fl0w login` to get one, or set AI_GATEWAY_API_KEY.';
   }
   if (APICallError.isInstance(error)) {
     if (isContextLimitError(error)) {

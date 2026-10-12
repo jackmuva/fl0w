@@ -5,12 +5,7 @@ import { openBrowser } from '../utils';
 import { callbackUrl, listenForAuthCode } from './callback-server';
 import { requestTokens, saveFl0wAuth } from './token';
 
-/**
- * Signs in through fl0w-work's /cli/login page: the browser signs in there and is
- * redirected back to a localhost callback with a code, which is exchanged (with a
- * PKCE verifier) for tokens stored in ~/.fl0w/auth.json.
- */
-export async function login(log: (line: string) => void = console.log): Promise<Fl0wAuth> {
+export async function login(log: (line: string) => void = console.log): Promise<{ auth: Fl0wAuth, aiGatewayApiKey?: string }> {
   const state = crypto.randomUUID();
   const codeVerifier = randomBytes(32).toString('base64url');
   const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
@@ -24,7 +19,7 @@ export async function login(log: (line: string) => void = console.log): Promise<
   log(`Opening your browser to sign in. If it doesn't open, visit:\n${loginUrl}`);
   openBrowser(loginUrl.toString());
 
-  const auth = await requestTokens({ grant_type: 'authorization_code', code: await code, code_verifier: codeVerifier });
-  await saveFl0wAuth(auth);
-  return auth;
+  const result = await requestTokens({ grant_type: 'authorization_code', code: await code, code_verifier: codeVerifier });
+  await saveFl0wAuth(result.auth);
+  return result;
 }
