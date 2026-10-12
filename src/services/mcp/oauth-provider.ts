@@ -1,5 +1,3 @@
-import { rm } from 'node:fs/promises';
-import { join } from 'node:path';
 import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import type {
   OAuthClientInformationMixed,
@@ -9,19 +7,14 @@ import type {
 import type { OAuthDiscoveryState } from '@modelcontextprotocol/sdk/client/auth.js';
 import type { McpServerAuth } from '../../models/auth';
 import type { OAuthOptions } from '../../models/mcp';
-import { HEADLESS, LEGACY_MCP_AUTH_DIR } from '../../constants';
+import { HEADLESS } from '../../constants';
 import { readAuthFile, updateAuthFile } from '../auth/auth-store';
 import { callbackUrl, listenForAuthCode } from '../auth/callback-server';
 import { openBrowser } from '../utils';
 
 const DEFAULT_CALLBACK_PORT = 33418;
 
-/**
- * Persists OAuth state per MCP server under `mcp` in ~/.fl0w/auth.json and
- * completes the authorization-code flow through a localhost redirect.
- */
 export class FileOAuthProvider implements OAuthClientProvider {
-  private readonly legacyFile: string;
   private readonly port: number;
   private readonly currentState = crypto.randomUUID();
   private pendingCode: Promise<string> | null = null;
@@ -30,9 +23,8 @@ export class FileOAuthProvider implements OAuthClientProvider {
     private readonly serverName: string,
     private readonly serverUrl: string,
     private readonly options: OAuthOptions = {},
-    private readonly onAuthorize: (server: string, url: URL) => void = () => {},
+    private readonly onAuthorize: (server: string, url: URL) => void = () => { },
   ) {
-    this.legacyFile = join(LEGACY_MCP_AUTH_DIR, `${serverName.replace(/[^\w.-]/g, '_')}.json`);
     this.port = options.callbackPort ?? DEFAULT_CALLBACK_PORT;
   }
 
@@ -103,7 +95,6 @@ export class FileOAuthProvider implements OAuthClientProvider {
   async invalidateCredentials(scope: 'all' | 'client' | 'tokens' | 'verifier' | 'discovery') {
     if (scope === 'all') {
       await updateAuthFile(({ mcp: { [this.serverName]: _, ...mcp } = {}, ...file }) => ({ ...file, mcp }));
-      await rm(this.legacyFile, { force: true });
       return;
     }
     const key = ({
@@ -124,27 +115,19 @@ export class FileOAuthProvider implements OAuthClientProvider {
   }
 
   private async read(): Promise<McpServerAuth> {
-    return this.current((await readAuthFile()).mcp?.[this.serverName], await this.readLegacy());
+    return this.current((await readAuthFile()).mcp?.[this.serverName]);
   }
 
-  /** State saved by older versions under ~/.fl0w/mcp-auth/; moved into auth.json on the next write. */
-  private async readLegacy(): Promise<McpServerAuth | undefined> {
-    const file = Bun.file(this.legacyFile);
-    return await file.exists() ? await file.json() as McpServerAuth : undefined;
-  }
-
-  private current(stored: McpServerAuth | undefined, legacy: McpServerAuth | undefined): McpServerAuth {
-    const auth = stored ?? legacy ?? {};
+  private current(stored: McpServerAuth | undefined): McpServerAuth {
+    const auth = stored ?? {};
     // credentials issued for a different URL are useless (and shouldn't be sent there)
     return auth.serverUrl === this.serverUrl ? auth : {};
   }
 
   private async write(update: Partial<McpServerAuth>) {
-    const legacy = await this.readLegacy();
     await updateAuthFile((file) => {
-      const next = { ...this.current(file.mcp?.[this.serverName], legacy), ...update, serverUrl: this.serverUrl };
+      const next = { ...this.current(file.mcp?.[this.serverName]), ...update, serverUrl: this.serverUrl };
       return { ...file, mcp: { ...file.mcp, [this.serverName]: next } };
     });
-    if (legacy) await rm(this.legacyFile, { force: true });
   }
 }

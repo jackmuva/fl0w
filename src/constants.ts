@@ -9,9 +9,6 @@ export const APP_CONFIG_PATH = join(JEV_HOME, 'config.json');
 
 export const MCP_CONFIG_PATH = join(JEV_HOME, 'mcp.json');
 
-/** Pre-auth.json location of per-server MCP OAuth files; read once and migrated into auth.json. */
-export const LEGACY_MCP_AUTH_DIR = join(JEV_HOME, 'mcp-auth');
-
 export const USER_TOOLS_DIR = join(JEV_HOME, 'tools');
 
 export const COMPACTION_CONTEXT_WINDOW = 32_000;
