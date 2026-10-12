@@ -34,7 +34,7 @@ export const USER_TOOL_SERVER = 'user';
 
 export const DB_PATH = join(JEV_HOME, 'fl0w-sqlite.db');
 
-export const FL0W_API_URL = (process.env.FL0W_API_URL ?? 'https://fl0w.work').replace(/\/+$/, '');
+export const FL0W_API_URL = (process.env.FL0W_API_URL ?? 'https://www.fl0w.work').replace(/\/+$/, '');
 
 /** fl0w login tokens and MCP OAuth state. */
 export const AUTH_PATH = join(JEV_HOME, 'auth.json');

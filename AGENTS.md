@@ -18,6 +18,10 @@ Key facts:
   (e.g. `aiGatewayApiKey`, `llmModel`) load into `process.env` at startup.
 - **Agent model** — `LLM_MODEL` env (from `llmModel`, default `deepseek/deepseek-v4-flash`);
   `SYSTEM_ONE_MODEL` (default `typesafe-ai/jev`) drives planning.
+- **Auth** — CLI account commands (`fl0w login`, `logout`, `whoami`) sign in through
+  fl0w's hosted gateway (`FL0W_API_URL`, default `https://www.fl0w.work`); tokens and
+  MCP OAuth state live in `auth.json`. `AI_GATEWAY_API_KEY` (or `config.json`'s
+  `aiGatewayApiKey`) overrides to use your own key.
 - **MCP** — configured servers auto-connect at startup (with OAuth); failure is
   non-fatal (UI warning).
 - **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content,
@@ -46,6 +50,9 @@ Key facts:
 | `bun dev`                           | Run in watch mode (`bun run --watch src/index.tsx`).                 |
 | `bun run lint`                      | Typecheck without emitting (`tsc --noEmit`).                         |
 | `bun run build`                     | Compile local executable (`bun build --compile --outfile fl0w`).     |
+| `fl0w login`                        | Sign in via fl0w's hosted gateway (browser + localhost PKCE callback).|
+| `fl0w logout`                       | Sign out and clear stored fl0w auth.                                 |
+| `fl0w whoami`                       | Print the signed-in account (exit 1 if not signed in).               |
 | `bun run install:opentui-platforms` | Add all-platform/all-cpu `@opentui/core` (for cross-builds).         |
 | `bun run build:linux-x64`           | Cross-compile → `dist/fl0w-linux-x64`.                              |
 | `bun run build:linux-arm64`         | Cross-compile → `dist/fl0w-linux-arm64`.                            |
@@ -74,7 +81,7 @@ src/
 │   │   ├── hooks/         # front-load.ts, compaction.ts, rewind.ts (+ tests/fixtures)
 │   │   ├── user-tools/    # loader.ts
 │   │   └── utils/
-│   ├── auth/           # fl0w login, auth-store.ts (auth.json), callback-server.ts, gateway-provider.ts
+│   ├── auth/           # commands (login/logout/whoami), token.ts (auth.json), callback-server.ts, gateway-provider.ts
 │   ├── config/app-config.ts   # loadAppConfig(), ensureJevHome()
 │   ├── mcp/            # mcp-client.ts, oauth-provider.ts
 │   ├── workflow/       # build-message.ts, extract-tool-calls.ts, generate.ts
@@ -87,9 +94,10 @@ src/
 ## How It Works
 
 1. **Startup** — `ensureJevHome()` scaffolds `JEV_HOME` (`config.json`, `mcp.json`,
-   `tools/`); `loadAppConfig()` reads config and populates env vars. `auth.json` holds
-   `fl0w login` tokens and MCP OAuth state.
-   Messages front-loaded so the UI renders immediately.
+   `tools/`); CLI account commands (`login`/`logout`/`whoami`) are dispatched before
+   the app boots. `loadAppConfig()` reads config and populates env vars. `auth.json`
+   holds fl0w login tokens and MCP OAuth state. Messages front-loaded so the UI renders
+   immediately.
 2. **Front-loading** — workspace instructions, enabled `AGENTS.md` content, and the
    skills catalog (via `discoverSkills()`, `discoverAgentsMd()`) seed the conversation.
 3. **MCP connect** — `mcpClient.loadConfig()` + `connectAll()` connect all servers
