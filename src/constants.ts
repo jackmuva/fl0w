@@ -15,6 +15,15 @@ export const COMPACTION_CONTEXT_WINDOW = 32_000;
 
 export const COMPACTION_TOKEN_THRESHOLD = 0.75;
 
+export const TOOL_TOKEN_THRESHOLD = 0.25;
+
+export const TOOL_REDUCE_MAX_ITERATIONS = 5;
+
+/** TypeSafe Choice allows at most 255 options; action select adds a few meta actions. */
+export const MAX_EVALUATE_TOOL_OPTIONS = 250;
+
+export const MAX_ITERATIONS = 50;
+
 export const TOOL_TRUNCATE_STEPS = [12_000, 8_000, 4_000, 2_000, 800, 400];
 
 export const TOOL_RESULT_MIN_KEEP = 120;
@@ -33,5 +42,4 @@ export const DB_PATH = join(JEV_HOME, 'fl0w-sqlite.db');
 
 export const FL0W_API_URL = (process.env.FL0W_API_URL ?? 'https://www.fl0w.work').replace(/\/+$/, '');
 
-/** fl0w login tokens and MCP OAuth state. */
 export const AUTH_PATH = join(JEV_HOME, 'auth.json');

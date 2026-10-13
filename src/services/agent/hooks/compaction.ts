@@ -60,8 +60,11 @@ const messageToText = (message: ModelMessage, options: MessageTextOptions = {}):
   return prefix + parts.join('\n');
 };
 
+export const estimateTextTokens = (text: string): number =>
+  Math.ceil(text.length / 3);
+
 const estimateMessageTokens = ({ message }: JevMessage): number =>
-  Math.ceil(messageToText(message).length / 3);
+  estimateTextTokens(messageToText(message));
 
 export const estimateMessagesTokens = (messages: JevMessage[]): number =>
   messages.reduce((total, message) => total + estimateMessageTokens(message), 0);

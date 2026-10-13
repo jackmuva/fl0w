@@ -5,8 +5,7 @@ import { compactionHook } from './hooks/compaction';
 import { rewindState } from './hooks/rewind';
 import { formatAgentRunError } from './llm-error';
 import { jevMessage } from './utils/jev-message';
-
-const MAX_ITERATIONS = 50;
+import { MAX_ITERATIONS } from '../../constants';
 
 export type JevLoopOptions = {
   signal?: AbortSignal;

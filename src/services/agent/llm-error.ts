@@ -1,6 +1,14 @@
 import { GatewayAuthenticationError } from '@ai-sdk/gateway';
 import { APICallError } from 'ai';
 
+const isTooManyToolsError = (error: APICallError): boolean => {
+  const message = error.message.toLowerCase();
+  return message.includes('too many')
+    || message.includes('255')
+    || (message.includes('choice') && message.includes('criteria'))
+    || (message.includes('options') && message.includes('maximum'));
+};
+
 const isContextLimitError = (error: APICallError): boolean => {
   const statusCode = 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
   if (statusCode === 413) return true;
@@ -47,6 +55,9 @@ export const formatAgentRunError = (error: unknown): string => {
     return 'No valid AI Gateway key. Run `fl0w login` to get one, or set AI_GATEWAY_API_KEY.';
   }
   if (APICallError.isInstance(error)) {
+    if (isTooManyToolsError(error)) {
+      return 'Too many enabled MCP tools for System One routing (TypeSafe Choice is limited to 255 options). Disable unused MCP servers or capabilities in the UI, then try again.';
+    }
     if (isContextLimitError(error)) {
       return 'The conversation or tool output exceeded the model context limit. Large tool results were trimmed automatically; try a shorter task, disable unused MCP tools, or start a new session.';
     }
