@@ -13,8 +13,8 @@ const sampleWorkflow: WorkflowRecord = {
     userTools: [],
     agentsMd: [],
   },
-  createdAt: 1,
-  updatedAt: 1,
+  createdAt: '1970-01-01T00:00:00.001Z',
+  updatedAt: '1970-01-01T00:00:00.001Z',
   steps: [
     {
       intent: 'Find session store',

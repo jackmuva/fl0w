@@ -27,7 +27,7 @@ describe('WorkflowStore', () => {
     });
 
     expect(saved.id).toBeTruthy();
-    expect(saved.createdAt).toBeGreaterThan(0);
+    expect(saved.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
 
     const workflows = store.listWorkflows();
     expect(workflows).toHaveLength(1);

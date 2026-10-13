@@ -2,7 +2,7 @@ import { desc, eq } from 'drizzle-orm';
 import { DB_PATH } from '../constants';
 import type { CapabilitySelection } from '../models/agent';
 import type { WorkflowRecord, WorkflowStep } from '../models/workflow';
-import { openDatabase, workflows, type FlowDatabase } from './schema';
+import { nowIso, openDatabase, workflows, type FlowDatabase } from './schema';
 
 export class WorkflowStore {
   private readonly db: FlowDatabase;
@@ -34,7 +34,7 @@ export class WorkflowStore {
     steps: WorkflowStep[];
     requiredCapabilities: CapabilitySelection;
   }): WorkflowRecord {
-    const now = Date.now();
+    const now = nowIso();
     const workflow: WorkflowRecord = {
       id: crypto.randomUUID(),
       sourceSessionId: input.sourceSessionId ?? null,

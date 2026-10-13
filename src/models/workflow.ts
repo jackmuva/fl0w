@@ -13,8 +13,8 @@ export type WorkflowRecord = {
   goal: string;
   steps: WorkflowStep[];
   requiredCapabilities: CapabilitySelection;
-  createdAt: number;
-  updatedAt: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type GeneratedWorkflow = Pick<WorkflowRecord, 'title' | 'goal' | 'steps'>;

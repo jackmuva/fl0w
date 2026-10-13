@@ -2,7 +2,7 @@ import { asc, desc, eq, sql } from 'drizzle-orm';
 import { resolve } from 'node:path';
 import { DB_PATH } from '../constants';
 import type { CapabilitySelection, JevMessage } from '../models/agent';
-import { messages, openDatabase, sessions, type FlowDatabase } from './schema';
+import { messages, nowIso, openDatabase, sessions, type FlowDatabase } from './schema';
 
 export type SessionRecord = typeof sessions.$inferSelect;
 
@@ -46,7 +46,7 @@ export class SessionStore {
   }
 
   createSession(workspacePath: string): SessionRecord {
-    const now = Date.now();
+    const now = nowIso();
     const session: SessionRecord = {
       id: crypto.randomUUID(),
       workspacePath: resolve(workspacePath),
@@ -88,7 +88,7 @@ export class SessionStore {
 
   saveCapabilities(sessionId: string, capabilities: CapabilitySelection): void {
     this.db.update(sessions)
-      .set({ capabilities, updatedAt: Date.now() })
+      .set({ capabilities, updatedAt: nowIso() })
       .where(eq(sessions.id, sessionId))
       .run();
   }
@@ -105,7 +105,7 @@ export class SessionStore {
           .run();
       }
       tx.update(sessions)
-        .set({ updatedAt: Date.now(), title: sql`COALESCE(${title}, ${sessions.title})` })
+        .set({ updatedAt: nowIso(), title: sql`COALESCE(${title}, ${sessions.title})` })
         .where(eq(sessions.id, sessionId))
         .run();
     }, { behavior: 'immediate' });

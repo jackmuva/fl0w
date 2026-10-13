@@ -8,13 +8,15 @@ import { DB_PATH, JEV_HOME } from '../constants';
 import type { CapabilitySelection, JevMessage } from '../models/agent';
 import type { WorkflowStep } from '../models/workflow';
 
+export const nowIso = (): string => new Date().toISOString();
+
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   workspacePath: text('workspace_path').notNull(),
   title: text('title'),
   capabilities: text('capabilities', { mode: 'json' }).$type<CapabilitySelection>(),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
 }, (table) => [
   index('idx_sessions_workspace_updated').on(table.workspacePath, desc(table.updatedAt)),
 ]);
@@ -35,8 +37,8 @@ export const workflows = sqliteTable('workflows', {
   goal: text('goal').notNull(),
   steps: text('steps', { mode: 'json' }).$type<WorkflowStep[]>().notNull(),
   requiredCapabilities: text('required_capabilities', { mode: 'json' }).$type<CapabilitySelection>().notNull(),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
 }, (table) => [
   index('idx_workflows_updated').on(desc(table.updatedAt)),
 ]);
@@ -55,8 +57,8 @@ export const openDatabase = (path = DB_PATH) => {
       workspace_path TEXT NOT NULL,
       title TEXT,
       capabilities TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     )
   `);
   db.run(sql`
@@ -80,8 +82,8 @@ export const openDatabase = (path = DB_PATH) => {
       goal TEXT NOT NULL,
       steps TEXT NOT NULL,
       required_capabilities TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
       FOREIGN KEY (source_session_id) REFERENCES sessions(id) ON DELETE SET NULL
     )
   `);
