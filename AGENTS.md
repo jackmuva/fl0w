@@ -74,7 +74,7 @@ Artifacts land in `dist/`. The local build produces `./fl0w`.
 src/
 ├── index.tsx          # Entry – loads config, initializes MCP/tools, renders TUI
 ├── constants.ts       # Shared constants (JEV_HOME, LLM_MODEL, SYSTEM_ONE_MODEL, DB_PATH)
-├── db/                # session-store.ts, workflow-store.ts (+ tests)
+├── db/                # schema.ts (Drizzle tables + openDatabase), session-store.ts, workflow-store.ts (+ tests)
 ├── models/            # agent.ts, config.ts, mcp.ts, ui.ts, workflow.ts
 ├── services/
 │   ├── agent/         # agent-loop.ts, capabilities.ts, graph.ts, prompt.ts

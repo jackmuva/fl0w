@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { JevMessage } from '../models/agent';
 import { emptyCapabilitySelection } from '../services/agent/capabilities';
+import type { FlowDatabase } from './schema';
 import { SessionStore } from './session-store';
 
 describe('SessionStore', () => {
@@ -64,7 +65,7 @@ describe('SessionStore', () => {
     const store = SessionStore.openInMemory();
     const session = store.getOrCreateSession('/tmp/project-legacy');
     const legacy = { role: 'user', content: 'old' };
-    (store as unknown as { db: { run: (sql: string, params: unknown[]) => void } }).db.run(
+    (store as unknown as { db: FlowDatabase }).db.$client.run(
       'INSERT INTO messages (session_id, position, payload) VALUES (?, ?, ?)',
       [session.id, 0, JSON.stringify(legacy)],
     );
