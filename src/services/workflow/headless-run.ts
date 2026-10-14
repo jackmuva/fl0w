@@ -75,7 +75,7 @@ export const runHeadless = async (argv: string[]): Promise<number> => {
   process.on('SIGINT', () => abort.abort());
   process.on('SIGTERM', () => abort.abort());
 
-  const outcome = await jevLoop(messages, onMessages, { signal: abort.signal });
+  const outcome = await jevLoop(messages, onMessages, abort.signal);
   const pendingQuestion = findPendingAskQuestion(latest);
   const status = pendingQuestion ? 'needs_input' : outcome;
   const last = latest.at(-1)?.message;

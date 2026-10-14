@@ -1,6 +1,6 @@
 import { useSelectionHandler } from "@opentui/react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { copySelectedText } from "../../services/clipboard/app-clipboard"
+import { copySelectedText } from "../lib/clipboard/app-clipboard"
 
 const COPIED_VISIBLE_MS = 2000
 

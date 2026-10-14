@@ -1,64 +1,58 @@
 # fl0w
 
-fl0w is an agent harness that **puts Jev in the driver's seat** to drive AI workflows. Thinking of an agent as a workflow generator each turn is a decision point, Jev can pick from a variety of tools and actions for the next step in the workflow.
+fl0w is an agent harness that **puts Jev in the driver's seat** to drive AI workflows. Treating the agent as a workflow generator makes each turn a decision point: Jev picks the next tool or action in the workflow.
 
 <img src="/public/fl0w-ss.png" alt="fl0w screenshot" width="800" />
 
-The design behind fl0w is two-fold:
+The design is twofold:
 
-1. **Explainability**: At each turn, you can see the Jev-generated probabilities (traces)
-
-2. **Agents as Workflows**: The UX for fl0w should feel like a workflow with a series of steps, more CLI tool than a "conversational intelligence"
+1. **Explainability** — at each turn you can see the Jev-generated probabilities (traces).
+2. **Agents as Workflows** — the UX feels like a series of workflow steps, more CLI tool than conversational intelligence.
 
 ## Installation
 
-Install the latest release with curl (Linux and macOS):
+Linux and macOS (latest release):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | sh
 ```
 
-Install a specific version:
+Specific version:
 
 ```bash
 FL0W_VERSION=v0.1.21 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | sh
 ```
 
-On Windows (PowerShell):
+Windows (PowerShell):
 
 ```powershell
 irm https://raw.githubusercontent.com/jackmuva/fl0w/main/install.ps1 | iex
 ```
 
-The installer downloads a standalone binary and installs it as `fl0w` (by default to `~/.local/bin` on Unix). No Bun runtime is required on the target machine.
+The installer downloads a standalone binary and installs it as `fl0w` (default `~/.local/bin` on Unix). No Bun runtime needed on the target machine.
 
 ## Setup
 
-### Requirements
+**Sign in** (recommended): run `fl0w login` and approve the code in your browser. fl0w issues you a Vercel AI Gateway key (with a usage budget) saved as `aiGatewayApiKey` in `~/.fl0w/config.json` — no Vercel account needed. `fl0w whoami` shows the account; `fl0w logout` signs out.
 
-**Sign in** (recommended): run `fl0w login` and approve the code in your browser. fl0w issues you a Vercel AI Gateway key (with a usage budget) and saves it as `aiGatewayApiKey` in `~/.fl0w/config.json`, so you don't need a Vercel account. `fl0w whoami` shows the signed-in account and `fl0w logout` signs out.
+**Or bring your own Vercel AI Gateway API Key** ([get one here](https://vercel.com/ai-gateway)). If `AI_GATEWAY_API_KEY` is set (env or `config.json`), `fl0w login` keeps it instead of replacing it.
 
-**Or bring your own Vercel AI Gateway API Key**: You can pick one up at [Vercel's website](https://vercel.com/ai-gateway). If `AI_GATEWAY_API_KEY` is set (env or `config.json`), `fl0w login` keeps it rather than replacing it with fl0w's key.
+On first launch fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`, and `tools/`. Sign-in tokens and MCP OAuth credentials are stored in `~/.fl0w/auth.json` (mode 0600).
 
-### Configure
+1. Edit `~/.fl0w/config.json` to set `llmModel` (`fl0w login` fills in `aiGatewayApiKey`, or set your own). Model names in [Vercel's model list](https://vercel.com/ai-gateway/models).
+2. Optional: local skills in `~/.fl0w/skills/`.
+3. Optional: MCPs in `~/.fl0w/mcp.json`, using [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers).
+4. Optional: `AGENTS.md` files alongside your skills.
 
-On first launch, fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`,
-and `tools/`. Sign-in tokens from `fl0w login` and MCP OAuth credentials are stored
-together in `~/.fl0w/auth.json` (mode 0600).
+Skills, MCPs, and templates can be toggled per session to keep the context window focused.
 
-1. Edit `~/.fl0w/config.json` to set your preferred `llmModel` (`fl0w login` fills in `aiGatewayApiKey`, or set your own). Model names are found in [Vercel's mode list](https://vercel.com/ai-gateway/models).
+### Keeping your setup in sync
 
-2. \[Optional\] local skills can be placed in `~/.fl0w/skills/`.
+When signed in, fl0w keeps `config.json`, `mcp.json`, and `auth.json` in sync with your fl0w-work account — encrypted at rest and versioned on the server, so you can move between machines. Changes push ~1 second after you make them; at startup fl0w pulls the latest. Local edits are never overwritten (smart three-way merge). Disable with `FL0W_SYNC=0`.
 
-3. \[Optional\] MCPs can be place in `~/.fl0w/mcp.json` and follow [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers).
-
-4. \[Optional\] `AGENTS.md` files alongside your skills
-
-Skills, MCPs, and templates can all be toggled in each session to keep the context window focused.
+**Local mode**: signed out with your own `AI_GATEWAY_API_KEY` (env or `config.json`), fl0w works fully offline — no network calls, no login required.
 
 ## Usage
-
-Run the installed binary:
 
 ```bash
 fl0w
@@ -66,126 +60,83 @@ fl0w
 
 ### Headless workflow runs
 
-Saved workflows can run without the TUI, e.g. from a script, cron job, or sandbox:
+Run saved workflows without the TUI (script, cron, sandbox):
 
 ```bash
 fl0w run --workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"]
 ```
 
-- `--workflow` takes either a JSON file containing a workflow record, or the id of
-  a workflow saved in `~/.fl0w/fl0w-sqlite.db`.
-- `--input` is appended to the workflow as additional instructions (e.g. a webhook payload).
-- Headless runs never ask clarifying questions; the agent makes reasonable assumptions instead.
-- MCP servers that need OAuth must already be authorized: run `fl0w` interactively once,
-  or copy `~/.fl0w/auth.json` (MCP credentials live under its `mcp` key). Unauthorized servers fail fast
-  and the run continues without them.
+- `--workflow` takes a JSON workflow record file or the id of a workflow saved in `~/.fl0w/fl0w-sqlite.db`.
+- `--input` appends extra instructions to the workflow (e.g. a webhook payload).
+- Headless runs never ask clarifying questions — the agent assumes instead.
+- OAuth MCP servers must already be authorized: run `fl0w` interactively once, or copy
+  `~/.fl0w/auth.json` (MCP credentials live under its `mcp` key). Unauthorized servers fail
+  fast and the run continues without them.
 
-Output is JSON lines on stdout, one per agent message, followed by a final result:
+Output is JSON lines on stdout (one per agent message, then a final result):
 
 ```json
 {"type":"message","message":{"role":"assistant","content":"..."}}
 {"type":"result","status":"ok","finalMessage":"..."}
 ```
 
-Progress and MCP warnings go to stderr. Exit codes: `0` success, `1` error or stopped,
-`2` the run ended waiting on a question it could not ask.
+Progress and MCP warnings go to stderr. Exit codes: `0` success, `1` error or stopped, `2` the run ended waiting on a question it couldn't ask.
 
 ## Development
 
-Install dependencies and run in watch mode:
-
 ```bash
-bun install
-bun dev
-```
-
-Build a local standalone binary:
-
-```bash
-bun run build
-./fl0w
-```
-
-Build release binaries for all supported platforms:
-
-```bash
-bun run build:all
+bun install   # first
+bun dev       # watch mode
+bun run build # local standalone binary → ./fl0w
+bun run build:all # release binaries for all platforms
 ```
 
 ## Releasing
 
-Create and push a new version tag:
+Create and push a new version tag (the release workflow picks it up):
 
 ```bash
 git tag -a v0.1.21 -m "v0.1.21"
 git push origin v0.1.21
 ```
 
-Replace `v0.1.21` with the version you are releasing. Tags are pushed to GitHub and picked up by the release workflow.
-
 ## Project Structure
+
+Clear areas split (details in `AGENTS.md`):
 
 ```
 src/
-├── index.tsx             # Entry point – loads config, initializes MCP, loads tools, renders the TUI
-├── constants.ts          # Shared constants (JEV_HOME, LLM_MODEL, SYSTEM_ONE_MODEL, DB_PATH, …)
-├── db/                   # Persistence
-│   ├── session-store.ts      # Session persistence (chat history resume via /resume)
-│   ├── session-store.test.ts
-│   ├── workflow-store.ts     # Workflow persistence
-│   └── workflow-store.test.ts
+├── index.tsx             # Entry point – loads config and renders the TUI
+├── constants.ts          # Shared constants (JEV_HOME, LLM_MODEL, SYSTEM_ONE_MODEL, …)
+├── db/                   # Persistence (sessions, workflows)
 ├── models/               # Data models / types
-│   ├── agent.ts          # Agent model types (AgentState, CapabilityKind, JevMessage, …)
-│   ├── config.ts         # AppConfig (aiGatewayApiKey, llmModel)
-│   ├── mcp.ts            # MCP types
-│   ├── ui.ts             # UI-related types
-│   └── workflow.ts       # Workflow types
-├── services/             # Business logic
-│   ├── agent/            # Agent loop, graph, capabilities, prompts, skills & tools
-│   │   ├── agent-loop.ts     # Agent loop orchestration (jevLoop)
-│   │   ├── capabilities.ts   # Capability selection state & helpers
-│   │   ├── capabilities.test.ts
-│   │   ├── graph.ts          # Agent graph runtime (START/PLAN/DISCOVERY/EXECUTE/END/REWIND)
-│   │   ├── prompt.ts         # Prompt building
-│   │   ├── default-tools/    # Built-in tools (apply-patch, bash, create-plan, read-file, …)
-│   │   ├── hooks/            # front-load / compaction / rewind hooks + tests + fixtures
-│   │   ├── user-tools/       # User tool discovery & loading (loader.ts)
-│   │   └── utils/            # jev-message, ask-question-state helpers
-│   ├── auth/             # fl0w login, auth.json store, localhost OAuth callback
-│   ├── config/           # App config loading (loadAppConfig(), ensureJevHome())
-│   ├── mcp/              # mcp-client.ts & oauth-provider.ts
-│   └── workflow/         # build-message, extract-tool-calls, generate
+├── services/             # Business logic (agent, auth, config, mcp, sync, workflow)
 └── ui/                   # TUI components
-    ├── App.tsx           # Root React component for the TUI; wires agent loop, dialogs
-    ├── hooks/            # e.g. useSessionPersistence
-    ├── lib/              # format / input-completion helpers
-    ├── syntax-style.ts       # Syntax highlighting for code views
-    ├── tool-renderers.tsx    # Tool-specific render helpers
-    └── components/       # input/, session/, tools/, workflow/, primitives/ subcomponents
 ```
 
 ## How It Works
 
-1. **Startup** – `ensureJevHome()` creates `~/.fl0w/` and scaffolds default
-   `config.json`, `mcp.json`, and `tools/` when missing, then
-   `loadAppConfig()` reads `config.json` and populates env vars (e.g.
-   `AI_GATEWAY_API_KEY`, `LLM_MODEL`). Model calls go straight to Vercel AI Gateway
-   with that key, which `fl0w login` writes to `config.json` if you don't have your own.
-2. **Front-loading** – workspace-root instructions, enabled `AGENTS.md` content,
-   and an enabled skills catalog (from `discoverSkills()` and
-   `discoverAgentsMd()`) seed the conversation.
-3. **MCP connect** – `mcpClient.loadConfig()` reads configuration from the
-   environment, then `connectAll()` connects to every configured server (with
-   optional OAuth support). If MCP setup fails, a warning message is shown in the
-   UI instead of crashing.
-4. **Tool loading** – `loadUserTools()` registers custom tools in the `user`
-   tool-server namespace from `~/.fl0w/tools`.
-5. **Capability discovery** – skills, MCP servers, user tools, and `AGENTS.md`
-   files are discovered into a `CapabilityCatalog` and surfaced in the UI where
-   they can be selectively enabled/toggled.
-6. **Render** – the `@opentui/core` CLI renderer boots and `createRoot()` renders
-   `<App />` with the seeded messages and any initial error.
-7. **Agent runtime** – `jevLoop()` orchestrates the state machine (`START` →
-   `PLAN` / `DISCOVERY` → `EXECUTE` → `END`, with `REWIND`), running the graph
-   nodes and hooks (`compactionHook`, `rewindState`).
-8. **Shutdown** – an exit handler closes all MCP connections cleanly.
+1. **Startup** — creates `~/.fl0w/` and scaffolds default `config.json`, `mcp.json`,
+   `tools/` when missing, loads config, and sets up model access. If signed in, configs
+   reconcile with fl0w-work before anything loads.
+2. **Front-loading** — workspace instructions, enabled `AGENTS.md` content, and an enabled
+   skills catalog seed the conversation.
+3. **MCP connect** — connects to every configured MCP server (optional OAuth). Failures show
+   a UI warning instead of crashing.
+4. **Tool loading** — registers custom tools from `~/.fl0w/tools`.
+5. **Capability discovery** — skills, MCP servers, user tools, and `AGENTS.md` files load
+   into a catalog you can toggle in the UI.
+6. **Render** — boots the renderer and shows your seeded messages and any initial error.
+7. **Agent runtime** — the loop drives the state machine (`START` → `PLAN`/`DISCOVERY` →
+   `EXECUTE` → `END`, with `REWIND`).
+8. **Shutdown** — closes all MCP connections cleanly.
+
+## Sync & Auth
+
+`fl0w login` signs you into fl0w-work via browser, issues a Vercel AI Gateway key (saved as
+`aiGatewayApiKey` unless one is set), and stores sign-in tokens + MCP OAuth credentials in
+`~/.fl0w/auth.json` (mode 0600). `fl0w whoami` prints the account; `fl0w logout` signs out.
+
+When signed in, `config.json`, `mcp.json`, and `auth.json` sync with fl0w-work so your setup
+follows you across machines (see **Keeping your setup in sync**). In local mode (signed out,
+own `AI_GATEWAY_API_KEY`), sync makes no network calls and no login is required.

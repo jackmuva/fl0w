@@ -12,7 +12,7 @@ import { compactMessages } from './hooks/compaction';
 import { HEADLESS, LLM_MODEL, SYSTEM_ONE_MODEL } from '../../constants';
 import { recordLlmUsage } from './hooks/session-usage';
 import type { AgentState, JevMessage } from '../../models/agent';
-import { mcpToolKey, type McpTool } from '../../models/mcp';
+import { mcpToolKey } from '../../models/mcp';
 import { mcpClient } from '../mcp/mcp-client';
 import { isCapabilityEnabled, isMcpToolEnabled } from './capabilities';
 import { askQuestionTool, type AskQuestionInput } from './default-tools/ask-question';
@@ -25,7 +25,7 @@ import {
 import { listSkills } from './hooks/front-load';
 import { preparePrompt } from './prompt';
 import { executeUserTool, isUserToolKey, listUserTools, loadUserTools } from './user-tools/loader';
-import { jevMessage, toModelMessages } from './utils/jev-message';
+import { appendDecisionMessage, jevMessage, toModelMessages } from './utils/jev-message';
 import { retryModelCall } from '../utils';
 import { ASK_QUESTION_ACTION, buildToolCriteria, CREATE_PLAN_ACTION, describeToolCallGenerationFailure, formatToolList, parseToolKey, toolsForEvaluateState } from './utils/tools';
 import { reduceTools } from './hooks/tool-filter';
@@ -123,11 +123,19 @@ export const initialNode = async (state: AgentState): Promise<AgentState> => {
     };
     return { state: "END", messages: [...state.messages, jevMessage(message)] };
   } else if (answers.nextStep.choice === "createPlan") {
-    return { state: "PLAN", messages: state.messages, probabilities };
+    return {
+      state: "PLAN",
+      messages: appendDecisionMessage(state.messages, probabilities!, CREATE_PLAN_ACTION),
+      probabilities,
+    };
   } else if (answers.nextStep.choice === "directAnswer") {
     return { state: "EXECUTE", messages: state.messages };
   } else {
-    return { state: "DISCOVERY", messages: state.messages, probabilities };
+    return {
+      state: "DISCOVERY",
+      messages: appendDecisionMessage(state.messages, probabilities!, ASK_QUESTION_ACTION),
+      probabilities,
+    };
   }
 }
 
@@ -197,7 +205,7 @@ export const actionSelectNode = async (
   return {
     state: {
       state: 'EXECUTE',
-      messages: state.messages,
+      messages: appendDecisionMessage(state.messages, probabilities, selectedAction),
       selectedTool: selectedAction,
       probabilities,
     },
@@ -248,7 +256,7 @@ Do not execute any steps or call any of the tools above yet; only call the Creat
     state: 'EXECUTE',
     messages: [
       ...state.messages,
-      jevMessage(toolCallMessage, state.probabilities),
+      jevMessage(toolCallMessage),
       jevMessage(toolResultMessage),
     ],
   };
@@ -286,11 +294,21 @@ Call the AskQuestion tool with concrete options for each question. Provide 2-4 l
 
   return {
     state: 'DISCOVERY',
-    messages: [...state.messages, jevMessage(message, state.probabilities)],
+    messages: [...state.messages, jevMessage(message)],
   };
 };
 
-export const runToolNode = async (state: AgentState): Promise<AgentState> => {
+const pendingToolCallPart = (state: AgentState) => {
+  const last = state.messages.at(-1)?.message;
+  if (last?.role !== 'assistant' || !Array.isArray(last.content) || last.content.length !== 1) return undefined;
+  const part = last.content[0];
+  return part?.type === 'tool-call' ? part : undefined;
+};
+
+export const needsPreparedToolExecution = (state: AgentState): boolean =>
+  !!pendingToolCallPart(state);
+
+export const prepareToolCallNode = async (state: AgentState): Promise<AgentState> => {
   const selectedTool = state.selectedTool;
   if (!selectedTool) {
     const message: ModelMessage = {
@@ -300,13 +318,8 @@ export const runToolNode = async (state: AgentState): Promise<AgentState> => {
     return { state: 'END', messages: [...state.messages, jevMessage(message)] };
   }
 
-  if (selectedTool === CREATE_PLAN_ACTION) {
-    return createPlanNode(state);
-  }
-
-  if (selectedTool === ASK_QUESTION_ACTION) {
-    return clarifyTaskNode(state);
-  }
+  if (selectedTool === CREATE_PLAN_ACTION) return createPlanNode(state);
+  if (selectedTool === ASK_QUESTION_ACTION) return clarifyTaskNode(state);
 
   const availableTools = await listAllTools();
   const selected = availableTools.find((t) => mcpToolKey(t) === selectedTool);
@@ -354,6 +367,20 @@ export const runToolNode = async (state: AgentState): Promise<AgentState> => {
     }],
   };
 
+  return {
+    state: 'EXECUTE',
+    messages: [...state.messages, jevMessage(toolCallMessage)],
+    selectedTool,
+    probabilities: state.probabilities,
+  };
+};
+
+export const executePreparedToolNode = async (state: AgentState): Promise<AgentState> => {
+  const toolCall = pendingToolCallPart(state);
+  const selectedTool = state.selectedTool ?? toolCall?.toolName;
+  if (!toolCall || !selectedTool) return state;
+
+  const { server, name } = parseToolKey(selectedTool);
   const toolResult = isDefaultToolKey(selectedTool)
     ? await executeDefaultTool(name, toolCall.input as Record<string, unknown>)
     : isUserToolKey(selectedTool)
@@ -363,7 +390,6 @@ export const runToolNode = async (state: AgentState): Promise<AgentState> => {
 
   let messages: JevMessage[] = [
     ...state.messages,
-    jevMessage(toolCallMessage, state.probabilities),
     jevMessage(toolResultMessage),
   ];
   messages = await compactMessages(messages);
@@ -374,4 +400,4 @@ export const runToolNode = async (state: AgentState): Promise<AgentState> => {
     selectedTool,
     probabilities: state.probabilities,
   };
-}
+};

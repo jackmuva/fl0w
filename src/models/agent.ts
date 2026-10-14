@@ -2,12 +2,11 @@ import type { ModelMessage } from "ai";
 
 export type ChoiceProbabilities = { [choice: string]: number };
 
-export type JevMessageFrame = 'summary';
+export type JevMessageFrame = 'summary' | 'decision';
 
-/** A ModelMessage plus UI-only metadata. Only `message` is ever sent to an LLM. */
+/** A ModelMessage plus UI-only metadata. Only non-framed messages go to the LLM (see `toModelMessages`). */
 export type JevMessage = {
   message: ModelMessage,
-  probabilities?: ChoiceProbabilities,
   frame?: JevMessageFrame,
 }
 
@@ -16,7 +15,7 @@ export type AgentState = {
   state: STATE,
   messages: JevMessage[],
   selectedTool?: string,
-  /** Action-select probabilities that led to `selectedTool`; attached to its tool-call message. */
+  /** Action-select (or routing) probabilities for the upcoming tool call. */
   probabilities?: ChoiceProbabilities,
 }
 
@@ -32,5 +31,3 @@ export type CapabilityKind = 'skills' | 'mcpServers' | 'userTools' | 'agentsMd';
 export type CapabilitySelection = Record<CapabilityKind, string[]>;
 
 export type CapabilityCatalog = Record<CapabilityKind, Array<{ name: string, description?: string }>>;
-
-

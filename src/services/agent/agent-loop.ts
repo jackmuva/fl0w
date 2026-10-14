@@ -1,24 +1,30 @@
 import { findPendingAskQuestion } from './utils/ask-question-state';
 import type { AgentState, JevMessage } from '../../models/agent';
-import { clarifyTaskNode, createPlanNode, initialNode, runToolNode, actionSelectNode } from './graph';
+import {
+  clarifyTaskNode,
+  createPlanNode,
+  initialNode,
+  prepareToolCallNode,
+  executePreparedToolNode,
+  needsPreparedToolExecution,
+  actionSelectNode,
+} from './graph';
 import { compactionHook } from './hooks/compaction';
 import { rewindState } from './hooks/rewind';
 import { formatAgentRunError } from './llm-error';
 import { jevMessage } from './utils/jev-message';
 import { MAX_ITERATIONS } from '../../constants';
 
-export type JevLoopOptions = {
-  signal?: AbortSignal;
-};
+export type JevLoopCallback = (messages: JevMessage[]) => void;
 
 export type JevLoopResult = 'ok' | 'error' | 'stopped';
 
-const sync = (next: AgentState, callback: (messages: JevMessage[]) => void): AgentState => {
+const sync = (next: AgentState, callback: JevLoopCallback): AgentState => {
   callback(next.messages);
   return next;
 };
 
-const stopIfAborted = (state: AgentState, callback: (messages: JevMessage[]) => void, signal?: AbortSignal,): AgentState | undefined => {
+const stopIfAborted = (state: AgentState, callback: JevLoopCallback, signal?: AbortSignal,): AgentState | undefined => {
   if (!signal?.aborted) return undefined;
   return sync({
     state: 'END',
@@ -32,7 +38,7 @@ const stopIfAborted = (state: AgentState, callback: (messages: JevMessage[]) => 
 const endRunWithError = (
   state: AgentState,
   error: unknown,
-  callback: (messages: JevMessage[]) => void,
+  callback: JevLoopCallback,
 ): AgentState => sync({
   state: 'END',
   messages: [
@@ -41,7 +47,12 @@ const endRunWithError = (
   ],
 }, callback);
 
-const runNode = async (state: AgentState, node: (state: AgentState) => Promise<AgentState>, callback: (messages: JevMessage[]) => void, signal?: AbortSignal,): Promise<{ ok: boolean; state: AgentState }> => {
+const runNode = async (
+  state: AgentState,
+  node: (state: AgentState) => Promise<AgentState>,
+  callback: JevLoopCallback,
+  signal?: AbortSignal,
+): Promise<{ ok: boolean; state: AgentState }> => {
   let current = sync(await compactionHook(state), callback);
   let ended = stopIfAborted(current, callback, signal);
   if (ended) return { ok: false, state: ended };
@@ -67,10 +78,9 @@ const runNode = async (state: AgentState, node: (state: AgentState) => Promise<A
 
 export const jevLoop = async (
   messages: JevMessage[],
-  callback: (messages: JevMessage[]) => void,
-  options?: JevLoopOptions,
+  callback: JevLoopCallback,
+  signal?: AbortSignal,
 ): Promise<JevLoopResult> => {
-  const signal = options?.signal;
   let state: AgentState = { state: 'START', messages: [...messages] };
 
   if (findPendingAskQuestion(state.messages)) return 'ok';
@@ -103,9 +113,9 @@ export const jevLoop = async (
     if (state.state !== 'REWIND' && !state.selectedTool) {
       let actionSelectCheckpoint: { state: AgentState; options: string[] } | null = null;
       result = await runNode(state, async (s) => {
-        const { state: newState, options } = await actionSelectNode(s);
-        if (options.length > 0 && newState.state === 'EXECUTE') {
-          actionSelectCheckpoint = { state: { ...newState }, options };
+        const { state: newState, options: actionOptions } = await actionSelectNode(s);
+        if (actionOptions.length > 0 && newState.state === 'EXECUTE') {
+          actionSelectCheckpoint = { state: { ...newState }, options: actionOptions };
         }
         return newState;
       }, callback, signal);
@@ -116,9 +126,14 @@ export const jevLoop = async (
 
     const runningTool = state.state === 'EXECUTE';
     if (runningTool) {
-      result = await runNode(state, runToolNode, callback, signal);
+      result = await runNode(state, prepareToolCallNode, callback, signal);
       state = result.state;
       if (!result.ok) return 'error';
+      if (needsPreparedToolExecution(state)) {
+        result = await runNode(state, executePreparedToolNode, callback, signal);
+        state = result.state;
+        if (!result.ok) return 'error';
+      }
     }
     if (runningTool) {
       if (state.state === 'DISCOVERY' || findPendingAskQuestion(state.messages)) return 'ok';

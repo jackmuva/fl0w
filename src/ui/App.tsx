@@ -222,7 +222,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
       const runAbort = new AbortController()
       runAbortRef.current = runAbort
       try {
-        finishAgentRun(await jevLoop(nextMessages, setMessages, { signal: runAbort.signal }))
+        finishAgentRun(await jevLoop(nextMessages, setMessages, runAbort.signal))
       } finally {
         runAbortRef.current = null
       }
@@ -239,7 +239,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      finishAgentRun(await jevLoop(nextMessages, setMessages, { signal: runAbort.signal }))
+      finishAgentRun(await jevLoop(nextMessages, setMessages, runAbort.signal))
     } finally {
       runAbortRef.current = null
     }
@@ -264,7 +264,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      finishAgentRun(await jevLoop(nextMessages, setMessages, { signal: runAbort.signal }))
+      finishAgentRun(await jevLoop(nextMessages, setMessages, runAbort.signal))
     } finally {
       runAbortRef.current = null
     }

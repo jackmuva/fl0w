@@ -38,7 +38,7 @@ if (HEADLESS) {
 const { createCliRenderer } = await import("@opentui/core")
 const { createRoot } = await import("@opentui/react")
 const { App } = await import("./ui/App")
-const { disposeAppClipboard, initAppClipboard } = await import("./services/clipboard/app-clipboard")
+const { disposeAppClipboard, initAppClipboard } = await import("./ui/lib/clipboard/app-clipboard")
 
 let initialMessage: null | string = syncWarning
 const seedMessages = (await frontLoadMessages()).map((message) => jevMessage(message))

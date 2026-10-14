@@ -1,79 +1,36 @@
 # fl0w — Agent Guide
 
-Guidance for AI coding agents working in this repo. Sits alongside `README.md`
-(user docs) and `.cursor/` / `.claude/` tool config. May be discovered at
-runtime to seed workspace instructions into the conversation.
-
----
+Guidance for AI coding agents in this repo (user docs live in `README.md`).
+May seed workspace instructions into the conversation at runtime.
 
 ## Overview
 
-A terminal (TUI) app built on **OpenTUI** that connects to MCP servers and
-renders a conversational agent that plans, executes tasks, and can be distilled
-into reusable workflows.
+A terminal (TUI) app built on **OpenTUI** that connects to MCP servers and runs a
+conversational agent that plans, executes, and distills tasks into reusable workflows.
 
-Key facts:
-- **Stack** — TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, `@modelcontextprotocol/sdk`, Vercel `ai` SDK.
-- **Config** — `config.json` in `JEV_HOME` (`~/.fl0w`) drives the app; fields
-  (e.g. `aiGatewayApiKey`, `llmModel`) load into `process.env` at startup.
-- **Agent model** — `LLM_MODEL` env (from `llmModel`, default `deepseek/deepseek-v4-flash`);
+- **Stack** — TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
+- **Config** — `config.json` in `JEV_HOME` (`~/.fl0w`) loads into `process.env` at startup.
+- **Models** — `LLM_MODEL` env (from `llmModel`, default `deepseek/deepseek-v4-flash`);
   `SYSTEM_ONE_MODEL` (default `typesafe-ai/jev`) drives planning.
-- **Auth** — CLI account commands (`fl0w login`, `logout`, `whoami`) sign in through
-  fl0w-work (`FL0W_API_URL`, default `https://www.fl0w.work`); tokens and MCP OAuth state
-  live in `auth.json`. Login also returns the user's own Vercel AI Gateway key, saved as
-  `config.json`'s `aiGatewayApiKey` unless the user already set one (there or via
-  `AI_GATEWAY_API_KEY`). Model calls always go directly to AI Gateway with that key.
-- **Config sync** — when signed in, `config.json`, `mcp.json`, and `auth.json` sync with
-  fl0w-work (`src/services/sync/`): reconciled at startup (before config loads) and after
-  `fl0w login`, and pushed ~1s after local writes. The server encrypts them at rest and keeps a
-  version per file; the CLI keeps the last-synced content in `sync-state.json` (0600) as the
-  base for three-way merges. Disable with `FL0W_SYNC=0`. **Local mode:** signed out with
-  your own `AI_GATEWAY_API_KEY` (env or `config.json`), the CLI works fully offline and sync
-  makes no network calls; a fl0w login is never required.
-- **MCP** — configured servers auto-connect at startup (with OAuth); failure is
-  non-fatal (UI warning).
-- **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content,
-  and skills catalog seed the conversation before the UI boots.
-- **Capabilities** — skills, MCP servers, `AGENTS.md`, and user tools are
-  discovered and selectable from the UI.
-- **Persistence** — sessions in SQLite (`DB_PATH` → `JEV_HOME/fl0w-sqlite.db`,
-  resume via `/resume`); workflows stored separately.
-- **Workflows** — sessions distill into reusable workflows (`/generate-workflow`
-  `/run-workflow`) with required capabilities.
-- **Skills** — discovered from `./skills`, `JEV_HOME/skills`, `~/.cursor/skills-cursor`;
-  loaded via the `load_skill` tool.
-- **User tools** — custom tools registered via `loadUserTools()` from `JEV_HOME/tools`
-  in the `user` namespace.
-- **Agent graph** — state machine (`START` → `PLAN`/`DISCOVERY` → `EXECUTE` → `END`,
-  with `REWIND`) run by `jevLoop()` and nodes in `src/services/agent/graph.ts`.
-- **Graceful shutdown** — MCP connections close cleanly on exit.
-
----
-
-## Commands
-
-| Command                             | Description                                                          |
-| ----------------------------------- | -------------------------------------------------------------------- |
-| `bun install`                       | Install dependencies (first).                                        |
-| `bun dev`                           | Run in watch mode (`bun run --watch src/index.tsx`).                 |
-| `bun run lint`                      | Typecheck without emitting (`tsc --noEmit`).                         |
-| `bun run build`                     | Compile local executable (`bun build --compile --outfile fl0w`).     |
-| `fl0w login`                        | Sign in via fl0w-work (browser + localhost PKCE callback); saves an AI Gateway key.|
-| `fl0w logout`                       | Sign out and clear stored fl0w auth.                                 |
-| `fl0w whoami`                       | Print the signed-in account (exit 1 if not signed in).               |
-| `bun run install:opentui-platforms` | Add all-platform/all-cpu `@opentui/core` (for cross-builds).         |
-| `bun run build:linux-x64`           | Cross-compile → `dist/fl0w-linux-x64`.                              |
-| `bun run build:linux-arm64`         | Cross-compile → `dist/fl0w-linux-arm64`.                            |
-| `bun run build:linux-x64-musl`      | Cross-compile → `dist/fl0w-linux-x64-musl`.                         |
-| `bun run build:linux-arm64-musl`    | Cross-compile → `dist/fl0w-linux-arm64-musl`.                       |
-| `bun run build:darwin-x64`          | Cross-compile → `dist/fl0w-darwin-x64`.                             |
-| `bun run build:darwin-arm64`        | Cross-compile → `dist/fl0w-darwin-arm64`.                           |
-| `bun run build:windows-x64`         | Cross-compile → `dist/fl0w-windows-x64.exe`.                        |
-| `bun run build:all`                 | Install all platforms, then build every target.                     |
-
-Artifacts land in `dist/`. The local build produces `./fl0w`.
-
----
+- **Auth** — `fl0w login`/`logout`/`whoami` sign in via fl0w-work (`FL0W_API_URL`, default
+  `https://www.fl0w.work`); tokens + MCP OAuth state live in `auth.json`. Login saves a Vercel
+  AI Gateway key as `aiGatewayApiKey` unless one is set (`config.json` or `AI_GATEWAY_API_KEY`).
+  Model calls always go directly to AI Gateway.
+- **Config sync** — when signed in, `config.json`, `mcp.json`, `auth.json` sync with fl0w-work:
+  reconciled at startup and after `fl0w login`, pushed ~1s after writes, three-way-merged against
+  `sync-state.json` (0600). Disable with `FL0W_SYNC=0`. **Local mode:** signed out with your own
+  `AI_GATEWAY_API_KEY`, the CLI works fully offline — no login, no network.
+- **MCP** — servers auto-connect at startup (with OAuth); failure is non-fatal (UI warning).
+- **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content, and the skills
+  catalog seed the conversation before the UI boots.
+- **Capabilities** — skills, MCP servers, `AGENTS.md`, and user tools are discoverable/toggleable.
+- **Persistence** — sessions in SQLite (`DB_PATH` → `JEV_HOME/fl0w-sqlite.db`, resume via `/resume`).
+- **Workflows** — sessions distill into reusable workflows (`/generate-workflow`, `/run-workflow`).
+- **Skills** — found in `./skills`, `JEV_HOME/skills`, `~/.cursor/skills-cursor`; loaded via `load_skill`.
+- **User tools** — `loadUserTools()` registers custom tools from `JEV_HOME/tools` in the `user` namespace.
+- **Agent graph** — state machine (`START` → `PLAN`/`DISCOVERY` → `EXECUTE` → `END`, with
+  `REWIND`) in `src/services/agent/graph.ts`, run by `jevLoop()`.
+- **Shutdown** — MCP connections close cleanly on exit.
 
 ## Structure
 
@@ -81,67 +38,47 @@ Artifacts land in `dist/`. The local build produces `./fl0w`.
 src/
 ├── index.tsx          # Entry – loads config, initializes MCP/tools, renders TUI
 ├── constants.ts       # Shared constants (JEV_HOME, LLM_MODEL, SYSTEM_ONE_MODEL, DB_PATH)
-├── db/                # schema.ts (Drizzle tables + openDatabase), session-store.ts, workflow-store.ts (+ tests)
-├── models/            # agent.ts, config.ts, mcp.ts, ui.ts, workflow.ts
-├── services/
-│   ├── agent/         # agent-loop.ts, capabilities.ts, graph.ts, prompt.ts
-│   │   ├── default-tools/ # built-in tools (apply-patch, bash, read-file, …)
-│   │   ├── hooks/         # front-load.ts, compaction.ts, rewind.ts (+ tests/fixtures)
-│   │   ├── user-tools/    # loader.ts
-│   │   └── utils/
-│   ├── auth/           # commands (login/logout/whoami), token.ts (auth.json), callback-server.ts
-│   ├── config/app-config.ts   # loadAppConfig(), ensureJevHome()
-│   ├── mcp/            # mcp-client.ts, oauth-provider.ts
-│   ├── workflow/       # build-message.ts, extract-tool-calls.ts, generate.ts
+├── db/                # schema, session-store, workflow-store (+ tests)
+├── models/            # agent, config, mcp, ui, workflow types
+├── services/          # Business logic
+│   ├── agent/         # loop, capabilities, graph, prompt, built-in & user tools, hooks
+│   ├── auth/          # login/logout/whoami, token.ts, callback-server
+│   ├── config/        # app-config (loadAppConfig, ensureJevHome)
+│   ├── mcp/           # mcp-client, oauth-provider
+│   ├── sync/          # fl0w-work config/mcp/auth sync
+│   ├── workflow/      # generate & extract tool calls
 │   └── session/
-└── ui/                 # App.tsx, hooks/, lib/, components/
+└── ui/                # App, hooks, lib, components
 ```
-
----
 
 ## How It Works
 
-1. **Startup** — `ensureJevHome()` scaffolds `JEV_HOME` (`config.json`, `mcp.json`,
-   `tools/`); CLI account commands (`login`/`logout`/`whoami`) are dispatched before
-   the app boots. `loadAppConfig()` reads config and populates env vars. `auth.json`
-   holds fl0w login tokens and MCP OAuth state. Messages front-loaded so the UI renders
-   immediately.
-2. **Front-loading** — workspace instructions, enabled `AGENTS.md` content, and the
-   skills catalog (via `discoverSkills()`, `discoverAgentsMd()`) seed the conversation.
-3. **MCP connect** — `mcpClient.loadConfig()` + `connectAll()` connect all servers
-   (optional OAuth). Failures show a UI warning, never crash.
-4. **Tools** — `loadUserTools()` registers custom tools in the `user` namespace.
-5. **Capabilities** — skills/servers/tools/`AGENTS.md` discovered into a
-   `CapabilityCatalog`, toggleable in the UI.
-6. **Render** — `@opentui/core` boots and `<App />` renders with seeded messages.
-7. **Agent runtime** — `jevLoop()` runs the state machine and hooks
-   (`compactionHook`, `rewindState`).
-8. **Shutdown** — exit handler closes all MCP connections cleanly.
-
----
+1. `ensureJevHome()` scaffolds `JEV_HOME`; CLI account commands dispatch up front;
+   `loadAppConfig()` populates env. Messages front-load so the UI renders immediately.
+2. Workspace instructions, enabled `AGENTS.md`, and the skills catalog seed the conversation.
+3. `mcpClient.loadConfig()` + `connectAll()` connect all servers (optional OAuth); failures warn.
+4. `loadUserTools()` registers `user` namespace tools.
+5. Skills/servers/tools/`AGENTS.md` load into a togglable `CapabilityCatalog`.
+6. `@opentui/core` boots and `<App />` renders seeded messages.
+7. `jevLoop()` runs the state machine and hooks (`compactionHook`, `rewindState`).
+8. Exit handler closes all MCP connections.
 
 ## Conventions
 
-- TypeScript throughout; run `bun run lint` before finishing.
-- Prefer explicit types over `any`.
-- Use one-line `if`s where they fit.
-- **Prefer inline logic over creating new helper methods.** New helpers that are
-  used only once are discouraged.
+- TypeScript; run `bun run lint` before finishing.
+- Prefer explicit types over `any`; use one-line `if`s where they fit.
+- **Prefer inline logic over one-off helper methods.**
 - Reuse existing files over creating new ones.
-- Models/types → `src/models/`; business logic → `src/services/`; UI → `src/ui/`;
-  shared values → `src/constants.ts`.
-
----
+- Models/types → `src/models/`; business logic → `src/services/`; UI → `src/ui/`; shared values → `src/constants.ts`.
 
 ## Agent Instructions
 
-- **Read before editing** — understand `src/index.tsx`,
-  `src/services/config/app-config.ts`, and `src/services/mcp/mcp-client.ts`
-  before touching startup, config, or connection logic.
-- **Config-driven env vars** — mirror `loadAppConfig()`: map a `config.json` field
-  to `process.env` with a sensible default in `src/constants.ts`.
-- **Failure-tolerant design** — never crash on missing MCP config; surface UI warnings.
+- **Read before editing** — understand `src/index.tsx`, `src/services/config/app-config.ts`,
+  and `src/services/mcp/mcp-client.ts` before touching startup, config, or connection logic.
+- **Config-driven env vars** — mirror `loadAppConfig()`: map a `config.json` field to
+  `process.env` with a sensible default in `src/constants.ts`.
+- **Failure-tolerant** — never crash on missing MCP config; surface UI warnings.
 - **Capability types** — import `CapabilityCatalog`/`CapabilityKind`/`CapabilitySelection`
   from `src/models/agent.ts`, not `src/services/agent/capabilities.ts`.
-- **Preserve graceful shutdown** — MCP-touching code must respect the clean-close-on-exit path.
+- **Graceful shutdown** — MCP-touching code must respect the clean-close-on-exit path.
 - **Verify** — after changes run `bun run lint` and confirm `bun dev` boots.

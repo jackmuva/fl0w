@@ -9,8 +9,8 @@ import {
 } from '../../constants';
 import type { AppConfig } from '../../models/config';
 import type { McpConfig } from '../../models/mcp';
-import { notifyLocalWrite } from '../sync/local-writes';
-import { writeJsonAtomic } from '../utils';
+import { notifyLocalWrite } from '../../services/sync/local-writes';
+import { writeJsonAtomic } from '../../services/utils';
 
 export { APP_CONFIG_PATH };
 

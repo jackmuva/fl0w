@@ -221,7 +221,6 @@ export const compactMessages = async (
 
     const summaryMessage = jevMessage(
       { role: 'assistant', content: summary },
-      undefined,
       'summary',
     );
 

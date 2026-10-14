@@ -2,6 +2,7 @@ import type { ModelMessage } from "ai"
 import type { JevMessage } from "../../../models/agent"
 import { parseUserAttachments } from "../../lib/input-completion/at-files"
 import { parseWorkflowPrompt } from "../../../services/workflow/build-message"
+import { parseDecisionMessage } from "../../../services/agent/utils/jev-message"
 import { renderToolCall, renderToolResult } from "../../tool-renderers"
 import {
   formatToolResultText,
@@ -10,6 +11,7 @@ import {
   type ToolResultPart,
 } from "../../lib/format/message"
 import { filetypeFromPath } from "../../lib/format/message"
+import { selectedDecisionChoice } from "../../lib/decision-choice"
 import { ChoiceProbabilities } from "./ChoiceProbabilities"
 import { HighlightedCode } from "./HighlightedCode"
 import { AGENT_BORDER_COLOR, MessageFrame, MessageFrameKindContext } from "./MessageFrame"
@@ -49,22 +51,27 @@ const hasOnlyToolCalls = (message: ModelMessage): boolean => {
   return message.content.length > 0 && message.content.every((part) => part.type === "tool-call")
 }
 
-// Tools reached via the initial routing step carry its probabilities, keyed by route name.
-const ROUTE_CHOICE_BY_TOOL: Record<string, string> = {
-  AskQuestion: "clarifyTask",
-  CreatePlan: "createPlan",
-}
-
-const selectedChoice = (probabilities: Record<string, number>, toolName: string) =>
-  toolName in probabilities ? toolName : (ROUTE_CHOICE_BY_TOOL[toolName] ?? toolName)
-
 type MessageContentProps = {
   message: JevMessage
   toolCallInputs: Map<string, { toolName: string; input: unknown }>
 }
 
-export const MessageContent = ({ message: { message, probabilities, frame }, toolCallInputs }: MessageContentProps) => {
+export const MessageContent = ({ message: entry, toolCallInputs }: MessageContentProps) => {
+  const { message, frame } = entry
   const isAgent = message.role === "assistant" || message.role === "tool"
+
+  if (frame === "decision") {
+    const decision = parseDecisionMessage(entry)
+    if (!decision) return null
+    return (
+      <MessageFrameKindContext.Provider value="call">
+        <ChoiceProbabilities
+          probabilities={decision.probabilities}
+          selected={selectedDecisionChoice(decision.probabilities, decision.selectedTool)}
+        />
+      </MessageFrameKindContext.Provider>
+    )
+  }
 
   if (frame === "summary") {
     const text = formatMessageContent(message)
@@ -110,24 +117,11 @@ export const MessageContent = ({ message: { message, probabilities, frame }, too
         {message.content.map((part, index) => {
           if (part.type !== "tool-call") return null
           const toolCall = part as ToolCallPart
-          const choices = probabilities ? (
-            <ChoiceProbabilities
-              probabilities={probabilities}
-              selected={selectedChoice(probabilities, toolCall.toolName)}
-            />
-          ) : null
 
-          if (
-            toolCall.toolName === "AskQuestion"
-            || toolCall.toolName === "CreatePlan"
-            || toolCall.toolName === "default/message_answer"
-          ) {
-            return choices && <box key={toolCall.toolCallId ?? index}>{choices}</box>
-          }
+          if (toolCall.toolName === "AskQuestion") return null
 
           return (
             <box key={toolCall.toolCallId ?? index}>
-              {choices}
               {renderToolCall({
                 toolName: toolCall.toolName,
                 toolCallId: toolCall.toolCallId,
