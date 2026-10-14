@@ -4,7 +4,7 @@ import { desc, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { mkdirSync } from 'node:fs';
-import { DB_PATH, JEV_HOME } from '../constants';
+import { DB_PATH, FL0W_HOME } from '../constants';
 import type { CapabilitySelection, JevMessage } from '../models/agent';
 import type { WorkflowStep } from '../models/workflow';
 
@@ -48,7 +48,7 @@ export type FlowDatabase = ReturnType<typeof openDatabase>;
 // Idempotent DDL (mirrors the tables above) so existing user databases and the
 // compiled binary work without shipping a drizzle-kit migrations folder.
 export const openDatabase = (path = DB_PATH) => {
-  if (path !== ':memory:') mkdirSync(JEV_HOME, { recursive: true });
+  if (path !== ':memory:') mkdirSync(FL0W_HOME, { recursive: true });
   const db = drizzle({ client: new Database(path, { create: true }) });
 
   db.run(sql`

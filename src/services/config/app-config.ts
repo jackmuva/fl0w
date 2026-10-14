@@ -5,7 +5,7 @@ import {
   AI_GATEWAY_API_KEY_PLACEHOLDER,
   APP_CONFIG_PATH,
   DEFAULT_LLM_MODEL,
-  JEV_HOME,
+  FL0W_HOME,
 } from '../../constants';
 import type { AppConfig } from '../../models/config';
 import type { McpConfig } from '../../models/mcp';
@@ -56,7 +56,7 @@ export async function saveFl0wGatewayKey(key: string, path = APP_CONFIG_PATH): P
   return true;
 }
 
-export async function ensureJevHome(home = JEV_HOME): Promise<void> {
+export async function ensureFl0wHome(home = FL0W_HOME): Promise<void> {
   mkdirSync(home, { recursive: true });
   await mkdir(join(home, 'tools'), { recursive: true });
 

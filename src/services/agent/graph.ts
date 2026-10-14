@@ -9,7 +9,7 @@ import {
   type ToolChoice,
 } from 'ai';
 import { compactMessages } from './hooks/compaction';
-import { HEADLESS, LLM_MODEL, SYSTEM_ONE_MODEL } from '../../constants';
+import { HEADLESS, LLM_MODEL, DECISION_MODEL } from '../../constants';
 import { recordLlmUsage } from './hooks/session-usage';
 import type { AgentState, JevMessage } from '../../models/agent';
 import { mcpToolKey } from '../../models/mcp';
@@ -93,7 +93,7 @@ export const initialNode = async (state: AgentState): Promise<AgentState> => {
   const availableTools = await listAllTools();
   const routedTools = await reduceTools(state, availableTools);
   const initialEvaluation = await retryModelCall(() => evaluate({
-    model: SYSTEM_ONE_MODEL,
+    model: DECISION_MODEL,
     state: [{
       toolsAvailable: toolsForEvaluateState(routedTools) as JSONValue,
       messages: toModelMessages(state.messages) as JSONValue,
@@ -147,7 +147,7 @@ export const actionSelectNode = async (
   const criteria = buildToolCriteria(fittedTools);
 
   const actionEvaluation = await retryModelCall(() => evaluate({
-    model: SYSTEM_ONE_MODEL,
+    model: DECISION_MODEL,
     state: [{
       messages: toModelMessages(state.messages) as JSONValue,
     }],

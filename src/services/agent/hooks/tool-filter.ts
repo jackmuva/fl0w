@@ -1,7 +1,7 @@
 import {
   COMPACTION_CONTEXT_WINDOW,
   MAX_EVALUATE_TOOL_OPTIONS,
-  SYSTEM_ONE_MODEL,
+  DECISION_MODEL,
   TOOL_REDUCE_MAX_ITERATIONS,
   TOOL_TOKEN_THRESHOLD,
 } from '../../../constants';
@@ -57,7 +57,7 @@ const chunkToolsByTokenLimit = (
 const rankToolsInChunk = async (state: AgentState, chunk: McpTool[]): Promise<McpTool[]> => {
   const chunkKeys = new Set(chunk.map(mcpToolKey));
   const runEvaluate = () => retryModelCall(() => evaluate({
-    model: SYSTEM_ONE_MODEL,
+    model: DECISION_MODEL,
     state: [{
       messages: toModelMessages(state.messages) as JSONValue,
     }],

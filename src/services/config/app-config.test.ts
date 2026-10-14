@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { access, mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { AI_GATEWAY_API_KEY_PLACEHOLDER, DEFAULT_LLM_MODEL } from '../../constants';
-import { ensureJevHome, loadAppConfig, saveFl0wGatewayKey } from './app-config';
+import { ensureFl0wHome, loadAppConfig, saveFl0wGatewayKey } from './app-config';
 
 const tempRoot = join(import.meta.dir, '__fixtures__', 'app-config');
 let previousApiKey: string | undefined;
@@ -91,10 +91,10 @@ describe('saveFl0wGatewayKey', () => {
   });
 });
 
-describe('ensureJevHome', () => {
+describe('ensureFl0wHome', () => {
   test('creates default home layout when missing', async () => {
     const home = join(tempRoot, 'fresh-home');
-    await ensureJevHome(home);
+    await ensureFl0wHome(home);
 
     await access(join(home, 'tools'));
 
@@ -115,7 +115,7 @@ describe('ensureJevHome', () => {
     await writeFile(join(home, 'config.json'), JSON.stringify({ llmModel: 'custom/model' }));
     await writeFile(join(home, 'mcp.json'), JSON.stringify({ mcpServers: { demo: { command: 'echo' } } }));
 
-    await ensureJevHome(home);
+    await ensureFl0wHome(home);
 
     const config = JSON.parse(await Bun.file(join(home, 'config.json')).text());
     expect(config).toEqual({ llmModel: 'custom/model' });

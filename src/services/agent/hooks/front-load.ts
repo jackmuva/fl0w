@@ -2,7 +2,7 @@ import type { ModelMessage } from 'ai';
 import { readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'path';
-import { JEV_HOME } from '../../../constants';
+import { FL0W_HOME } from '../../../constants';
 import { isCapabilityEnabled } from '../capabilities';
 
 export const AGENTS_MD_FILENAME = 'AGENTS.md';
@@ -15,8 +15,9 @@ export type SkillSummary = {
 };
 
 export const getSkillsDirs = (cwd = process.cwd()): string[] => [
-  join(resolve(cwd), '.agents', 'skills'),
-  join(JEV_HOME, 'skills'),
+  join(resolve(cwd), 'skills'),
+  join(FL0W_HOME, 'skills'),
+  join(FL0W_HOME, 'skills'),
   join(homedir(), '.cursor', 'skills-cursor'),
   join(homedir(), '.claude', 'skills'),
 ];

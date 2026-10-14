@@ -1,20 +1,22 @@
 import type { CapabilityCatalog } from "./models/agent"
 import { HEADLESS } from "./constants"
 import { discoverAgentsMd, discoverSkills, frontLoadMessages } from "./services/agent/hooks/front-load"
-import { ensureJevHome, loadAppConfig } from "./services/config/app-config"
+import { ensureFl0wHome, loadAppConfig } from "./services/config/app-config"
 import { jevMessage } from "./services/agent/utils/jev-message"
 import { listUserTools, loadUserTools } from "./services/agent/user-tools/loader"
 import { mcpToolKey } from "./models/mcp"
 import { mcpClient } from "./services/mcp/mcp-client"
 import { flushPendingPushes, syncOnStartup, watchLocalConfigWrites } from "./services/sync/config-sync"
+import { isConfigSyncEnabled } from "./services/config/app-config"
 
-await ensureJevHome()
+await ensureFl0wHome()
 
 const ACCOUNT_COMMANDS = ["login", "logout", "whoami"]
 const isAccountCommand = ACCOUNT_COMMANDS.includes(Bun.argv[2] ?? "")
 
 let syncWarning: string | null = null
 if (!isAccountCommand) {
+  if (await isConfigSyncEnabled()) console.log("Syncing config files...")
   syncWarning = await syncOnStartup()
   watchLocalConfigWrites()
 }
