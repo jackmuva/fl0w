@@ -1,5 +1,5 @@
 import { mkdirSync } from 'node:fs';
-import { chmod, mkdir, writeFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   AI_GATEWAY_API_KEY_PLACEHOLDER,
@@ -9,6 +9,8 @@ import {
 } from '../../constants';
 import type { AppConfig } from '../../models/config';
 import type { McpConfig } from '../../models/mcp';
+import { notifyLocalWrite } from '../sync/local-writes';
+import { writeJsonAtomic } from '../utils';
 
 export { APP_CONFIG_PATH };
 
@@ -39,8 +41,8 @@ export async function saveFl0wGatewayKey(key: string, path = APP_CONFIG_PATH): P
   const configKey = config.aiGatewayApiKey === AI_GATEWAY_API_KEY_PLACEHOLDER ? undefined : config.aiGatewayApiKey;
   const current = configKey ?? process.env.AI_GATEWAY_API_KEY;
   if (current && current !== key) return false;
-  await writeFile(path, `${JSON.stringify({ ...config, aiGatewayApiKey: key }, null, 2)}\n`, { mode: 0o600 });
-  await chmod(path, 0o600);
+  await writeJsonAtomic(path, { ...config, aiGatewayApiKey: key });
+  notifyLocalWrite(path);
   process.env.AI_GATEWAY_API_KEY = key;
   return true;
 }

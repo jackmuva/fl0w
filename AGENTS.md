@@ -23,6 +23,13 @@ Key facts:
   live in `auth.json`. Login also returns the user's own Vercel AI Gateway key, saved as
   `config.json`'s `aiGatewayApiKey` unless the user already set one (there or via
   `AI_GATEWAY_API_KEY`). Model calls always go directly to AI Gateway with that key.
+- **Config sync** — when signed in, `config.json`, `mcp.json`, and `auth.json` sync with
+  fl0w-work (`src/services/sync/`): reconciled at startup (before config loads) and after
+  `fl0w login`, and pushed ~1s after local writes. The server encrypts them at rest and keeps a
+  version per file; the CLI keeps the last-synced content in `sync-state.json` (0600) as the
+  base for three-way merges. Disable with `FL0W_SYNC=0`. **Local mode:** signed out with
+  your own `AI_GATEWAY_API_KEY` (env or `config.json`), the CLI works fully offline and sync
+  makes no network calls; a fl0w login is never required.
 - **MCP** — configured servers auto-connect at startup (with OAuth); failure is
   non-fatal (UI warning).
 - **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content,

@@ -1,4 +1,5 @@
 import Bottleneck from "bottleneck";
+import { chmod, rename, writeFile } from "node:fs/promises";
 
 export const modelRateLimiter = new Bottleneck({
   minTime: 100,
@@ -37,4 +38,12 @@ export function openBrowser(url: string): void {
   } catch {
     // no browser available; callers also print the URL
   }
+}
+
+/** Writes JSON via a temp file + rename so readers never see a partial file; 0600 since these hold secrets. */
+export async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
+  const tmp = `${path}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  await writeFile(tmp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+  await chmod(tmp, 0o600);
+  await rename(tmp, path);
 }

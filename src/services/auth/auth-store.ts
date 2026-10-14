@@ -1,6 +1,7 @@
-import { chmod, rename, writeFile } from 'node:fs/promises';
 import { AUTH_PATH } from '../../constants';
 import type { AuthFile } from '../../models/auth';
+import { notifyLocalWrite } from '../sync/local-writes';
+import { writeJsonAtomic } from '../utils';
 
 export async function readAuthFile(path = AUTH_PATH): Promise<AuthFile> {
   const file = Bun.file(path);
@@ -14,14 +15,21 @@ export async function readAuthFile(path = AUTH_PATH): Promise<AuthFile> {
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 
-/** Applies `update` to auth.json and writes it atomically with 0600 permissions. */
-export function updateAuthFile(update: (file: AuthFile) => AuthFile, path = AUTH_PATH): Promise<AuthFile> {
+/**
+ * Applies `update` to auth.json and writes it atomically with 0600 permissions.
+ * Returning `file` unchanged skips the write. `notify: false` is for config sync's own writes, so pulled content isn't pushed straight back.
+ */
+export function updateAuthFile(
+  update: (file: AuthFile) => AuthFile,
+  path = AUTH_PATH,
+  { notify = true } = {},
+): Promise<AuthFile> {
   const run = writeQueue.then(async () => {
-    const next = update(await readAuthFile(path));
-    const tmp = `${path}.${process.pid}.tmp`;
-    await writeFile(tmp, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
-    await chmod(tmp, 0o600);
-    await rename(tmp, path);
+    const current = await readAuthFile(path);
+    const next = update(current);
+    if (next === current) return current;
+    await writeJsonAtomic(path, next);
+    if (notify) notifyLocalWrite(path);
     return next;
   });
   writeQueue = run.catch(() => {});

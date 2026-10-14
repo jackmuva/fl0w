@@ -6,20 +6,33 @@ import { jevMessage } from "./services/agent/utils/jev-message"
 import { listUserTools, loadUserTools } from "./services/agent/user-tools/loader"
 import { mcpToolKey } from "./models/mcp"
 import { mcpClient } from "./services/mcp/mcp-client"
+import { flushPendingPushes, syncOnStartup, watchLocalConfigWrites } from "./services/sync/config-sync"
 
 await ensureJevHome()
+
+const ACCOUNT_COMMANDS = ["login", "logout", "whoami"]
+const isAccountCommand = ACCOUNT_COMMANDS.includes(Bun.argv[2] ?? "")
+
+let syncWarning: string | null = null
+if (!isAccountCommand) {
+  syncWarning = await syncOnStartup()
+  watchLocalConfigWrites()
+}
+
 // Load before account commands so `fl0w login` knows whether config.json's aiGatewayApiKey takes precedence.
 await loadAppConfig()
 
-const ACCOUNT_COMMANDS = ["login", "logout", "whoami"]
-if (ACCOUNT_COMMANDS.includes(Bun.argv[2] ?? "")) {
+if (isAccountCommand) {
   const { runAccountCommand } = await import("./services/auth/commands")
   process.exit(await runAccountCommand(Bun.argv[2]!))
 }
 
 if (HEADLESS) {
+  if (syncWarning) console.error(syncWarning)
   const { runHeadless } = await import("./services/workflow/headless-run")
-  process.exit(await runHeadless(Bun.argv.slice(3)))
+  const code = await runHeadless(Bun.argv.slice(3))
+  await flushPendingPushes()
+  process.exit(code)
 }
 
 const { createCliRenderer } = await import("@opentui/core")
@@ -27,7 +40,7 @@ const { createRoot } = await import("@opentui/react")
 const { App } = await import("./ui/App")
 const { disposeAppClipboard, initAppClipboard } = await import("./services/clipboard/app-clipboard")
 
-let initialMessage: null | string = null
+let initialMessage: null | string = syncWarning
 const seedMessages = (await frontLoadMessages()).map((message) => jevMessage(message))
 
 console.log("Connecting MCPs...")
@@ -35,7 +48,7 @@ try {
   await mcpClient.loadConfig()
   await mcpClient.connectAll()
 } catch (e) {
-  initialMessage = "Error with MCP process: " + e
+  initialMessage = [initialMessage, "Error with MCP process: " + e].filter(Boolean).join("\n")
 }
 
 await loadUserTools()

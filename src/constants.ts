@@ -43,3 +43,6 @@ export const DB_PATH = join(JEV_HOME, 'fl0w-sqlite.db');
 export const FL0W_API_URL = (process.env.FL0W_API_URL ?? 'https://www.fl0w.work').replace(/\/+$/, '');
 
 export const AUTH_PATH = join(JEV_HOME, 'auth.json');
+
+/** Per-file version + last-synced content for config sync with fl0w-work. */
+export const SYNC_STATE_PATH = join(JEV_HOME, 'sync-state.json');
