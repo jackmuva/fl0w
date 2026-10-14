@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { jsonEqual, mergeConfig } from './merge';
+import { jsonEqual, mergeConfig, shareable } from './merge';
 
 const login = (accessToken: string, expiresAt: number) => ({
   accessToken, refreshToken: `${accessToken}-r`, expiresAt, user: { id: 'u1', email: 'a@b.c' },
@@ -67,5 +67,12 @@ describe('mergeConfig', () => {
   test('never drops the local fl0w login', () => {
     const base = { fl0w: login('t', 1) };
     expect(mergeConfig('auth.json', { base, local: base, remote: {}, preferLocal: false })).toEqual(base);
+  });
+});
+
+describe('shareable', () => {
+  test('drops local-only keys from config.json only', () => {
+    expect(shareable('config.json', { llmModel: 'm', sync: false })).toEqual({ llmModel: 'm' });
+    expect(shareable('mcp.json', { sync: false })).toEqual({ sync: false });
   });
 });

@@ -8,6 +8,20 @@ const ENTRY_MAPS: Record<SyncFilename, readonly string[]> = {
   'auth.json': ['mcp'],
 };
 
+/** Per-device settings: never pushed, and a pull never overwrites them. */
+const LOCAL_ONLY: Record<SyncFilename, readonly string[]> = {
+  'config.json': ['sync'],
+  'mcp.json': [],
+  'auth.json': [],
+};
+
+/** The part of a file that is shared with fl0w-work. */
+export function shareable(filename: SyncFilename, value: JsonObject): JsonObject {
+  const keys = LOCAL_ONLY[filename];
+  if (!keys.length) return value;
+  return Object.fromEntries(Object.entries(value).filter(([key]) => !keys.includes(key)));
+}
+
 const isObject = (value: unknown): value is JsonObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -43,6 +57,7 @@ function mergeObjects(base: JsonObject, local: JsonObject, remote: JsonObject, r
  * Three-way merge of one config file. A key changed on one side takes that side; a key changed on
  * both sides goes to `preferLocal` (the newer write), except auth.json's `fl0w` login, which keeps
  * the longer-lived token. A merged auth.json never drops the local login, so syncing can't sign out.
+ * Local-only keys (config.json's `sync`) always keep the local value.
  */
 export function mergeConfig(
   filename: SyncFilename,
@@ -52,7 +67,12 @@ export function mergeConfig(
     if (filename === 'auth.json' && key === 'fl0w' && l && r) return pickFl0wAuth(l, r);
     return preferLocal ? l : r;
   };
-  const merged = mergeObjects(base, local, remote, resolve, ENTRY_MAPS[filename]);
+  const merged = mergeObjects(
+    shareable(filename, base), shareable(filename, local), shareable(filename, remote), resolve, ENTRY_MAPS[filename],
+  );
   if (filename === 'auth.json' && local.fl0w && !merged.fl0w) merged.fl0w = local.fl0w;
+  for (const key of LOCAL_ONLY[filename]) {
+    if (local[key] !== undefined) merged[key] = local[key];
+  }
   return merged;
 }

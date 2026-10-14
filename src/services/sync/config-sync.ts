@@ -3,10 +3,11 @@ import { APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH } from '../../constants';
 import type { AuthFile } from '../../models/auth';
 import { SYNC_FILENAMES, type JsonObject, type RemoteFile, type RemoteFileMeta, type SyncFilename, type SyncState } from '../../models/sync';
 import { updateAuthFile } from '../auth/auth-store';
+import { isConfigSyncEnabled } from '../config/app-config';
 import { readFl0wAuth } from '../auth/token';
 import { writeJsonAtomic } from '../utils';
 import { onLocalWrite } from './local-writes';
-import { jsonEqual, mergeConfig } from './merge';
+import { jsonEqual, mergeConfig, shareable } from './merge';
 import { getRemote, listRemote, putRemote, SyncConflictError } from './sync-api';
 import { readSyncState, writeSyncState } from './sync-state';
 
@@ -58,14 +59,17 @@ async function syncFile(filename: SyncFilename, state: SyncState, meta: RemoteFi
       : await getRemote(filename);
 
   if (!remote) {
+    // nothing on the server yet (e.g. first sign-in): just insert this device's copy
     const local = await readLocal(path);
     if (!local) return 'unchanged';
-    const created = await putRemote(filename, local, 0).catch((error) => {
+    const content = shareable(filename, local);
+    const created = await putRemote(filename, content, 0).catch((error) => {
       if (error instanceof SyncConflictError && !retried) return null;
       throw error;
     });
+    // 409 on create means another device inserted it first; merge with theirs instead
     if (!created) return syncFile(filename, state, await findRemote(filename), true);
-    state.files[filename] = { version: created.version, updatedAt: created.updatedAt, base: local };
+    state.files[filename] = { version: created.version, updatedAt: created.updatedAt, base: content };
     return 'pushed';
   }
 
@@ -77,15 +81,16 @@ async function syncFile(filename: SyncFilename, state: SyncState, meta: RemoteFi
     return mergeConfig(filename, { base: entry?.base, local: local ?? entry?.base ?? {}, remote: remote.content, preferLocal });
   });
   const changedLocally = !before || !jsonEqual(merged, before);
+  const shared = shareable(filename, merged);
 
-  if (jsonEqual(merged, remote.content)) {
-    state.files[filename] = { version: remote.version, updatedAt: remote.updatedAt, base: merged };
+  if (jsonEqual(shared, shareable(filename, remote.content))) {
+    state.files[filename] = { version: remote.version, updatedAt: remote.updatedAt, base: shared };
     return changedLocally ? 'pulled' : 'unchanged';
   }
 
   try {
-    const pushed = await putRemote(filename, merged, remote.version);
-    state.files[filename] = { version: pushed.version, updatedAt: pushed.updatedAt, base: merged };
+    const pushed = await putRemote(filename, shared, remote.version);
+    state.files[filename] = { version: pushed.version, updatedAt: pushed.updatedAt, base: shared };
     return changedLocally ? 'merged' : 'pushed';
   } catch (error) {
     // another device pushed in between: merge again on top of its version, once
@@ -100,12 +105,12 @@ let queue: Promise<unknown> = Promise.resolve();
 
 /**
  * Reconciles local config files with fl0w-work: pulls server changes, pushes local ones, and
- * three-way merges when both moved. Returns null when not signed in (nothing to sync against).
+ * three-way merges when both moved. Returns null when not signed in or `sync: false` is set in config.json.
  */
 export async function syncConfigFiles(filenames: readonly SyncFilename[] = SYNC_FILENAMES): Promise<SyncResults | null> {
   const run = queue.then(async () => {
     const auth = await readFl0wAuth();
-    if (!auth) return null;
+    if (!auth || !(await isConfigSyncEnabled())) return null;
 
     const stored = await readSyncState();
     const state: SyncState = stored.userId === auth.user.id ? stored : { userId: auth.user.id, files: {} };
@@ -128,7 +133,7 @@ export async function syncConfigFiles(filenames: readonly SyncFilename[] = SYNC_
 
 /** Startup sync: bounded and never throws, so a slow or offline fl0w-work can't block the CLI. Returns a warning, if any. */
 export async function syncOnStartup(): Promise<string | null> {
-  if (process.env.FL0W_SYNC === '0') return null;
+  if (!(await isConfigSyncEnabled())) return null;
   try {
     const results = await Promise.race([
       syncConfigFiles(),
@@ -152,7 +157,6 @@ const push = (filenames: SyncFilename[]) => syncConfigFiles(filenames).catch(() 
 
 /** Pushes local config changes (token refreshes, `fl0w login`, etc.) shortly after they're written. */
 export function watchLocalConfigWrites(): () => void {
-  if (process.env.FL0W_SYNC === '0') return () => { };
   return onLocalWrite((path) => {
     const filename = filenameForPath(path);
     if (!filename) return;

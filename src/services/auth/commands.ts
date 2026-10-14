@@ -33,9 +33,9 @@ export async function runAccountCommand(command: string): Promise<number> {
 
 /** A fresh login pulls config (MCP auth, settings) other devices already synced, and pushes this device's. */
 async function reportLoginSync() {
-  if (process.env.FL0W_SYNC === '0') return;
   try {
     const results = await syncConfigFiles();
+    if (!results) return;
     const failed = Object.entries(results ?? {}).filter(([, r]) => r instanceof Error);
     if (failed.length) console.log(`Config sync incomplete: ${failed.map(([f, r]) => `${f}: ${(r as Error).message}`).join('; ')}`);
     else console.log('Config synced with fl0w-work.');

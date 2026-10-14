@@ -35,6 +35,15 @@ export async function loadAppConfig(path = APP_CONFIG_PATH): Promise<AppConfig> 
   return config;
 }
 
+/** `sync: false` in config.json turns off config sync on this device; missing or unreadable config means on. */
+export async function isConfigSyncEnabled(path = APP_CONFIG_PATH): Promise<boolean> {
+  try {
+    return (await Bun.file(path).json() as AppConfig).sync !== false;
+  } catch {
+    return true;
+  }
+}
+
 export async function saveFl0wGatewayKey(key: string, path = APP_CONFIG_PATH): Promise<boolean> {
   const file = Bun.file(path);
   const config = await file.exists() ? await file.json() as AppConfig : {};
@@ -54,6 +63,7 @@ export async function ensureJevHome(home = JEV_HOME): Promise<void> {
   const defaultConfig: AppConfig = {
     aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER,
     llmModel: DEFAULT_LLM_MODEL,
+    sync: true,
   };
   const defaultMcpConfig: McpConfig = { mcpServers: {} };
 

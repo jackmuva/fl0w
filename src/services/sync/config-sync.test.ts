@@ -100,6 +100,32 @@ describe('syncConfigFiles', () => {
     }
   });
 
+  test('first sign-in with nothing on the server just inserts every file', async () => {
+    const results = await syncConfigFiles();
+    expect(Object.values(results ?? {}).some((r) => r instanceof Error)).toBe(false);
+    expect(requests.filter((r) => r.startsWith('PUT'))).toHaveLength(3);
+    expect([...server.values()].map((r) => r.version)).toEqual([1, 1, 1]);
+    expect(await syncOnStartup()).toBeNull();
+  });
+
+  test('"sync": false in config.json turns sync off without any requests', async () => {
+    await write('config.json', { llmModel: 'local', sync: false });
+    expect(await syncConfigFiles()).toBeNull();
+    expect(await syncOnStartup()).toBeNull();
+    expect(requests).toEqual([]);
+  });
+
+  test('the sync setting stays on this device', async () => {
+    await write('config.json', { llmModel: 'local', sync: true });
+    await syncConfigFiles();
+    expect(server.get('config.json')?.content).toEqual({ llmModel: 'local' });
+
+    // a remote copy carrying sync: false (e.g. from an older client) never turns this device off
+    server.set('config.json', { version: 2, updatedAt: new Date().toISOString(), content: { llmModel: 'web', sync: false } });
+    expect((await syncConfigFiles())?.['config.json']).toBe('pulled');
+    expect(await read('config.json')).toEqual({ llmModel: 'web', sync: true });
+  });
+
   test('first sync pushes local files that the server lacks', async () => {
     expect(await syncConfigFiles()).toEqual({ 'config.json': 'pushed', 'mcp.json': 'pushed', 'auth.json': 'pushed' });
     expect(server.get('config.json')?.content).toEqual({ llmModel: 'local' });

@@ -102,6 +102,7 @@ describe('ensureJevHome', () => {
     expect(config).toEqual({
       aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER,
       llmModel: DEFAULT_LLM_MODEL,
+      sync: true,
     });
 
     const mcpConfig = JSON.parse(await Bun.file(join(home, 'mcp.json')).text());
