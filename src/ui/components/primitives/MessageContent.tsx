@@ -78,11 +78,13 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
     if (!text) return null
 
     return (
-      <MessageFrameKindContext.Provider value="summary">
-        <MessageFrame title="Conversation summary">
-          <text>{text}</text>
-        </MessageFrame>
-      </MessageFrameKindContext.Provider>
+      <box width="100%" marginBottom={1}>
+        <MessageFrameKindContext.Provider value="summary">
+          <MessageFrame title="Conversation summary">
+            <text>{text}</text>
+          </MessageFrame>
+        </MessageFrameKindContext.Provider>
+      </box>
     )
   }
 

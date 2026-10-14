@@ -54,7 +54,12 @@ export const parseDecisionMessage = (entry: JevMessage): DecisionMessagePayload 
   }
 };
 
-export const toModelMessages = (messages: JevMessage[]): ModelMessage[] =>
-  messages
-    .filter(({ frame }) => !frame || !LLM_EXCLUDED_FRAMES.has(frame))
-    .map(({ message }) => message);
+export const toModelMessages = (messages: JevMessage[]): ModelMessage[] => {
+  const included = messages.filter(({ frame }) => !frame || !LLM_EXCLUDED_FRAMES.has(frame));
+  const system = included.filter(({ message }) => message.role === 'system');
+  const summaries = included.filter(({ frame }) => frame === 'summary');
+  const rest = included.filter(
+    ({ message, frame }) => message.role !== 'system' && frame !== 'summary',
+  );
+  return [...system, ...summaries, ...rest].map(({ message }) => message);
+};

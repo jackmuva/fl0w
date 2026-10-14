@@ -226,8 +226,11 @@ export const compactMessages = async (
 
     const kept = messages.filter((_, index) => retained.has(index));
     const systemMessages = kept.filter(({ message }) => message.role === 'system');
-    const otherKept = kept.filter(({ message }) => message.role !== 'system');
-    result = [...systemMessages, summaryMessage, ...otherKept];
+    const otherKept = kept.filter(
+      ({ message, frame }) => message.role !== 'system' && frame !== 'summary',
+    );
+    // Append summary last so sticky bottom scroll shows it; LLM order is restored in toModelMessages.
+    result = [...systemMessages, ...otherKept, summaryMessage];
   }
 
   const shrunk = shrinkMessagesToTokenBudget(result, tokenLimit);
