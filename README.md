@@ -39,7 +39,19 @@ The installer downloads a standalone binary and installs it as `fl0w` (default `
 
 On first launch fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`, and `tools/`. Sign-in tokens and MCP OAuth credentials are stored in `~/.fl0w/auth.json` (mode 0600).
 
-1. Edit `~/.fl0w/config.json` to set `llmModel` (`fl0w login` fills in `aiGatewayApiKey`, or set your own). Model names in [Vercel's model list](https://vercel.com/ai-gateway/models).
+1. Edit `~/.fl0w/config.json` — default scaffold looks like:
+
+   ```json
+   {
+     "aiGatewayApiKey": "YOUR_VERCEL_AI_GATEWAY_API_KEY",
+     "llmModel": "zai/glm-5.3-flash",
+     "decisionModel": "openai/gpt-6-luna-decisions",
+     "contextWindow": 1000000,
+     "sync": true
+   }
+   ```
+
+   `fl0w login` fills in `aiGatewayApiKey` (or set your own / `AI_GATEWAY_API_KEY`). Adjust `llmModel` and `decisionModel` (Jev tool choices) as needed. Model names in [Vercel's model list](https://vercel.com/ai-gateway/models). Set `contextWindow` (or `CONTEXT_WINDOW`) to match your model’s context size — it drives compaction and the usage meter (default `1000000`).
 2. Optional: local skills in `~/.fl0w/skills/`.
 3. Optional: MCPs in `~/.fl0w/mcp.json`, using [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers).
 4. Optional: `AGENTS.md` files alongside your skills.

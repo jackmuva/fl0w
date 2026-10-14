@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { COMPACTION_CONTEXT_WINDOW } from '../../constants';
+import { CONTEXT_WINDOW } from '../../constants';
 import {
   getSessionUsageState,
   resetSessionUsage,
@@ -19,7 +19,7 @@ export const useProviderMetadata = (sessionId: string) => {
 
   const contextPercent = state.lastInputTokens <= 0
     ? 0
-    : Math.min(100, Math.round((state.lastInputTokens / COMPACTION_CONTEXT_WINDOW) * 100));
+    : Math.min(100, Math.round((state.lastInputTokens / CONTEXT_WINDOW) * 100));
 
   return { ...state, contextPercent };
 };

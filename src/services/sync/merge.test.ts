@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import type { JsonObject } from '../../models/sync';
 import { jsonEqual, mergeConfig, shareable } from './merge';
 
 const login = (accessToken: string, expiresAt: number) => ({
@@ -74,5 +75,26 @@ describe('shareable', () => {
   test('drops local-only keys from config.json only', () => {
     expect(shareable('config.json', { llmModel: 'm', sync: false })).toEqual({ llmModel: 'm' });
     expect(shareable('mcp.json', { sync: false })).toEqual({ sync: false });
+  });
+
+  test('treats null content as empty object', () => {
+    expect(shareable('config.json', null as unknown as JsonObject)).toEqual({});
+  });
+});
+
+describe('mergeConfig with null snapshots', () => {
+  test('merges when base or remote is null', () => {
+    expect(mergeConfig('config.json', {
+      base: null,
+      local: { llmModel: 'l', decisionModel: 'd' },
+      remote: { llmModel: 'r' },
+      preferLocal: true,
+    })).toEqual({ llmModel: 'l', decisionModel: 'd' });
+    expect(mergeConfig('config.json', {
+      base: {},
+      local: { llmModel: 'l' },
+      remote: null,
+      preferLocal: false,
+    })).toEqual({ llmModel: 'l' });
   });
 });

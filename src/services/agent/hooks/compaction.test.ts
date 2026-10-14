@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { mapToolResultOutput } from 'ai/internal';
 import type { JevMessage } from '../../../models/agent';
-import { COMPACTION_CONTEXT_WINDOW, COMPACTION_TOKEN_THRESHOLD } from '../../../constants';
+import { COMPACTION_TOKEN_THRESHOLD, DEFAULT_CONTEXT_WINDOW } from '../../../constants';
 import { estimateMessagesTokens, shrinkMessagesToTokenBudget } from './compaction';
 
 const largeToolResult = (size: number): JevMessage => ({ message: {
@@ -36,7 +36,7 @@ describe('estimateMessagesTokens', () => {
     ];
 
     const estimate = estimateMessagesTokens(messages);
-    const tokenLimit = COMPACTION_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
+    const tokenLimit = DEFAULT_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
 
     expect(estimate).toBeGreaterThan(tokenLimit);
   });
@@ -48,7 +48,7 @@ describe('shrinkMessagesToTokenBudget', () => {
       { message: { role: 'user', content: 'read the file' } },
       largeToolResult(80_000),
     ];
-    const tokenLimit = COMPACTION_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
+    const tokenLimit = DEFAULT_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
 
     expect(estimateMessagesTokens(messages)).toBeGreaterThan(tokenLimit);
 
@@ -82,7 +82,7 @@ describe('shrinkMessagesToTokenBudget', () => {
       payload(80_000, 'old'),
       payload(80_000, 'new'),
     ];
-    const tokenLimit = COMPACTION_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
+    const tokenLimit = DEFAULT_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
 
     const shrunk = shrinkMessagesToTokenBudget(messages, tokenLimit);
     const oldValue = shrunk[1]?.message.role === 'tool' && Array.isArray(shrunk[1].message.content)

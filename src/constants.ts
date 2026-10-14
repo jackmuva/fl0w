@@ -11,7 +11,22 @@ export const MCP_CONFIG_PATH = join(FL0W_HOME, 'mcp.json');
 
 export const USER_TOOLS_DIR = join(FL0W_HOME, 'tools');
 
-export const COMPACTION_CONTEXT_WINDOW = 32_000;
+export const DEFAULT_CONTEXT_WINDOW = 1_000_000;
+
+const parseContextWindow = (raw: string | undefined): number | undefined => {
+  if (!raw) return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.floor(n);
+};
+
+export const parseConfigString = (raw: string | undefined): string | undefined => {
+  const trimmed = raw?.trim();
+  if (!trimmed) return undefined;
+  return trimmed;
+};
+
+export let CONTEXT_WINDOW = parseContextWindow(process.env.CONTEXT_WINDOW) ?? DEFAULT_CONTEXT_WINDOW;
 
 export const COMPACTION_TOKEN_THRESHOLD = 0.75;
 
@@ -28,13 +43,22 @@ export const TOOL_TRUNCATE_STEPS = [12_000, 8_000, 4_000, 2_000, 800, 400];
 
 export const TOOL_RESULT_MIN_KEEP = 120;
 
-export const DECISION_MODEL = 'typesafe-ai/jev';
+export const DEFAULT_DECISION_MODEL = 'openai/gpt-6-luna-decisions';
 
-export const DEFAULT_LLM_MODEL = 'deepseek/deepseek-v4-flash';
+export const DEFAULT_LLM_MODEL = 'zai/glm-5.3-flash';
 
 export const AI_GATEWAY_API_KEY_PLACEHOLDER = 'YOUR_VERCEL_AI_GATEWAY_API_KEY';
 
-export const LLM_MODEL = process.env.LLM_MODEL ?? DEFAULT_LLM_MODEL;
+export let LLM_MODEL = parseConfigString(process.env.LLM_MODEL) ?? DEFAULT_LLM_MODEL;
+
+export let DECISION_MODEL = parseConfigString(process.env.DECISION_MODEL) ?? DEFAULT_DECISION_MODEL;
+
+/** Re-read `LLM_MODEL`, `DECISION_MODEL`, and `CONTEXT_WINDOW` from `process.env` (after `loadAppConfig`). */
+export const applyModelConfig = (): void => {
+  LLM_MODEL = parseConfigString(process.env.LLM_MODEL) ?? DEFAULT_LLM_MODEL;
+  DECISION_MODEL = parseConfigString(process.env.DECISION_MODEL) ?? DEFAULT_DECISION_MODEL;
+  CONTEXT_WINDOW = parseContextWindow(process.env.CONTEXT_WINDOW) ?? DEFAULT_CONTEXT_WINDOW;
+};
 
 export const USER_TOOL_SERVER = 'user';
 

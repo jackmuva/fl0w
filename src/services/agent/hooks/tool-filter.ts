@@ -1,5 +1,5 @@
 import {
-  COMPACTION_CONTEXT_WINDOW,
+  CONTEXT_WINDOW,
   MAX_EVALUATE_TOOL_OPTIONS,
   DECISION_MODEL,
   TOOL_REDUCE_MAX_ITERATIONS,
@@ -14,7 +14,7 @@ import { estimateTextTokens } from './compaction';
 import { recordLlmUsage } from './session-usage';
 import { experimental_evaluate as evaluate, type JSONValue } from 'ai';
 
-const TOOL_TOKEN_LIMIT = Math.floor(COMPACTION_CONTEXT_WINDOW * TOOL_TOKEN_THRESHOLD);
+const toolTokenLimit = (): number => Math.floor(CONTEXT_WINDOW * TOOL_TOKEN_THRESHOLD);
 
 const toolToText = (tool: McpTool): string => {
   const payload = {
@@ -34,7 +34,7 @@ const chunkToolsByTokenLimit = (
   const chunks: McpTool[][] = [];
   let cur: McpTool[] = [];
   for (const tool of tools) {
-    if (estimateToolTokens([tool]) > TOOL_TOKEN_LIMIT) {
+    if (estimateToolTokens([tool]) > toolTokenLimit()) {
       if (cur.length > 0) {
         chunks.push(cur);
         cur = [];
@@ -43,7 +43,7 @@ const chunkToolsByTokenLimit = (
       continue;
     }
     const next = [...cur, tool];
-    if (next.length > maxToolsPerChunk || estimateToolTokens(next) > TOOL_TOKEN_LIMIT) {
+    if (next.length > maxToolsPerChunk || estimateToolTokens(next) > toolTokenLimit()) {
       if (cur.length > 0) chunks.push(cur);
       cur = [tool];
     } else {
@@ -112,7 +112,7 @@ const rankToolsInChunk = async (state: AgentState, chunk: McpTool[]): Promise<Mc
 };
 
 const toolsWithinLimits = (tools: McpTool[], maxToolCount: number): boolean =>
-  estimateToolTokens(tools) <= TOOL_TOKEN_LIMIT && tools.length <= maxToolCount;
+  estimateToolTokens(tools) <= toolTokenLimit() && tools.length <= maxToolCount;
 
 export const reduceTools = async (
   state: AgentState,
@@ -124,7 +124,7 @@ export const reduceTools = async (
   if (toolsWithinLimits(tools, maxToolCount)) return tools;
   if (iteration >= TOOL_REDUCE_MAX_ITERATIONS) {
     const parts = [
-      `estimated ${tokens} tokens (limit ${TOOL_TOKEN_LIMIT})`,
+      `estimated ${tokens} tokens (limit ${toolTokenLimit()})`,
       tools.length > maxToolCount ? `${tools.length} tools (limit ${maxToolCount})` : null,
     ].filter(Boolean).join(', ');
     throw new Error(

@@ -9,7 +9,7 @@ import {
   type ToolChoice,
 } from 'ai';
 import { compactMessages } from './hooks/compaction';
-import { HEADLESS, LLM_MODEL, DECISION_MODEL } from '../../constants';
+import { DECISION_MODEL, HEADLESS, LLM_MODEL } from '../../constants';
 import { recordLlmUsage } from './hooks/session-usage';
 import type { AgentState, JevMessage } from '../../models/agent';
 import { mcpToolKey } from '../../models/mcp';

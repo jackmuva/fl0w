@@ -1,21 +1,36 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { access, mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { AI_GATEWAY_API_KEY_PLACEHOLDER, DEFAULT_LLM_MODEL } from '../../constants';
+import {
+  AI_GATEWAY_API_KEY_PLACEHOLDER,
+  applyModelConfig,
+  CONTEXT_WINDOW,
+  DECISION_MODEL,
+  DEFAULT_CONTEXT_WINDOW,
+  DEFAULT_DECISION_MODEL,
+  DEFAULT_LLM_MODEL,
+  LLM_MODEL,
+} from '../../constants';
 import { ensureFl0wHome, loadAppConfig, saveFl0wGatewayKey } from './app-config';
 
 const tempRoot = join(import.meta.dir, '__fixtures__', 'app-config');
-let previousApiKey: string | undefined;
+
+const previousEnv: Record<string, string | undefined> = {};
 
 afterEach(async () => {
-  if (previousApiKey === undefined) delete process.env.AI_GATEWAY_API_KEY;
-  else process.env.AI_GATEWAY_API_KEY = previousApiKey;
+  for (const [key, value] of Object.entries(previousEnv)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
   await rm(tempRoot, { recursive: true, force: true });
 });
 
 beforeEach(() => {
-  previousApiKey = process.env.AI_GATEWAY_API_KEY;
-  delete process.env.AI_GATEWAY_API_KEY;
+  for (const key of ['AI_GATEWAY_API_KEY', 'LLM_MODEL', 'DECISION_MODEL', 'CONTEXT_WINDOW'] as const) {
+    previousEnv[key] = process.env[key];
+    delete process.env[key];
+  }
+  applyModelConfig();
 });
 
 describe('loadAppConfig', () => {
@@ -46,6 +61,33 @@ describe('loadAppConfig', () => {
     const config = await loadAppConfig(configPath);
     expect(config).toEqual({ aiGatewayApiKey: 'test-key' });
     expect(process.env.AI_GATEWAY_API_KEY).toBe('test-key');
+  });
+
+  test('loads llmModel and decisionModel into process.env', async () => {
+    await mkdir(tempRoot, { recursive: true });
+    const configPath = join(tempRoot, 'config.json');
+    await writeFile(
+      configPath,
+      JSON.stringify({ llmModel: 'custom/llm', decisionModel: 'custom/jev' }),
+    );
+
+    const config = await loadAppConfig(configPath);
+    expect(config).toEqual({ llmModel: 'custom/llm', decisionModel: 'custom/jev' });
+    expect(process.env.LLM_MODEL).toBe('custom/llm');
+    expect(process.env.DECISION_MODEL).toBe('custom/jev');
+    expect(LLM_MODEL).toBe('custom/llm');
+    expect(DECISION_MODEL).toBe('custom/jev');
+  });
+
+  test('loads contextWindow into process.env and CONTEXT_WINDOW', async () => {
+    await mkdir(tempRoot, { recursive: true });
+    const configPath = join(tempRoot, 'config.json');
+    await writeFile(configPath, JSON.stringify({ contextWindow: 128_000 }));
+
+    const config = await loadAppConfig(configPath);
+    expect(config).toEqual({ contextWindow: 128_000 });
+    expect(process.env.CONTEXT_WINDOW).toBe('128000');
+    expect(CONTEXT_WINDOW).toBe(128_000);
   });
 });
 
@@ -102,6 +144,8 @@ describe('ensureFl0wHome', () => {
     expect(config).toEqual({
       aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER,
       llmModel: DEFAULT_LLM_MODEL,
+      decisionModel: DEFAULT_DECISION_MODEL,
+      contextWindow: DEFAULT_CONTEXT_WINDOW,
       sync: true,
     });
 
@@ -118,7 +162,13 @@ describe('ensureFl0wHome', () => {
     await ensureFl0wHome(home);
 
     const config = JSON.parse(await Bun.file(join(home, 'config.json')).text());
-    expect(config).toEqual({ llmModel: 'custom/model' });
+    expect(config).toEqual({
+      llmModel: 'custom/model',
+      aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER,
+      decisionModel: DEFAULT_DECISION_MODEL,
+      contextWindow: DEFAULT_CONTEXT_WINDOW,
+      sync: true,
+    });
 
     const mcpConfig = JSON.parse(await Bun.file(join(home, 'mcp.json')).text());
     expect(mcpConfig.mcpServers.demo).toEqual({ command: 'echo' });

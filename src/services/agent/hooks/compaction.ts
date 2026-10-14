@@ -1,7 +1,7 @@
 import { generateText, type ModelMessage } from 'ai';
 import {
-  COMPACTION_CONTEXT_WINDOW,
   COMPACTION_TOKEN_THRESHOLD,
+  CONTEXT_WINDOW,
   LLM_MODEL,
   TOOL_RESULT_MIN_KEEP,
   TOOL_TRUNCATE_STEPS,
@@ -16,11 +16,10 @@ export type CompactionOptions = {
   tokenThreshold?: number;
 };
 
-const DEFAULT_OPTIONS: Required<CompactionOptions> = {
+const DEFAULT_OPTIONS = {
   keepAssistantMessages: 4,
-  contextWindow: COMPACTION_CONTEXT_WINDOW,
   tokenThreshold: COMPACTION_TOKEN_THRESHOLD,
-};
+} satisfies Omit<Required<CompactionOptions>, 'contextWindow'>;
 
 const truncate = (text: string, max: number): string =>
   text.length <= max ? text : `${text.slice(0, max)}…`;
@@ -196,7 +195,8 @@ export const compactMessages = async (
   force: boolean = false,
   options: CompactionOptions = {},
 ): Promise<JevMessage[]> => {
-  const { keepAssistantMessages, contextWindow, tokenThreshold } = { ...DEFAULT_OPTIONS, ...options, };
+  const { keepAssistantMessages, tokenThreshold } = { ...DEFAULT_OPTIONS, ...options };
+  const contextWindow = options.contextWindow ?? CONTEXT_WINDOW;
   const tokenLimit = contextWindow * tokenThreshold;
 
   if (estimateMessagesTokens(messages) < tokenLimit && !force) return messages;

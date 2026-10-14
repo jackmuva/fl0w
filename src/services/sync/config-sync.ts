@@ -7,7 +7,7 @@ import { isConfigSyncEnabled } from '../config/app-config';
 import { readFl0wAuth } from '../auth/token';
 import { writeJsonAtomic } from '../utils';
 import { onLocalWrite } from './local-writes';
-import { jsonEqual, mergeConfig, shareable } from './merge';
+import { asJsonObject, jsonEqual, mergeConfig, shareable } from './merge';
 import { getRemote, listRemote, putRemote, SyncConflictError } from './sync-api';
 import { readSyncState, writeSyncState } from './sync-state';
 
@@ -28,7 +28,7 @@ async function readLocal(path: string): Promise<JsonObject | undefined> {
   const file = Bun.file(path);
   if (!(await file.exists())) return undefined;
   try {
-    return await file.json() as JsonObject;
+    return asJsonObject(await file.json());
   } catch {
     throw new Error(`${path} is not valid JSON; skipping sync for it`);
   }
@@ -54,9 +54,11 @@ async function syncFile(filename: SyncFilename, state: SyncState, meta: RemoteFi
   const path = PATHS[filename];
   const entry = state.files[filename];
   // an unchanged server version means its content is still our merge base; skip the download
-  const remote: RemoteFile | null = !meta ? null
-    : meta.version === entry?.version ? { ...meta, content: entry.base }
+  let remote: RemoteFile | null = !meta ? null
+    : meta.version === entry?.version ? { ...meta, content: asJsonObject(entry?.base) }
       : await getRemote(filename);
+
+  if (remote) remote = { ...remote, content: asJsonObject(remote.content) };
 
   if (!remote) {
     // nothing on the server yet (e.g. first sign-in): just insert this device's copy
@@ -78,7 +80,12 @@ async function syncFile(filename: SyncFilename, state: SyncState, meta: RemoteFi
   let before: JsonObject | undefined;
   const merged = await applyLocal(filename, (local) => {
     before = local;
-    return mergeConfig(filename, { base: entry?.base, local: local ?? entry?.base ?? {}, remote: remote.content, preferLocal });
+    return mergeConfig(filename, {
+      base: entry?.base,
+      local: local ?? asJsonObject(entry?.base),
+      remote: remote.content,
+      preferLocal,
+    });
   });
   const changedLocally = !before || !jsonEqual(merged, before);
   const shared = shareable(filename, merged);

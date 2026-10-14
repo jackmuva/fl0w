@@ -15,15 +15,18 @@ const LOCAL_ONLY: Record<SyncFilename, readonly string[]> = {
   'auth.json': [],
 };
 
-/** The part of a file that is shared with fl0w-work. */
-export function shareable(filename: SyncFilename, value: JsonObject): JsonObject {
-  const keys = LOCAL_ONLY[filename];
-  if (!keys.length) return value;
-  return Object.fromEntries(Object.entries(value).filter(([key]) => !keys.includes(key)));
-}
-
 const isObject = (value: unknown): value is JsonObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+export const asJsonObject = (value: unknown): JsonObject => (isObject(value) ? value : {});
+
+/** The part of a file that is shared with fl0w-work. */
+export function shareable(filename: SyncFilename, value: JsonObject): JsonObject {
+  const obj = asJsonObject(value);
+  const keys = LOCAL_ONLY[filename];
+  if (!keys.length) return obj;
+  return Object.fromEntries(Object.entries(obj).filter(([key]) => !keys.includes(key)));
+}
 
 const canonical = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(canonical);
@@ -61,18 +64,23 @@ function mergeObjects(base: JsonObject, local: JsonObject, remote: JsonObject, r
  */
 export function mergeConfig(
   filename: SyncFilename,
-  { base = {}, local, remote, preferLocal }: { base?: JsonObject, local: JsonObject, remote: JsonObject, preferLocal: boolean },
+  { base, local, remote, preferLocal }: { base?: JsonObject | null, local: JsonObject | null, remote: JsonObject | null, preferLocal: boolean },
 ): JsonObject {
   const resolve: Resolve = (key, l, r) => {
     if (filename === 'auth.json' && key === 'fl0w' && l && r) return pickFl0wAuth(l, r);
     return preferLocal ? l : r;
   };
   const merged = mergeObjects(
-    shareable(filename, base), shareable(filename, local), shareable(filename, remote), resolve, ENTRY_MAPS[filename],
+    shareable(filename, asJsonObject(base)),
+    shareable(filename, asJsonObject(local)),
+    shareable(filename, asJsonObject(remote)),
+    resolve,
+    ENTRY_MAPS[filename],
   );
-  if (filename === 'auth.json' && local.fl0w && !merged.fl0w) merged.fl0w = local.fl0w;
+  const localObj = asJsonObject(local);
+  if (filename === 'auth.json' && localObj.fl0w && !merged.fl0w) merged.fl0w = localObj.fl0w;
   for (const key of LOCAL_ONLY[filename]) {
-    if (local[key] !== undefined) merged[key] = local[key];
+    if (localObj[key] !== undefined) merged[key] = localObj[key];
   }
   return merged;
 }

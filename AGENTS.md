@@ -10,8 +10,10 @@ conversational agent that plans, executes, and distills tasks into reusable work
 
 - **Stack** — TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
 - **Config** — `config.json` in `JEV_HOME` (`~/.fl0w`) loads into `process.env` at startup.
-- **Models** — `LLM_MODEL` env (from `llmModel`, default `deepseek/deepseek-v4-flash`);
-  `SYSTEM_ONE_MODEL` (default `typesafe-ai/jev`) drives planning.
+- **Models** — `LLM_MODEL` env (from `llmModel`, default `zai/glm-5.3-flash`);
+  `DECISION_MODEL` env (from `decisionModel`, default `openai/gpt-6-luna-decisions`) drives Jev planning/choices.
+  `CONTEXT_WINDOW` env (from `contextWindow`, default `1000000`) drives compaction thresholds and the UI usage meter.
+  All three load from `config.json` into env at startup, then `applyModelConfig()` refreshes the runtime exports in `constants.ts`.
 - **Auth** — `fl0w login`/`logout`/`whoami` sign in via fl0w-work (`FL0W_API_URL`, default
   `https://www.fl0w.work`); tokens + MCP OAuth state live in `auth.json`. Login saves a Vercel
   AI Gateway key as `aiGatewayApiKey` unless one is set (`config.json` or `AI_GATEWAY_API_KEY`).
@@ -37,7 +39,7 @@ conversational agent that plans, executes, and distills tasks into reusable work
 ```
 src/
 ├── index.tsx          # Entry – loads config, initializes MCP/tools, renders TUI
-├── constants.ts       # Shared constants (JEV_HOME, LLM_MODEL, SYSTEM_ONE_MODEL, DB_PATH)
+├── constants.ts       # Shared constants (FL0W_HOME, LLM_MODEL, DECISION_MODEL, DB_PATH)
 ├── db/                # schema, session-store, workflow-store (+ tests)
 ├── models/            # agent, config, mcp, ui, workflow types
 ├── services/          # Business logic

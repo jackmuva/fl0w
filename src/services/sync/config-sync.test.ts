@@ -189,6 +189,18 @@ describe('syncConfigFiles', () => {
     expect(server.get('config.json')?.content).toEqual(expected);
   });
 
+  test('syncs when sync-state base or remote content is null', async () => {
+    await write('config.json', { llmModel: 'local', decisionModel: 'd-local' });
+    await syncConfigFiles();
+    await write('sync-state.json', {
+      userId: 'u1',
+      files: { 'config.json': { version: 1, updatedAt: new Date().toISOString(), base: null } },
+    });
+
+    expect((await syncConfigFiles())?.['config.json']).not.toBeInstanceOf(Error);
+    expect(await read('config.json')).toEqual({ llmModel: 'local', decisionModel: 'd-local' });
+  });
+
   test('leaves an invalid local file alone and reports it', async () => {
     await writeFile(join(home, 'mcp.json'), '{ not json');
     const results = await syncConfigFiles();
