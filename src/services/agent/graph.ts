@@ -89,9 +89,35 @@ const listAllTools = async () => [
   ...(await mcpClient.listTools()).filter((t) => isMcpToolEnabled(t)),
 ];
 
+type ToolList = Awaited<ReturnType<typeof listAllTools>>;
+
+const MESSAGE_TOOL_NAME = 'message_answer';
+
+// We avoid consecutive message_answer tool calls because some decision models will keep
+// calling the message tool instead of signaling task completion, trapping the agent in a loop.
+const lastToolCallName = (messages: JevMessage[]): string | undefined => {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages.at(i)?.message;
+    if (message?.role === 'user') return undefined;
+    const content = message?.content;
+    if (!Array.isArray(content)) continue;
+    for (let j = content.length - 1; j >= 0; j--) {
+      const part = content.at(j);
+      if (part?.type === 'tool-call') return part.toolName;
+    }
+  }
+  return undefined;
+};
+
+const withoutMessageTool = (tools: ToolList, messages: JevMessage[]): ToolList => {
+  const lastCall = lastToolCallName(messages);
+  if (!lastCall || parseToolKey(lastCall).name !== MESSAGE_TOOL_NAME) return tools;
+  return tools.filter((t) => parseToolKey(mcpToolKey(t)).name !== MESSAGE_TOOL_NAME);
+};
+
 export const initialNode = async (state: AgentState): Promise<AgentState> => {
   const availableTools = await listAllTools();
-  const routedTools = await reduceTools(state, availableTools);
+  const routedTools = await reduceTools(state, withoutMessageTool(availableTools, state.messages));
   const initialEvaluation = await retryModelCall(() => evaluate({
     model: DECISION_MODEL,
     state: [{
@@ -143,7 +169,7 @@ export const actionSelectNode = async (
   state: AgentState,
 ): Promise<{ state: AgentState, options: string[] }> => {
   const availableTools = await listAllTools();
-  const fittedTools = await reduceTools(state, availableTools);
+  const fittedTools = await reduceTools(state, withoutMessageTool(availableTools, state.messages));
   const criteria = buildToolCriteria(fittedTools);
 
   const actionEvaluation = await retryModelCall(() => evaluate({
@@ -337,7 +363,7 @@ export const prepareToolCallNode = async (state: AgentState): Promise<AgentState
     inputSchema: jsonSchema<Record<string, unknown>>(selected.inputSchema as Record<string, unknown>),
   });
 
-  const instructions = name === 'message_answer'
+  const instructions = name === MESSAGE_TOOL_NAME
     ? `The user asked a question. Call the ${selectedTool} tool with a clear, helpful answer based on the conversation and your knowledge.`
     : `Call the ${selectedTool} tool with the arguments needed to make progress on the user's task.`;
 

@@ -45,7 +45,7 @@ export const TOOL_RESULT_MIN_KEEP = 120;
 
 export const DEFAULT_DECISION_MODEL = 'openai/gpt-6-luna-decisions';
 
-export const DEFAULT_LLM_MODEL = 'zai/glm-5.3-flash';
+export const DEFAULT_LLM_MODEL = 'deepseek/deepseek-v4-flash-0731';
 
 export const AI_GATEWAY_API_KEY_PLACEHOLDER = 'YOUR_VERCEL_AI_GATEWAY_API_KEY';
 
