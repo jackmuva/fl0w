@@ -5,7 +5,7 @@ const MAX_CHOICES = 5
 const BAR_WIDTH = 16
 const MUTED_FG = "#565f89"
 const SELECTED_FG = "#9ece6a"
-const DECISION_FG = "#bb9af7"
+const DECISION_FG = "#ff9e64"
 
 type ChoiceProbabilitiesProps = {
   probabilities: Probabilities

@@ -13,7 +13,7 @@ import {
 import { AGENT_BORDER_COLOR } from "./MessageFrame"
 
 const OTHER_OPTION_ID = "other"
-const ACCENT_FG = "#7aa2f7"
+const ACCENT_FG = "#e6d5b8"
 const TEXT_FG = "#c0caf5"
 const MUTED_FG = "#565f89"
 const DONE_FG = "#9ece6a"

@@ -5,14 +5,17 @@ import { WorkflowEdge } from "./WorkflowEdge"
 
 export const AGENT_BORDER_COLOR = "#565f89"
 export const USER_INPUT_BORDER_COLOR = "#e0af68"
-export const SUMMARY_BORDER_COLOR = "#bb9af7"
-export const WORKFLOW_BORDER_COLOR = "#7dcfff"
+export const CREAM_FG = "#e6d5b8"
+export const ORANGE_FG = "#ff9e64"
+export const GREEN_FG = "#9ece6a"
+export const SUMMARY_BORDER_COLOR = ORANGE_FG
+export const WORKFLOW_BORDER_COLOR = CREAM_FG
 export const MESSAGE_FRAME_MAX_HEIGHT = 14
 const MUTED_FG = "#565f89"
-const CALL_LABEL_FG = "#7aa2f7"
-const OUTPUT_LABEL_FG = "#9ece6a"
+const CALL_LABEL_FG = CREAM_FG
+const OUTPUT_LABEL_FG = GREEN_FG
 // Ghost frames fade the further back they sit behind the selected step.
-const GHOST_FG = ["#9aa5ce", "#737aa2", AGENT_BORDER_COLOR] as const
+const GHOST_FG = ["#c9b896", "#a8845a", AGENT_BORDER_COLOR] as const
 
 const NODE_LABEL: Record<MessageFrameKind, string> = {
   call: "● CALL",

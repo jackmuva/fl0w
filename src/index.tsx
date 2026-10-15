@@ -1,5 +1,8 @@
 import type { CapabilityCatalog } from "./models/agent"
 import { HEADLESS } from "./constants"
+
+// AI SDK logs provider warnings via process.emitWarning by default; suppress for TUI/CLI.
+globalThis.AI_SDK_LOG_WARNINGS = false
 import { discoverAgentsMd, discoverSkills, frontLoadMessages } from "./services/agent/hooks/front-load"
 import { ensureFl0wHome, loadAppConfig } from "./services/config/app-config"
 import { fl0wMessage } from "./services/agent/utils/fl0w-message"
