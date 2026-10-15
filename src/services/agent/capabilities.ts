@@ -48,7 +48,7 @@ export const applyCapabilitySelection = async (
   next: CapabilitySelection,
 ): Promise<Fl0wMessage[]> => {
   setCapabilitySelection(next);
-  scheduleMirrorEnabledSkills(next, await discoverSkills());
+  void discoverSkills().then((catalog) => scheduleMirrorEnabledSkills(next, catalog));
   return (await frontLoadMessages()).map((message) => fl0wMessage(message));
 };
 

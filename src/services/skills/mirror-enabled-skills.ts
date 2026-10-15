@@ -101,6 +101,12 @@ export function scheduleMirrorEnabledSkills(
     debounceTimer = null;
     void runQueuedMirror();
   }, MIRROR_DEBOUNCE_MS);
+  debounceTimer.unref?.();
+}
+
+/** Best-effort flush before shutdown; does not block the caller. */
+export function flushPendingSkillMirrorsInBackground(): void {
+  void flushPendingSkillMirrors();
 }
 
 /** Runs any pending debounced mirror immediately and waits for in-flight copies. */

@@ -22,6 +22,29 @@ afterEach(async () => {
 });
 
 describe('applyCapabilitySelection', () => {
+  test('returns before mirror copies finish', async () => {
+    const skillDir = join(workspace, 'skills', 'async-skill');
+    await mkdir(skillDir, { recursive: true });
+    await writeFile(
+      join(skillDir, 'SKILL.md'),
+      '---\nname: async-skill\ndescription: Async.\n---\nBody',
+    );
+
+    const previousCwd = process.cwd();
+    process.chdir(workspace);
+    try {
+      await applyCapabilitySelection({
+        skills: ['async-skill'],
+        mcpServers: [],
+        userTools: [],
+        agentsMd: [],
+      });
+      await expect(readFile(join(fl0wSkillsDir, 'async-skill', 'SKILL.md'), 'utf8')).rejects.toThrow();
+    } finally {
+      process.chdir(previousCwd);
+    }
+  });
+
   test('mirrors enabled skills after flush (debounced in background)', async () => {
     const skillDir = join(workspace, 'skills', 'workspace-skill');
     await mkdir(skillDir, { recursive: true });

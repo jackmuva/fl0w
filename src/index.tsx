@@ -37,7 +37,8 @@ if (HEADLESS) {
   if (syncWarning) console.error(syncWarning)
   const { runHeadless } = await import("./services/workflow/headless-run")
   const code = await runHeadless(Bun.argv.slice(3))
-  await Promise.all([flushPendingPushes(), flushWorkflowPushes(), flushPendingSkillMirrors()])
+  void flushPendingSkillMirrors()
+  await Promise.all([flushPendingPushes(), flushWorkflowPushes()])
   process.exit(code)
 }
 
