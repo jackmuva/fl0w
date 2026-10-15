@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { FL0W_HOME } from '../../../constants';
 import { setCapabilitySelection } from '../capabilities';
 import {
   AGENTS_MD_FILENAME,
@@ -50,6 +51,30 @@ describe('frontLoadMessages skills', () => {
 
   test('getSkillsDirs includes the workspace skills directory first', () => {
     expect(getSkillsDirs(tempRoot)[0]).toBe(join(tempRoot, 'skills'));
+  });
+
+  test('getSkillsDirs lists FL0W_HOME/skills last', () => {
+    const dirs = getSkillsDirs(tempRoot);
+    expect(dirs[dirs.length - 1]).toBe(join(FL0W_HOME, 'skills'));
+  });
+
+  test('prefers workspace skill paths over FL0W_HOME/skills for the same name', async () => {
+    for (const root of [join(tempRoot, 'fl0w-skills'), join(tempRoot, 'skills')]) {
+      const dir = join(root, 'shared-skill');
+      await mkdir(dir, { recursive: true });
+      const body = root.endsWith('fl0w-skills') ? 'From fl0w home.' : 'From workspace.';
+      await writeFile(
+        join(dir, 'SKILL.md'),
+        `---\nname: shared-skill\ndescription: ${body}\n---\n${body}`,
+      );
+    }
+
+    const skills = await discoverSkills([join(tempRoot, 'skills'), join(tempRoot, 'fl0w-skills')]);
+    expect(skills).toEqual([{
+      name: 'shared-skill',
+      description: 'From workspace.',
+      path: join(tempRoot, 'skills', 'shared-skill', 'SKILL.md'),
+    }]);
   });
 
   test('frontLoadMessages discovers workspace skills without a custom skillsDirs override', async () => {

@@ -9,6 +9,7 @@ import { mcpClient } from "./services/mcp/mcp-client"
 import { flushPendingPushes, syncOnStartup, watchLocalConfigWrites } from "./services/sync/config-sync"
 import { isConfigSyncEnabled } from "./services/config/app-config"
 import { flushWorkflowPushes, pushWorkflowsInBackground } from "./services/sync/workflow-sync"
+import { flushPendingSkillMirrors } from "./services/skills/mirror-enabled-skills"
 
 await ensureFl0wHome()
 
@@ -36,7 +37,7 @@ if (HEADLESS) {
   if (syncWarning) console.error(syncWarning)
   const { runHeadless } = await import("./services/workflow/headless-run")
   const code = await runHeadless(Bun.argv.slice(3))
-  await Promise.all([flushPendingPushes(), flushWorkflowPushes()])
+  await Promise.all([flushPendingPushes(), flushWorkflowPushes(), flushPendingSkillMirrors()])
   process.exit(code)
 }
 

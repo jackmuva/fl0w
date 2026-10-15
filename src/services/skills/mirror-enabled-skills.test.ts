@@ -16,7 +16,11 @@ mock.module('../../constants', () => ({
   FL0W_SKILLS_DIR: fl0wSkillsDir,
 }));
 
-const { mirrorEnabledSkills } = await import('./mirror-enabled-skills');
+const {
+  flushPendingSkillMirrors,
+  mirrorEnabledSkills,
+  scheduleMirrorEnabledSkills,
+} = await import('./mirror-enabled-skills');
 
 afterEach(async () => {
   await rm(tempRoot, { recursive: true, force: true });
@@ -109,6 +113,21 @@ describe('mirrorEnabledSkills', () => {
     }, []);
 
     expect(result.missing).toEqual(['ghost-skill']);
+  });
+
+  test('scheduleMirrorEnabledSkills debounces until flush', async () => {
+    const skillPath = await writeSkill(externalSkills, 'debounced-skill', 'debounced-skill', 'Debounced');
+    const catalog: SkillSummary[] = [{
+      name: 'debounced-skill',
+      description: 'debounced-skill description',
+      path: skillPath,
+    }];
+    const selection = { ...emptyCapabilitySelection(), skills: ['debounced-skill'] as string[] };
+
+    scheduleMirrorEnabledSkills(selection, catalog);
+    await expect(readFile(join(fl0wSkillsDir, 'debounced-skill', 'SKILL.md'), 'utf8')).rejects.toThrow();
+    await flushPendingSkillMirrors();
+    expect(await readFile(join(fl0wSkillsDir, 'debounced-skill', 'SKILL.md'), 'utf8')).toContain('Debounced');
   });
 
   test('does not remove mirrored skills when disabled', async () => {

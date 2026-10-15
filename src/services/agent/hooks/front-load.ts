@@ -16,10 +16,9 @@ export type SkillSummary = {
 
 export const getSkillsDirs = (cwd = process.cwd()): string[] => [
   join(resolve(cwd), 'skills'),
-  join(FL0W_HOME, 'skills'),
-  join(FL0W_HOME, 'skills'),
   join(homedir(), '.cursor', 'skills-cursor'),
   join(homedir(), '.claude', 'skills'),
+  join(FL0W_HOME, 'skills'),
 ];
 
 let skillRegistry = new Map<string, SkillSummary>();

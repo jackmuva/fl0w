@@ -3,6 +3,7 @@ import type { Fl0wMessage } from '../../models/agent';
 import type { WorkflowRecord } from '../../models/workflow';
 import { WorkflowStore } from '../../db/workflow-store';
 import { applyCapabilitySelection } from '../agent/capabilities';
+import { flushPendingSkillMirrors } from '../skills/mirror-enabled-skills';
 import { fl0wLoop } from '../agent/agent-loop';
 import { findPendingAskQuestion } from '../agent/utils/ask-question-state';
 import { fl0wMessage } from '../agent/utils/fl0w-message';
@@ -54,6 +55,7 @@ export const runHeadless = async (argv: string[]): Promise<number> => {
   await loadUserTools();
 
   const seed = await applyCapabilitySelection(workflow.requiredCapabilities);
+  await flushPendingSkillMirrors();
   const messages: Fl0wMessage[] = [
     ...seed,
     fl0wMessage({ role: 'system', content: HEADLESS_INSTRUCTIONS }),

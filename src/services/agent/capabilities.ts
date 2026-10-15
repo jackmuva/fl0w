@@ -2,7 +2,7 @@ import type { CapabilityCatalog, CapabilityKind, CapabilitySelection, Fl0wMessag
 import type { McpTool } from "../../models/mcp";
 import { mcpToolKey } from "../../models/mcp";
 import { discoverSkills, frontLoadMessages } from "./hooks/front-load";
-import { mirrorEnabledSkills } from "../skills/mirror-enabled-skills";
+import { scheduleMirrorEnabledSkills } from "../skills/mirror-enabled-skills";
 import { fl0wMessage } from "./utils/fl0w-message";
 
 let selection: CapabilitySelection | null = null;
@@ -48,14 +48,7 @@ export const applyCapabilitySelection = async (
   next: CapabilitySelection,
 ): Promise<Fl0wMessage[]> => {
   setCapabilitySelection(next);
-  const catalog = await discoverSkills();
-  const mirrorResult = await mirrorEnabledSkills(next, catalog);
-  for (const name of mirrorResult.missing) {
-    console.warn(`Enabled skill "${name}" was not found; skipping mirror to ~/.fl0w/skills.`);
-  }
-  for (const { name, error } of mirrorResult.errors) {
-    console.warn(`Failed to mirror skill "${name}" to ~/.fl0w/skills: ${error}`);
-  }
+  scheduleMirrorEnabledSkills(next, await discoverSkills());
   return (await frontLoadMessages()).map((message) => fl0wMessage(message));
 };
 

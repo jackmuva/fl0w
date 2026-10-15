@@ -15,13 +15,14 @@ mock.module('../../constants', () => ({
 }));
 
 const { applyCapabilitySelection } = await import('./capabilities');
+const { flushPendingSkillMirrors } = await import('../skills/mirror-enabled-skills');
 
 afterEach(async () => {
   await rm(tempRoot, { recursive: true, force: true });
 });
 
 describe('applyCapabilitySelection', () => {
-  test('mirrors enabled skills before front-loading the catalog', async () => {
+  test('mirrors enabled skills after flush (debounced in background)', async () => {
     const skillDir = join(workspace, 'skills', 'workspace-skill');
     await mkdir(skillDir, { recursive: true });
     await writeFile(
@@ -38,6 +39,7 @@ describe('applyCapabilitySelection', () => {
         userTools: [],
         agentsMd: [],
       });
+      await flushPendingSkillMirrors();
 
       expect(await readFile(join(fl0wSkillsDir, 'workspace-skill', 'SKILL.md'), 'utf8')).toContain('Body');
     } finally {

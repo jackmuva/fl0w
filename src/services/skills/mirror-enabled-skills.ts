@@ -4,6 +4,8 @@ import { FL0W_SKILLS_DIR } from '../../constants';
 import type { CapabilitySelection } from '../../models/agent';
 import type { SkillSummary } from '../agent/hooks/front-load';
 
+export const MIRROR_DEBOUNCE_MS = 400;
+
 export type MirrorEnabledSkillsResult = {
   mirrored: string[];
   skipped: string[];
@@ -17,7 +19,16 @@ const isUnderFl0wSkills = (skillDir: string): boolean => {
   return target === base || target.startsWith(`${base}/`);
 };
 
-/** Copies enabled skills into ~/.fl0w/skills for portability and future sync. Runtime still reads source paths. */
+const logMirrorResult = (result: MirrorEnabledSkillsResult): void => {
+  for (const name of result.missing) {
+    console.warn(`Enabled skill "${name}" was not found; skipping mirror to ~/.fl0w/skills.`);
+  }
+  for (const { name, error } of result.errors) {
+    console.warn(`Failed to mirror skill "${name}" to ~/.fl0w/skills: ${error}`);
+  }
+};
+
+/** Copies enabled skills into ~/.fl0w/skills for portability and future sync. */
 export async function mirrorEnabledSkills(
   selection: CapabilitySelection,
   catalog: SkillSummary[],
@@ -62,4 +73,42 @@ export async function mirrorEnabledSkills(
   }
 
   return result;
+}
+
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let queuedMirror: { selection: CapabilitySelection; catalog: SkillSummary[] } | null = null;
+let mirrorQueue: Promise<void> = Promise.resolve();
+
+const runQueuedMirror = (): Promise<void> => {
+  const work = queuedMirror;
+  queuedMirror = null;
+  if (!work) return mirrorQueue;
+
+  mirrorQueue = mirrorQueue.then(async () => {
+    logMirrorResult(await mirrorEnabledSkills(work.selection, work.catalog));
+  }).catch(() => { });
+  return mirrorQueue;
+};
+
+/** Debounced background mirror so capability apply stays responsive. */
+export function scheduleMirrorEnabledSkills(
+  selection: CapabilitySelection,
+  catalog: SkillSummary[],
+): void {
+  queuedMirror = { selection, catalog };
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null;
+    void runQueuedMirror();
+  }, MIRROR_DEBOUNCE_MS);
+}
+
+/** Runs any pending debounced mirror immediately and waits for in-flight copies. */
+export async function flushPendingSkillMirrors(): Promise<void> {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
+  await runQueuedMirror();
+  await mirrorQueue;
 }
