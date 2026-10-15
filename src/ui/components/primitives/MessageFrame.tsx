@@ -1,4 +1,4 @@
-import { MouseButton, type MouseEvent } from "@opentui/core"
+import { MouseButton, RGBA, type MouseEvent } from "@opentui/core"
 import type { ReactNode } from "react"
 import { createContext, useContext, useState } from "react"
 import { WorkflowEdge } from "./WorkflowEdge"
@@ -15,6 +15,8 @@ const MUTED_FG = "#565f89"
 const CALL_LABEL_FG = CREAM_FG
 const OUTPUT_LABEL_FG = GREEN_FG
 // Ghost frames fade the further back they sit behind the selected step.
+// The terminal's own default background, so stacked frames occlude without a visible fill.
+const TERMINAL_BG = RGBA.defaultBackground()
 const GHOST_FG = ["#c9b896", "#a8845a", AGENT_BORDER_COLOR] as const
 
 const NODE_LABEL: Record<MessageFrameKind, string> = {
@@ -99,11 +101,13 @@ export const MessageFrame = ({
               bottom={d}
               left={d * 2}
               right={(depth - d) * 2}
-              border={["top", "right"]}
+              zIndex={10 - d}
+              border={true}
               borderStyle="rounded"
               borderColor={fg}
               title={` ○ ${choice} · ${(probability * 100).toFixed(1)}% `}
               titleColor={fg}
+              backgroundColor={TERMINAL_BG}
             />
           )
         })}
@@ -116,6 +120,8 @@ export const MessageFrame = ({
           paddingLeft={1}
           paddingRight={1}
           width="100%"
+          zIndex={10}
+          backgroundColor={depth > 0 ? TERMINAL_BG : undefined}
         >
           {subtitle ? <text fg={MUTED_FG}>{subtitle}</text> : null}
           <box
