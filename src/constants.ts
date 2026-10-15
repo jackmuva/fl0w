@@ -11,6 +11,8 @@ export const MCP_CONFIG_PATH = join(FL0W_HOME, 'mcp.json');
 
 export const USER_TOOLS_DIR = join(FL0W_HOME, 'tools');
 
+export const FL0W_SKILLS_DIR = join(FL0W_HOME, 'skills');
+
 export const DEFAULT_CONTEXT_WINDOW = 1_000_000;
 
 const parseContextWindow = (raw: string | undefined): number | undefined => {

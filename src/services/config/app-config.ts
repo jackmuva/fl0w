@@ -100,6 +100,7 @@ export async function saveFl0wGatewayKey(key: string, path = APP_CONFIG_PATH): P
 export async function ensureFl0wHome(home = FL0W_HOME): Promise<void> {
   mkdirSync(home, { recursive: true });
   await mkdir(join(home, 'tools'), { recursive: true });
+  await mkdir(join(home, 'skills'), { recursive: true });
 
   const configPath = join(home, 'config.json');
   await writeDefaultJsonIfMissing(configPath, defaultAppConfig());
