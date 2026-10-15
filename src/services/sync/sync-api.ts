@@ -1,5 +1,6 @@
 import { FL0W_API_URL } from '../../constants';
-import type { JsonObject, RemoteFile, RemoteFileMeta, SyncFilename } from '../../models/sync';
+import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteWorkflowMeta, SyncFilename } from '../../models/sync';
+import type { WorkflowRecord } from '../../models/workflow';
 import { getAccessToken } from '../auth/token';
 
 const REQUEST_TIMEOUT_MS = 5_000;
@@ -11,7 +12,7 @@ export class SyncConflictError extends Error {
 }
 
 async function request(path: string, init: RequestInit = {}): Promise<Response> {
-  const send = async (force: boolean) => fetch(`${FL0W_API_URL}/api/sync/config-files${path}`, {
+  const send = async (force: boolean) => fetch(`${FL0W_API_URL}/api/sync${path}`, {
     ...init,
     headers: { ...init.headers, authorization: `Bearer ${await getAccessToken({ force })}`, 'content-type': 'application/json' },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -36,20 +37,20 @@ const readResponseJson = async (res: Response): Promise<unknown> => {
 const asErrorBody = (value: unknown): ErrorBody =>
   (value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as ErrorBody;
 
-async function fail(res: Response, action: string): Promise<never> {
+async function fail(res: Response, action: string, kind = 'Config'): Promise<never> {
   const body = asErrorBody(await readResponseJson(res));
-  throw new Error(`Config sync ${action} failed: ${body.error_description ?? body.error ?? `HTTP ${res.status}`}`);
+  throw new Error(`${kind} sync ${action} failed: ${body.error_description ?? body.error ?? `HTTP ${res.status}`}`);
 }
 
 export async function listRemote(): Promise<RemoteFileMeta[]> {
-  const res = await request('');
+  const res = await request('/config-files');
   if (!res.ok) return fail(res, 'list');
   const body = asErrorBody(await readResponseJson(res)) as { files?: unknown };
   return Array.isArray(body.files) ? body.files as RemoteFileMeta[] : [];
 }
 
 export async function getRemote(filename: SyncFilename): Promise<RemoteFile | null> {
-  const res = await request(`/${encodeURIComponent(filename)}`);
+  const res = await request(`/config-files/${encodeURIComponent(filename)}`);
   if (res.status === 404) return null;
   if (!res.ok) return fail(res, `pull of ${filename}`);
   const parsed = await readResponseJson(res);
@@ -61,7 +62,7 @@ export async function getRemote(filename: SyncFilename): Promise<RemoteFile | nu
 
 /** `baseVersion` 0 creates the file; otherwise it must match the server's version or this throws SyncConflictError. */
 export async function putRemote(filename: SyncFilename, content: JsonObject, baseVersion: number): Promise<RemoteFileMeta> {
-  const res = await request(`/${encodeURIComponent(filename)}`, {
+  const res = await request(`/config-files/${encodeURIComponent(filename)}`, {
     method: 'PUT',
     body: JSON.stringify({ content, baseVersion }),
   });
@@ -72,4 +73,19 @@ export async function putRemote(filename: SyncFilename, content: JsonObject, bas
     throw new Error(`Config sync push of ${filename} failed: invalid response body`);
   }
   return parsed.configFile;
+}
+
+export async function listRemoteWorkflows(): Promise<RemoteWorkflowMeta[]> {
+  const res = await request('/workflows');
+  if (!res.ok) return fail(res, 'list', 'Workflow');
+  const body = asErrorBody(await readResponseJson(res)) as { workflows?: unknown };
+  return Array.isArray(body.workflows) ? body.workflows as RemoteWorkflowMeta[] : [];
+}
+
+/** Returns false when fl0w-work already has a workflow with this id (409). */
+export async function pushWorkflow(workflow: WorkflowRecord): Promise<boolean> {
+  const res = await request('/workflows', { method: 'POST', body: JSON.stringify(workflow) });
+  if (res.status === 409) return false;
+  if (!res.ok) return fail(res, `push of "${workflow.title}"`, 'Workflow');
+  return true;
 }

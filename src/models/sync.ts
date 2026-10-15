@@ -13,6 +13,12 @@ export type RemoteFileMeta = {
 
 export type RemoteFile = RemoteFileMeta & { content: JsonObject };
 
+/** Server-side metadata for one workflow (GET /api/sync/workflows). */
+export type RemoteWorkflowMeta = {
+  id: string;
+  updatedAt: string;
+};
+
 /** Shape of ~/.fl0w/sync-state.json. */
 export type SyncState = {
   /** fl0w user the state was synced for; a different signed-in user starts fresh. */

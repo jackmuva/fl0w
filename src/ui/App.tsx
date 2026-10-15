@@ -12,6 +12,7 @@ import { fl0wMessage } from "../services/agent/utils/fl0w-message"
 import { buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { WorkflowStore } from "../db/workflow-store"
+import { pushWorkflowsInBackground } from "../services/sync/workflow-sync"
 import type { WorkflowRecord } from "../models/workflow"
 import { useSessionPersistence } from "./hooks/useSessionPersistence"
 import { buildToolCallInputMap } from "./lib/format/message"
@@ -146,6 +147,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
         requiredCapabilities,
       })
       refreshWorkflows()
+      pushWorkflowsInBackground(workflowStore)
       setMessages((previous) => [
         ...previous,
         fl0wMessage({

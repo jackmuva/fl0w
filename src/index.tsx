@@ -8,6 +8,7 @@ import { mcpToolKey } from "./models/mcp"
 import { mcpClient } from "./services/mcp/mcp-client"
 import { flushPendingPushes, syncOnStartup, watchLocalConfigWrites } from "./services/sync/config-sync"
 import { isConfigSyncEnabled } from "./services/config/app-config"
+import { flushWorkflowPushes, pushWorkflowsInBackground } from "./services/sync/workflow-sync"
 
 await ensureFl0wHome()
 
@@ -16,9 +17,11 @@ const isAccountCommand = ACCOUNT_COMMANDS.includes(Bun.argv[2] ?? "")
 
 let syncWarning: string | null = null
 if (!isAccountCommand) {
-  if (await isConfigSyncEnabled()) console.log("Syncing config files...")
-  syncWarning = await syncOnStartup()
-  watchLocalConfigWrites()
+  if (await isConfigSyncEnabled()) console.log("Syncing config files...");
+  syncWarning = await syncOnStartup();
+  watchLocalConfigWrites();
+  console.log("Syncing workflows...");
+  pushWorkflowsInBackground();
 }
 
 // Load before account commands so `fl0w login` knows whether config.json's aiGatewayApiKey takes precedence.
@@ -33,7 +36,7 @@ if (HEADLESS) {
   if (syncWarning) console.error(syncWarning)
   const { runHeadless } = await import("./services/workflow/headless-run")
   const code = await runHeadless(Bun.argv.slice(3))
-  await flushPendingPushes()
+  await Promise.all([flushPendingPushes(), flushWorkflowPushes()])
   process.exit(code)
 }
 
