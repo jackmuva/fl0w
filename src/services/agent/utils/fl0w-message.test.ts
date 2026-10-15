@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { jevMessage, toModelMessages } from './jev-message';
+import { fl0wMessage, toModelMessages } from './fl0w-message';
 
 describe('toModelMessages', () => {
   test('places conversation summaries after system messages for the model', () => {
     const messages = [
-      jevMessage({ role: 'system', content: 'rules' }),
-      jevMessage({ role: 'user', content: 'latest ask' }),
-      jevMessage({ role: 'assistant', content: 'recent reply' }),
-      jevMessage({ role: 'assistant', content: 'condensed history' }, 'summary'),
+      fl0wMessage({ role: 'system', content: 'rules' }),
+      fl0wMessage({ role: 'user', content: 'latest ask' }),
+      fl0wMessage({ role: 'assistant', content: 'recent reply' }),
+      fl0wMessage({ role: 'assistant', content: 'condensed history' }, 'summary'),
     ];
 
     expect(toModelMessages(messages).map((m) => m.content)).toEqual([
@@ -20,8 +20,8 @@ describe('toModelMessages', () => {
 
   test('drops decision frames from model input', () => {
     const messages = [
-      jevMessage({ role: 'user', content: 'go' }),
-      jevMessage({ role: 'assistant', content: '{"selectedTool":"x","probabilities":{}}' }, 'decision'),
+      fl0wMessage({ role: 'user', content: 'go' }),
+      fl0wMessage({ role: 'assistant', content: '{"selectedTool":"x","probabilities":{}}' }, 'decision'),
     ];
 
     expect(toModelMessages(messages)).toEqual([{ role: 'user', content: 'go' }]);

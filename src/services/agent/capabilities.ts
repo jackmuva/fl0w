@@ -1,8 +1,8 @@
-import type { CapabilityCatalog, CapabilityKind, CapabilitySelection, JevMessage } from "../../models/agent";
+import type { CapabilityCatalog, CapabilityKind, CapabilitySelection, Fl0wMessage } from "../../models/agent";
 import type { McpTool } from "../../models/mcp";
 import { mcpToolKey } from "../../models/mcp";
 import { frontLoadMessages } from "./hooks/front-load";
-import { jevMessage } from "./utils/jev-message";
+import { fl0wMessage } from "./utils/fl0w-message";
 
 let selection: CapabilitySelection | null = null;
 
@@ -45,9 +45,9 @@ export const mergeCapabilitySelection = (
 
 export const applyCapabilitySelection = async (
   next: CapabilitySelection,
-): Promise<JevMessage[]> => {
+): Promise<Fl0wMessage[]> => {
   setCapabilitySelection(next);
-  return (await frontLoadMessages()).map((message) => jevMessage(message));
+  return (await frontLoadMessages()).map((message) => fl0wMessage(message));
 };
 
 export const isCatalogEmpty = (catalog: CapabilityCatalog) =>

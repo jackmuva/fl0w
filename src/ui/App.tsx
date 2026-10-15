@@ -1,6 +1,6 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { jevLoop, type JevLoopResult } from "../services/agent/agent-loop"
+import { fl0wLoop, type fl0wLoopResult } from "../services/agent/agent-loop"
 import {
   getCapabilitySelection,
   emptyCapabilitySelection,
@@ -8,7 +8,7 @@ import {
   mergeCapabilitySelection,
 } from "../services/agent/capabilities"
 import { findPendingAskQuestion } from "../services/agent/utils/ask-question-state"
-import { jevMessage } from "../services/agent/utils/jev-message"
+import { fl0wMessage } from "../services/agent/utils/fl0w-message"
 import { buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { WorkflowStore } from "../db/workflow-store"
@@ -28,11 +28,11 @@ import { useCopyOnSelection } from "./hooks/useCopyOnSelection"
 import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
 import { resolveUserMessage } from "./lib/input-completion/at-files"
-import type { CapabilityCatalog, CapabilitySelection, JevMessage } from "../models/agent"
+import type { CapabilityCatalog, CapabilitySelection, Fl0wMessage } from "../models/agent"
 
 type AppProps = {
   initialMessage?: string | null
-  seedMessages: JevMessage[]
+  seedMessages: Fl0wMessage[]
   capabilityCatalog: CapabilityCatalog
 }
 
@@ -148,7 +148,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
       refreshWorkflows()
       setMessages((previous) => [
         ...previous,
-        jevMessage({
+        fl0wMessage({
           role: "assistant",
           content: `Workflow saved: ${saved.title}`,
         }),
@@ -159,7 +159,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
         : "Could not generate workflow from the selected session"
       setMessages((previous) => [
         ...previous,
-        jevMessage({ role: "assistant", content: message }),
+        fl0wMessage({ role: "assistant", content: message }),
       ])
     } finally {
       setGenerating(false)
@@ -197,7 +197,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     setPendingWorkflow(null)
   })
 
-  const finishAgentRun = (outcome: JevLoopResult) => {
+  const finishAgentRun = (outcome: fl0wLoopResult) => {
     setStatus(outcome === "error" ? "error" : "ready")
   }
 
@@ -216,13 +216,13 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
       await applySessionCapabilities(merged)
 
       const userMessage = buildWorkflowUserMessage(workflow, text)
-      const nextMessages = [...messages, jevMessage(userMessage)]
+      const nextMessages = [...messages, fl0wMessage(userMessage)]
       setMessages(nextMessages)
 
       const runAbort = new AbortController()
       runAbortRef.current = runAbort
       try {
-        finishAgentRun(await jevLoop(nextMessages, setMessages, runAbort.signal))
+        finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal))
       } finally {
         runAbortRef.current = null
       }
@@ -233,13 +233,13 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
 
     setStatus("working")
     const userMessage = await resolveUserMessage(text)
-    const nextMessages = [...messages, jevMessage(userMessage)]
+    const nextMessages = [...messages, fl0wMessage(userMessage)]
     setMessages(nextMessages)
 
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      finishAgentRun(await jevLoop(nextMessages, setMessages, runAbort.signal))
+      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal))
     } finally {
       runAbortRef.current = null
     }
@@ -249,7 +249,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     if (!pendingAsk || status === "working") return
 
     setStatus("working")
-    const toolResult = jevMessage({
+    const toolResult = fl0wMessage({
       role: "tool",
       content: [{
         type: "tool-result",
@@ -264,7 +264,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      finishAgentRun(await jevLoop(nextMessages, setMessages, runAbort.signal))
+      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal))
     } finally {
       runAbortRef.current = null
     }

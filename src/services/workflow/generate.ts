@@ -8,7 +8,7 @@ import {
 } from 'ai';
 import { recordLlmUsage } from '../agent/hooks/session-usage';
 import { LLM_MODEL } from '../../constants';
-import type { JevMessage } from '../../models/agent';
+import type { Fl0wMessage } from '../../models/agent';
 import type { GeneratedWorkflow, WorkflowStep } from '../../models/workflow';
 import { extractToolCalls, hasConversationContent } from './extract-tool-calls';
 
@@ -56,7 +56,7 @@ const stringifyToolCalls = (calls: ReturnType<typeof extractToolCalls>): string 
     ? '(none)'
     : calls.map((call, index) => `${index + 1}. ${call.toolName}(${JSON.stringify(call.input)})`).join('\n');
 
-const messageToSummaryLine = ({ message }: JevMessage): string | null => {
+const messageToSummaryLine = ({ message }: Fl0wMessage): string | null => {
   if (message.role === 'user') {
     const text = typeof message.content === 'string'
       ? message.content
@@ -165,7 +165,7 @@ export class WorkflowGenerationError extends Error {
 }
 
 export const generateWorkflowFromSession = async (
-  messages: JevMessage[],
+  messages: Fl0wMessage[],
 ): Promise<GeneratedWorkflow> => {
   const conversation = messages.filter(({ message }) => message.role !== 'system');
   if (!hasConversationContent(conversation)) {

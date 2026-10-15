@@ -5,7 +5,7 @@ import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { mkdirSync } from 'node:fs';
 import { DB_PATH, FL0W_HOME } from '../constants';
-import type { CapabilitySelection, JevMessage } from '../models/agent';
+import type { CapabilitySelection, Fl0wMessage } from '../models/agent';
 import type { WorkflowStep } from '../models/workflow';
 
 export const nowIso = (): string => new Date().toISOString();
@@ -24,8 +24,8 @@ export const sessions = sqliteTable('sessions', {
 export const messages = sqliteTable('messages', {
   sessionId: text('session_id').notNull().references(() => sessions.id, { onDelete: 'cascade' }),
   position: integer('position').notNull(),
-  // Sessions saved before JevMessage stored bare ModelMessages.
-  payload: text('payload', { mode: 'json' }).$type<JevMessage | ModelMessage>().notNull(),
+  // Sessions saved before fl0wMessage stored bare ModelMessages.
+  payload: text('payload', { mode: 'json' }).$type<Fl0wMessage | ModelMessage>().notNull(),
 }, (table) => [
   primaryKey({ columns: [table.sessionId, table.position] }),
 ]);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { JevMessage } from '../models/agent';
+import type { Fl0wMessage } from '../models/agent';
 import { emptyCapabilitySelection } from '../services/agent/capabilities';
 import type { FlowDatabase } from './schema';
 import { SessionStore } from './session-store';
@@ -16,8 +16,8 @@ describe('SessionStore', () => {
   test('persists non-system messages in order', () => {
     const store = SessionStore.openInMemory();
     const session = store.getOrCreateSession('/tmp/project-b');
-    const seed: JevMessage[] = [{ message: { role: 'system', content: 'rules' } }];
-    const conversation: JevMessage[] = [
+    const seed: Fl0wMessage[] = [{ message: { role: 'system', content: 'rules' } }];
+    const conversation: Fl0wMessage[] = [
       { message: { role: 'user', content: 'hello' } },
       { message: { role: 'assistant', content: 'hi there' } },
     ];
@@ -61,7 +61,7 @@ describe('SessionStore', () => {
     expect(sessions[1]?.id).toBe(first.id);
   });
 
-  test('loads messages saved before JevMessage', () => {
+  test('loads messages saved before fl0wMessage', () => {
     const store = SessionStore.openInMemory();
     const session = store.getOrCreateSession('/tmp/project-legacy');
     const legacy = { role: 'user', content: 'old' };
@@ -70,7 +70,7 @@ describe('SessionStore', () => {
       [session.id, 0, JSON.stringify(legacy)],
     );
 
-    expect(store.loadMessages(session.id)).toEqual([{ message: legacy }] as JevMessage[]);
+    expect(store.loadMessages(session.id)).toEqual([{ message: legacy }] as Fl0wMessage[]);
   });
 
   test('persists and loads session capabilities', () => {
@@ -89,7 +89,7 @@ describe('SessionStore', () => {
   test('clears saved messages when only system messages remain', () => {
     const store = SessionStore.openInMemory();
     const session = store.getOrCreateSession('/tmp/project-d');
-    const seed: JevMessage[] = [{ message: { role: 'system', content: 'rules' } }];
+    const seed: Fl0wMessage[] = [{ message: { role: 'system', content: 'rules' } }];
 
     store.saveMessages(session.id, [
       ...seed,

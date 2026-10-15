@@ -1,29 +1,29 @@
-import type { CapabilitySelection, JevMessage } from '../../models/agent';
+import type { CapabilitySelection, Fl0wMessage } from '../../models/agent';
 import { applyCapabilitySelection } from '../../services/agent/capabilities';
 import { resolve } from 'node:path';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SessionStore, type SessionRecord } from '../../db/session-store';
 
-type SetMessagesAction = JevMessage[] | ((previous: JevMessage[]) => JevMessage[]);
+type SetMessagesAction = Fl0wMessage[] | ((previous: Fl0wMessage[]) => Fl0wMessage[]);
 
 const SAVE_DEBOUNCE_MS = 400;
 
 export type UseSessionPersistenceResult = {
-  messages: JevMessage[];
+  messages: Fl0wMessage[];
   setMessages: (update: SetMessagesAction) => void;
   clearSession: () => void;
   getSessions: () => SessionRecord[];
-  loadSessionMessages: (sessionId: string) => JevMessage[];
+  loadSessionMessages: (sessionId: string) => Fl0wMessage[];
   getSessionCapabilities: (sessionId: string) => CapabilitySelection | null;
   resumeSession: (sessionId: string) => void;
-  replaceSeedMessages: (seed: JevMessage[]) => void;
+  replaceSeedMessages: (seed: Fl0wMessage[]) => void;
   applySessionCapabilities: (selection: CapabilitySelection) => Promise<void>;
   session: SessionRecord;
   workspacePath: string;
 };
 
 export const useSessionPersistence = (
-  initialSeedMessages: JevMessage[],
+  initialSeedMessages: Fl0wMessage[],
   workspacePath = process.cwd(),
 ): UseSessionPersistenceResult => {
   const [seedMessages, setSeedMessages] = useState(initialSeedMessages);
@@ -33,7 +33,7 @@ export const useSessionPersistence = (
     store.getOrCreateSession(workspace),
   );
 
-  const [messages, setMessagesState] = useState<JevMessage[]>(() => {
+  const [messages, setMessagesState] = useState<Fl0wMessage[]>(() => {
     const saved = store.loadMessages(session.id);
     return [...seedMessages, ...saved];
   });
@@ -41,7 +41,7 @@ export const useSessionPersistence = (
   const sessionIdRef = useRef(session.id);
   sessionIdRef.current = session.id;
   const pendingSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingMessagesRef = useRef<JevMessage[] | null>(null);
+  const pendingMessagesRef = useRef<Fl0wMessage[] | null>(null);
 
   const flushSave = useCallback((sessionId = sessionIdRef.current) => {
     if (pendingSaveRef.current) {
@@ -56,7 +56,7 @@ export const useSessionPersistence = (
 
   useEffect(() => () => flushSave(), [flushSave]);
 
-  const scheduleSave = useCallback((next: JevMessage[]) => {
+  const scheduleSave = useCallback((next: Fl0wMessage[]) => {
     pendingMessagesRef.current = next;
     if (pendingSaveRef.current) clearTimeout(pendingSaveRef.current);
     pendingSaveRef.current = setTimeout(() => {
@@ -75,7 +75,7 @@ export const useSessionPersistence = (
     });
   }, [scheduleSave]);
 
-  const replaceSeedMessages = useCallback((seed: JevMessage[]) => {
+  const replaceSeedMessages = useCallback((seed: Fl0wMessage[]) => {
     setSeedMessages(seed);
     setMessagesState((previous) => [
       ...seed,

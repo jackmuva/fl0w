@@ -1,5 +1,5 @@
 import type { ModelMessage } from "ai"
-import type { JevMessage } from "../../../models/agent"
+import type { Fl0wMessage } from "../../../models/agent"
 
 const EXT_TO_FILETYPE: Record<string, string> = {
   ts: "typescript",
@@ -180,7 +180,7 @@ export const formatToolResultText = (part: ToolResultPart): string => {
 export const isToolResultError = (part: ToolResultPart): boolean =>
   part.output.type === "error-text"
 
-export const buildToolCallInputMap = (messages: JevMessage[]): Map<string, { toolName: string; input: unknown }> => {
+export const buildToolCallInputMap = (messages: Fl0wMessage[]): Map<string, { toolName: string; input: unknown }> => {
   const map = new Map<string, { toolName: string; input: unknown }>()
 
   for (const { message } of messages) {
@@ -193,5 +193,4 @@ export const buildToolCallInputMap = (messages: JevMessage[]): Map<string, { too
 
   return map
 }
-
 

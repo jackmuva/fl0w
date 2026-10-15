@@ -1,12 +1,12 @@
 import { asc, desc, eq, sql } from 'drizzle-orm';
 import { resolve } from 'node:path';
 import { DB_PATH } from '../constants';
-import type { CapabilitySelection, JevMessage } from '../models/agent';
+import type { CapabilitySelection, Fl0wMessage } from '../models/agent';
 import { messages, nowIso, openDatabase, sessions, type FlowDatabase } from './schema';
 
 export type SessionRecord = typeof sessions.$inferSelect;
 
-const deriveTitle = (messages: JevMessage[]): string | null => {
+const deriveTitle = (messages: Fl0wMessage[]): string | null => {
   const firstUser = messages.find(({ message }) => message.role === 'user')?.message;
   if (!firstUser) return null;
 
@@ -70,7 +70,7 @@ export class SessionStore {
     return existing ?? this.createSession(workspacePath);
   }
 
-  loadMessages(sessionId: string): JevMessage[] {
+  loadMessages(sessionId: string): Fl0wMessage[] {
     return this.db.select({ payload: messages.payload }).from(messages)
       .where(eq(messages.sessionId, sessionId))
       .orderBy(asc(messages.position))
@@ -93,8 +93,8 @@ export class SessionStore {
       .run();
   }
 
-  saveMessages(sessionId: string, jevMessages: JevMessage[]): void {
-    const conversation = jevMessages.filter(({ message }) => message.role !== 'system');
+  saveMessages(sessionId: string, fl0wMessages: Fl0wMessage[]): void {
+    const conversation = fl0wMessages.filter(({ message }) => message.role !== 'system');
     const title = deriveTitle(conversation);
 
     this.db.transaction((tx) => {

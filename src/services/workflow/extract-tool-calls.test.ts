@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import type { JevMessage } from '../../models/agent';
+import type { Fl0wMessage } from '../../models/agent';
 import { extractToolCalls, hasConversationContent } from './extract-tool-calls';
 
 describe('extractToolCalls', () => {
   test('extracts tool calls from assistant messages', () => {
-    const messages: JevMessage[] = [
+    const messages: Fl0wMessage[] = [
       { message: { role: 'user', content: 'search the repo' } },
       {
         message: {

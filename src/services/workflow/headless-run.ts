@@ -1,11 +1,11 @@
 import { parseArgs } from 'node:util';
-import type { JevMessage } from '../../models/agent';
+import type { Fl0wMessage } from '../../models/agent';
 import type { WorkflowRecord } from '../../models/workflow';
 import { WorkflowStore } from '../../db/workflow-store';
 import { applyCapabilitySelection } from '../agent/capabilities';
-import { jevLoop } from '../agent/agent-loop';
+import { fl0wLoop } from '../agent/agent-loop';
 import { findPendingAskQuestion } from '../agent/utils/ask-question-state';
-import { jevMessage } from '../agent/utils/jev-message';
+import { fl0wMessage } from '../agent/utils/fl0w-message';
 import { loadUserTools } from '../agent/user-tools/loader';
 import { mcpClient } from '../mcp/mcp-client';
 import { buildWorkflowUserMessage } from './build-message';
@@ -54,16 +54,16 @@ export const runHeadless = async (argv: string[]): Promise<number> => {
   await loadUserTools();
 
   const seed = await applyCapabilitySelection(workflow.requiredCapabilities);
-  const messages: JevMessage[] = [
+  const messages: Fl0wMessage[] = [
     ...seed,
-    jevMessage({ role: 'system', content: HEADLESS_INSTRUCTIONS }),
-    jevMessage(buildWorkflowUserMessage(workflow, values.input ?? '')),
+    fl0wMessage({ role: 'system', content: HEADLESS_INSTRUCTIONS }),
+    fl0wMessage(buildWorkflowUserMessage(workflow, values.input ?? '')),
   ];
 
   let latest = messages;
   // seed messages are known to the caller; only stream what the run adds
   let printed = messages.length;
-  const onMessages = (next: JevMessage[]) => {
+  const onMessages = (next: Fl0wMessage[]) => {
     latest = next;
     // compaction can shrink the transcript; don't re-print what was rewritten
     if (next.length < printed) printed = next.length;
@@ -75,7 +75,7 @@ export const runHeadless = async (argv: string[]): Promise<number> => {
   process.on('SIGINT', () => abort.abort());
   process.on('SIGTERM', () => abort.abort());
 
-  const outcome = await jevLoop(messages, onMessages, abort.signal);
+  const outcome = await fl0wLoop(messages, onMessages, abort.signal);
   const pendingQuestion = findPendingAskQuestion(latest);
   const status = pendingQuestion ? 'needs_input' : outcome;
   const last = latest.at(-1)?.message;

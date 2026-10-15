@@ -1,4 +1,4 @@
-import type { JevMessage } from "../../../models/agent";
+import type { Fl0wMessage } from "../../../models/agent";
 import type { AskQuestionInput, AskQuestionItem } from "../default-tools/ask-question";
 
 export type PendingAskQuestion = {
@@ -27,7 +27,7 @@ const normalizeAskQuestionInput = (input: unknown): AskQuestionInput => {
 };
 
 export const findPendingAskQuestion = (
-  messages: JevMessage[],
+  messages: Fl0wMessage[],
 ): PendingAskQuestion | null => {
   let pending: PendingAskQuestion | null = null;
 

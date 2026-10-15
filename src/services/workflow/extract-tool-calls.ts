@@ -1,11 +1,11 @@
-import type { JevMessage } from '../../models/agent';
+import type { Fl0wMessage } from '../../models/agent';
 
 export type ExtractedToolCall = {
   toolName: string;
   input: unknown;
 };
 
-export const extractToolCalls = (messages: JevMessage[]): ExtractedToolCall[] => {
+export const extractToolCalls = (messages: Fl0wMessage[]): ExtractedToolCall[] => {
   const calls: ExtractedToolCall[] = [];
 
   for (const { message } of messages) {
@@ -20,5 +20,5 @@ export const extractToolCalls = (messages: JevMessage[]): ExtractedToolCall[] =>
   return calls;
 };
 
-export const hasConversationContent = (messages: JevMessage[]): boolean =>
+export const hasConversationContent = (messages: Fl0wMessage[]): boolean =>
   messages.some(({ message }) => message.role === 'user' || message.role === 'assistant');

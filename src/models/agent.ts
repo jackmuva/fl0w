@@ -2,18 +2,18 @@ import type { ModelMessage } from "ai";
 
 export type ChoiceProbabilities = { [choice: string]: number };
 
-export type JevMessageFrame = 'summary' | 'decision';
+export type Fl0wMessageFrame = 'summary' | 'decision';
 
 /** A ModelMessage plus UI-only metadata. Only non-framed messages go to the LLM (see `toModelMessages`). */
-export type JevMessage = {
+export type Fl0wMessage = {
   message: ModelMessage,
-  frame?: JevMessageFrame,
+  frame?: Fl0wMessageFrame,
 }
 
 export type STATE = "START" | "DISCOVERY" | "PLAN" | "EXECUTE" | "REWIND" | "END";
 export type AgentState = {
   state: STATE,
-  messages: JevMessage[],
+  messages: Fl0wMessage[],
   selectedTool?: string,
   /** Action-select (or routing) probabilities for the upcoming tool call. */
   probabilities?: ChoiceProbabilities,

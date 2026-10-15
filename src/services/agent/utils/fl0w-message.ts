@@ -1,17 +1,17 @@
 import type { ModelMessage } from 'ai';
-import type { ChoiceProbabilities, JevMessage, JevMessageFrame } from '../../../models/agent';
+import type { ChoiceProbabilities, Fl0wMessage, Fl0wMessageFrame } from '../../../models/agent';
 
 export type DecisionMessagePayload = {
   selectedTool: string;
   probabilities: ChoiceProbabilities;
 };
 
-const LLM_EXCLUDED_FRAMES = new Set<JevMessageFrame>(['decision']);
+const LLM_EXCLUDED_FRAMES = new Set<Fl0wMessageFrame>(['decision']);
 
-export const jevMessage = (
+export const fl0wMessage = (
   message: ModelMessage,
-  frame?: JevMessageFrame,
-): JevMessage => ({
+  frame?: Fl0wMessageFrame,
+): Fl0wMessage => ({
   message,
   ...(frame && { frame }),
 });
@@ -19,8 +19,8 @@ export const jevMessage = (
 export const decisionMessage = (
   probabilities: ChoiceProbabilities,
   selectedTool: string,
-): JevMessage =>
-  jevMessage(
+): Fl0wMessage =>
+  fl0wMessage(
     {
       role: 'assistant',
       content: JSON.stringify({ selectedTool, probabilities } satisfies DecisionMessagePayload),
@@ -29,10 +29,10 @@ export const decisionMessage = (
   );
 
 export const appendDecisionMessage = (
-  messages: JevMessage[],
+  messages: Fl0wMessage[],
   probabilities: ChoiceProbabilities,
   selectedTool: string,
-): JevMessage[] => {
+): Fl0wMessage[] => {
   const last = messages.at(-1);
   if (last?.frame === 'decision') {
     const parsed = parseDecisionMessage(last);
@@ -41,7 +41,7 @@ export const appendDecisionMessage = (
   return [...messages, decisionMessage(probabilities, selectedTool)];
 };
 
-export const parseDecisionMessage = (entry: JevMessage): DecisionMessagePayload | null => {
+export const parseDecisionMessage = (entry: Fl0wMessage): DecisionMessagePayload | null => {
   if (entry.frame !== 'decision') return null;
   const { content } = entry.message;
   if (typeof content !== 'string') return null;
@@ -54,7 +54,7 @@ export const parseDecisionMessage = (entry: JevMessage): DecisionMessagePayload 
   }
 };
 
-export const toModelMessages = (messages: JevMessage[]): ModelMessage[] => {
+export const toModelMessages = (messages: Fl0wMessage[]): ModelMessage[] => {
   const included = messages.filter(({ frame }) => !frame || !LLM_EXCLUDED_FRAMES.has(frame));
   const system = included.filter(({ message }) => message.role === 'system');
   const summaries = included.filter(({ frame }) => frame === 'summary');

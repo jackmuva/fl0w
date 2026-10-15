@@ -1,8 +1,8 @@
 import type { ModelMessage } from "ai"
-import type { JevMessage } from "../../../models/agent"
+import type { Fl0wMessage } from "../../../models/agent"
 import { parseUserAttachments } from "../../lib/input-completion/at-files"
 import { parseWorkflowPrompt } from "../../../services/workflow/build-message"
-import { parseDecisionMessage } from "../../../services/agent/utils/jev-message"
+import { parseDecisionMessage } from "../../../services/agent/utils/fl0w-message"
 import { renderToolCall, renderToolResult } from "../../tool-renderers"
 import {
   formatToolResultText,
@@ -52,7 +52,7 @@ const hasOnlyToolCalls = (message: ModelMessage): boolean => {
 }
 
 type MessageContentProps = {
-  message: JevMessage
+  message: Fl0wMessage
   toolCallInputs: Map<string, { toolName: string; input: unknown }>
 }
 

@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { mapToolResultOutput } from 'ai/internal';
-import type { JevMessage } from '../../../models/agent';
+import type { Fl0wMessage } from '../../../models/agent';
 import { COMPACTION_TOKEN_THRESHOLD, DEFAULT_CONTEXT_WINDOW } from '../../../constants';
 import { estimateMessagesTokens, shrinkMessagesToTokenBudget } from './compaction';
 
-const largeToolResult = (size: number): JevMessage => ({ message: {
+const largeToolResult = (size: number): Fl0wMessage => ({ message: {
   role: 'tool',
   content: [{
     type: 'tool-result',
@@ -17,7 +17,7 @@ const largeToolResult = (size: number): JevMessage => ({ message: {
 describe('estimateMessagesTokens', () => {
   test('counts full tool-result payloads, not a truncated preview', () => {
     const payloadSize = 30_000;
-    const messages: JevMessage[] = [
+    const messages: Fl0wMessage[] = [
       { message: { role: 'user', content: 'read the file' } },
       largeToolResult(payloadSize),
     ];
@@ -30,7 +30,7 @@ describe('estimateMessagesTokens', () => {
   });
 
   test('exceeds compaction threshold when history is large enough', () => {
-    const messages: JevMessage[] = [
+    const messages: Fl0wMessage[] = [
       { message: { role: 'user', content: 'analyze these files' } },
       largeToolResult(80_000),
     ];
@@ -44,7 +44,7 @@ describe('estimateMessagesTokens', () => {
 
 describe('shrinkMessagesToTokenBudget', () => {
   test('truncates retained tool output when everything is in the keep window', () => {
-    const messages: JevMessage[] = [
+    const messages: Fl0wMessage[] = [
       { message: { role: 'user', content: 'read the file' } },
       largeToolResult(80_000),
     ];
@@ -66,7 +66,7 @@ describe('shrinkMessagesToTokenBudget', () => {
   });
 
   test('truncates older tool results before the latest tool result', () => {
-    const payload = (size: number, id: string): JevMessage => ({
+    const payload = (size: number, id: string): Fl0wMessage => ({
       message: {
         role: 'tool',
         content: [{
@@ -77,7 +77,7 @@ describe('shrinkMessagesToTokenBudget', () => {
         }],
       },
     });
-    const messages: JevMessage[] = [
+    const messages: Fl0wMessage[] = [
       { message: { role: 'user', content: 'compare files' } },
       payload(80_000, 'old'),
       payload(80_000, 'new'),
@@ -100,7 +100,7 @@ describe('shrinkMessagesToTokenBudget', () => {
 
   test('normalizes truncated json and content tool outputs to plain text', () => {
     const tokenLimit = 500;
-    const jsonMessage: JevMessage = {
+    const jsonMessage: Fl0wMessage = {
       message: {
         role: 'tool',
         content: [{
@@ -111,7 +111,7 @@ describe('shrinkMessagesToTokenBudget', () => {
         }],
       },
     };
-    const contentMessage: JevMessage = {
+    const contentMessage: Fl0wMessage = {
       message: {
         role: 'tool',
         content: [{

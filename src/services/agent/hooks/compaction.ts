@@ -7,8 +7,8 @@ import {
   TOOL_TRUNCATE_STEPS,
 } from '../../../constants';
 import { recordLlmUsage } from './session-usage';
-import type { AgentState, JevMessage } from '../../../models/agent';
-import { jevMessage } from '../utils/jev-message';
+import type { AgentState, Fl0wMessage } from '../../../models/agent';
+import { fl0wMessage } from '../utils/fl0w-message';
 
 export type CompactionOptions = {
   keepAssistantMessages?: number;
@@ -62,10 +62,10 @@ const messageToText = (message: ModelMessage, options: MessageTextOptions = {}):
 export const estimateTextTokens = (text: string): number =>
   Math.ceil(text.length / 3);
 
-const estimateMessageTokens = ({ message }: JevMessage): number =>
+const estimateMessageTokens = ({ message }: Fl0wMessage): number =>
   estimateTextTokens(messageToText(message));
 
-export const estimateMessagesTokens = (messages: JevMessage[]): number =>
+export const estimateMessagesTokens = (messages: Fl0wMessage[]): number =>
   messages.reduce((total, message) => total + estimateMessageTokens(message), 0);
 
 const truncateToolResultParts = (message: ModelMessage, maxChars: number): ModelMessage => {
@@ -108,15 +108,15 @@ const truncateToolResultParts = (message: ModelMessage, maxChars: number): Model
   return changed ? { ...message, content } as ModelMessage : message;
 };
 
-const getToolMessageIndicesOldestFirst = (messages: JevMessage[]): number[] =>
+const getToolMessageIndicesOldestFirst = (messages: Fl0wMessage[]): number[] =>
   messages
     .map((entry, index) => (entry.message.role === 'tool' ? index : -1))
     .filter((index) => index >= 0);
 
 const applyToolResultCharLimits = (
-  messages: JevMessage[],
+  messages: Fl0wMessage[],
   limitsByIndex: Map<number, number>,
-): JevMessage[] =>
+): Fl0wMessage[] =>
   messages.map((entry, index) => {
     const limit = limitsByIndex.get(index);
     if (limit == null) return entry;
@@ -125,9 +125,9 @@ const applyToolResultCharLimits = (
   });
 
 export const shrinkMessagesToTokenBudget = (
-  messages: JevMessage[],
+  messages: Fl0wMessage[],
   tokenLimit: number,
-): JevMessage[] => {
+): Fl0wMessage[] => {
   if (estimateMessagesTokens(messages) <= tokenLimit) return messages;
 
   const toolIndices = getToolMessageIndicesOldestFirst(messages);
@@ -160,7 +160,7 @@ export const shrinkMessagesToTokenBudget = (
 };
 
 const getRetainedIndices = (
-  messages: JevMessage[],
+  messages: Fl0wMessage[],
   keepAssistantCount: number,
 ): Set<number> => {
   const retained = new Set<number>();
@@ -191,10 +191,10 @@ const getRetainedIndices = (
 };
 
 export const compactMessages = async (
-  messages: JevMessage[],
+  messages: Fl0wMessage[],
   force: boolean = false,
   options: CompactionOptions = {},
-): Promise<JevMessage[]> => {
+): Promise<Fl0wMessage[]> => {
   const { keepAssistantMessages, tokenThreshold } = { ...DEFAULT_OPTIONS, ...options };
   const contextWindow = options.contextWindow ?? CONTEXT_WINDOW;
   const tokenLimit = contextWindow * tokenThreshold;
@@ -219,7 +219,7 @@ export const compactMessages = async (
     recordLlmUsage(summaryResult);
     const { text: summary } = summaryResult;
 
-    const summaryMessage = jevMessage(
+    const summaryMessage = fl0wMessage(
       { role: 'assistant', content: summary },
       'summary',
     );

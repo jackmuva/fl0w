@@ -1,12 +1,12 @@
 # fl0w
 
-fl0w is an agent harness that **puts Jev in the driver's seat** to drive AI workflows. Treating the agent as a workflow generator makes each turn a decision point: Jev picks the next tool or action in the workflow.
+fl0w is an agent harness that **puts the agent in the driver's seat** to drive AI workflows. Treating the agent as a workflow generator makes each turn a decision point: the agent picks the next tool or action in the workflow.
 
 <img src="/public/fl0w-ss.png" alt="fl0w screenshot" width="800" />
 
 The design is twofold:
 
-1. **Explainability** — at each turn you can see the Jev-generated probabilities (traces).
+1. **Explainability** — at each turn you can see the agent-generated probabilities (traces).
 2. **Agents as Workflows** — the UX feels like a series of workflow steps, more CLI tool than conversational intelligence.
 
 ## Installation
@@ -51,7 +51,7 @@ On first launch fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`, 
    }
    ```
 
-   `fl0w login` fills in `aiGatewayApiKey` (or set your own / `AI_GATEWAY_API_KEY`). Adjust `llmModel` and `decisionModel` (Jev tool choices) as needed. Model names in [Vercel's model list](https://vercel.com/ai-gateway/models). Set `contextWindow` (or `CONTEXT_WINDOW`) to match your model’s context size — it drives compaction and the usage meter (default `1000000`).
+   `fl0w login` fills in `aiGatewayApiKey` (or set your own / `AI_GATEWAY_API_KEY`). Adjust `llmModel` and `decisionModel` (tool choices) as needed. Model names in [Vercel's model list](https://vercel.com/ai-gateway/models). Set `contextWindow` (or `CONTEXT_WINDOW`) to match your model’s context size — it drives compaction and the usage meter (default `1000000`).
 2. Optional: local skills in `~/.fl0w/skills/`.
 3. Optional: MCPs in `~/.fl0w/mcp.json`, using [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers).
 4. Optional: `AGENTS.md` files alongside your skills.
@@ -119,7 +119,7 @@ Clear areas split (details in `AGENTS.md`):
 ```
 src/
 ├── index.tsx             # Entry point – loads config and renders the TUI
-├── constants.ts          # Shared constants (JEV_HOME, LLM_MODEL, SYSTEM_ONE_MODEL, …)
+├── constants.ts          # Shared constants (FL0W_HOME, LLM_MODEL, SYSTEM_ONE_MODEL, …)
 ├── db/                   # Persistence (sessions, workflows)
 ├── models/               # Data models / types
 ├── services/             # Business logic (agent, auth, config, mcp, sync, workflow)

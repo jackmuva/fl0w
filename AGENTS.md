@@ -9,9 +9,9 @@ A terminal (TUI) app built on **OpenTUI** that connects to MCP servers and runs 
 conversational agent that plans, executes, and distills tasks into reusable workflows.
 
 - **Stack** — TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
-- **Config** — `config.json` in `JEV_HOME` (`~/.fl0w`) loads into `process.env` at startup.
+- **Config** — `config.json` in `FL0W_HOME` (`~/.fl0w`) loads into `process.env` at startup.
 - **Models** — `LLM_MODEL` env (from `llmModel`, default `zai/glm-5.3-flash`);
-  `DECISION_MODEL` env (from `decisionModel`, default `openai/gpt-6-luna-decisions`) drives Jev planning/choices.
+  `DECISION_MODEL` env (from `decisionModel`, default `openai/gpt-6-luna-decisions`) drives agent planning/choices.
   `CONTEXT_WINDOW` env (from `contextWindow`, default `1000000`) drives compaction thresholds and the UI usage meter.
   All three load from `config.json` into env at startup, then `applyModelConfig()` refreshes the runtime exports in `constants.ts`.
 - **Auth** — `fl0w login`/`logout`/`whoami` sign in via fl0w-work (`FL0W_API_URL`, default
@@ -26,12 +26,12 @@ conversational agent that plans, executes, and distills tasks into reusable work
 - **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content, and the skills
   catalog seed the conversation before the UI boots.
 - **Capabilities** — skills, MCP servers, `AGENTS.md`, and user tools are discoverable/toggleable.
-- **Persistence** — sessions in SQLite (`DB_PATH` → `JEV_HOME/fl0w-sqlite.db`, resume via `/resume`).
+- **Persistence** — sessions in SQLite (`DB_PATH` → `FL0W_HOME/fl0w-sqlite.db`, resume via `/resume`).
 - **Workflows** — sessions distill into reusable workflows (`/generate-workflow`, `/run-workflow`).
-- **Skills** — found in `./skills`, `JEV_HOME/skills`, `~/.cursor/skills-cursor`; loaded via `load_skill`.
-- **User tools** — `loadUserTools()` registers custom tools from `JEV_HOME/tools` in the `user` namespace.
+- **Skills** — found in `./skills`, `FL0W_HOME/skills`, `~/.cursor/skills-cursor`; loaded via `load_skill`.
+- **User tools** — `loadUserTools()` registers custom tools from `FL0W_HOME/tools` in the `user` namespace.
 - **Agent graph** — state machine (`START` → `PLAN`/`DISCOVERY` → `EXECUTE` → `END`, with
-  `REWIND`) in `src/services/agent/graph.ts`, run by `jevLoop()`.
+  `REWIND`) in `src/services/agent/graph.ts`, run by `fl0wLoop()`.
 - **Shutdown** — MCP connections close cleanly on exit.
 
 ## Structure
@@ -45,7 +45,7 @@ src/
 ├── services/          # Business logic
 │   ├── agent/         # loop, capabilities, graph, prompt, built-in & user tools, hooks
 │   ├── auth/          # login/logout/whoami, token.ts, callback-server
-│   ├── config/        # app-config (loadAppConfig, ensureJevHome)
+│   ├── config/        # app-config (loadAppConfig, ensureFl0wHome)
 │   ├── mcp/           # mcp-client, oauth-provider
 │   ├── sync/          # fl0w-work config/mcp/auth sync
 │   ├── workflow/      # generate & extract tool calls
@@ -55,14 +55,14 @@ src/
 
 ## How It Works
 
-1. `ensureJevHome()` scaffolds `JEV_HOME`; CLI account commands dispatch up front;
+1. `ensureFl0wHome()` scaffolds `FL0W_HOME`; CLI account commands dispatch up front;
    `loadAppConfig()` populates env. Messages front-load so the UI renders immediately.
 2. Workspace instructions, enabled `AGENTS.md`, and the skills catalog seed the conversation.
 3. `mcpClient.loadConfig()` + `connectAll()` connect all servers (optional OAuth); failures warn.
 4. `loadUserTools()` registers `user` namespace tools.
 5. Skills/servers/tools/`AGENTS.md` load into a togglable `CapabilityCatalog`.
 6. `@opentui/core` boots and `<App />` renders seeded messages.
-7. `jevLoop()` runs the state machine and hooks (`compactionHook`, `rewindState`).
+7. `fl0wLoop()` runs the state machine and hooks (`compactionHook`, `rewindState`).
 8. Exit handler closes all MCP connections.
 
 ## Conventions

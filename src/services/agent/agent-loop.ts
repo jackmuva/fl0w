@@ -1,5 +1,5 @@
 import { findPendingAskQuestion } from './utils/ask-question-state';
-import type { AgentState, JevMessage } from '../../models/agent';
+import type { AgentState, Fl0wMessage } from '../../models/agent';
 import {
   clarifyTaskNode,
   createPlanNode,
@@ -12,25 +12,25 @@ import {
 import { compactionHook } from './hooks/compaction';
 import { rewindState } from './hooks/rewind';
 import { formatAgentRunError } from './llm-error';
-import { jevMessage } from './utils/jev-message';
+import { fl0wMessage } from './utils/fl0w-message';
 import { MAX_ITERATIONS } from '../../constants';
 
-export type JevLoopCallback = (messages: JevMessage[]) => void;
+export type fl0wLoopCallback = (messages: Fl0wMessage[]) => void;
 
-export type JevLoopResult = 'ok' | 'error' | 'stopped';
+export type fl0wLoopResult = 'ok' | 'error' | 'stopped';
 
-const sync = (next: AgentState, callback: JevLoopCallback): AgentState => {
+const sync = (next: AgentState, callback: fl0wLoopCallback): AgentState => {
   callback(next.messages);
   return next;
 };
 
-const stopIfAborted = (state: AgentState, callback: JevLoopCallback, signal?: AbortSignal,): AgentState | undefined => {
+const stopIfAborted = (state: AgentState, callback: fl0wLoopCallback, signal?: AbortSignal,): AgentState | undefined => {
   if (!signal?.aborted) return undefined;
   return sync({
     state: 'END',
     messages: [
       ...state.messages,
-      jevMessage({ role: 'assistant', content: 'Run stopped.' }),
+      fl0wMessage({ role: 'assistant', content: 'Run stopped.' }),
     ],
   }, callback);
 };
@@ -38,19 +38,19 @@ const stopIfAborted = (state: AgentState, callback: JevLoopCallback, signal?: Ab
 const endRunWithError = (
   state: AgentState,
   error: unknown,
-  callback: JevLoopCallback,
+  callback: fl0wLoopCallback,
 ): AgentState => sync({
   state: 'END',
   messages: [
     ...state.messages,
-    jevMessage({ role: 'assistant', content: formatAgentRunError(error) }),
+    fl0wMessage({ role: 'assistant', content: formatAgentRunError(error) }),
   ],
 }, callback);
 
 const runNode = async (
   state: AgentState,
   node: (state: AgentState) => Promise<AgentState>,
-  callback: JevLoopCallback,
+  callback: fl0wLoopCallback,
   signal?: AbortSignal,
 ): Promise<{ ok: boolean; state: AgentState }> => {
   let current = sync(await compactionHook(state), callback);
@@ -76,11 +76,11 @@ const runNode = async (
   return { ok: true, state: current };
 };
 
-export const jevLoop = async (
-  messages: JevMessage[],
-  callback: JevLoopCallback,
+export const fl0wLoop = async (
+  messages: Fl0wMessage[],
+  callback: fl0wLoopCallback,
   signal?: AbortSignal,
-): Promise<JevLoopResult> => {
+): Promise<fl0wLoopResult> => {
   let state: AgentState = { state: 'START', messages: [...messages] };
 
   if (findPendingAskQuestion(state.messages)) return 'ok';
@@ -148,7 +148,7 @@ export const jevLoop = async (
       if (checkpoints.length === 0) {
         state = sync({
           state: 'END',
-          messages: [...state.messages, jevMessage({
+          messages: [...state.messages, fl0wMessage({
             role: 'assistant',
             content: 'Unable to complete the task with given tools',
           })],
@@ -161,7 +161,7 @@ export const jevLoop = async (
 
   sync({
     state: 'END',
-    messages: [...state.messages, jevMessage({
+    messages: [...state.messages, fl0wMessage({
       role: 'assistant',
       content: 'Unable to complete the task with given tools',
     })],

@@ -1,9 +1,9 @@
 #Requires -Version 5.1
 param(
-    [string]$Version = $env:JEV_VERSION,
-    [string]$InstallDir = $env:JEV_INSTALL_DIR,
-    [string]$BinName = $env:JEV_BIN_NAME,
-    [string]$Repo = $env:JEV_REPO
+    [string]$Version = $env:FL0W_VERSION,
+    [string]$InstallDir = $env:FL0W_INSTALL_DIR,
+    [string]$BinName = $env:FL0W_BIN_NAME,
+    [string]$Repo = $env:FL0W_REPO
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 if (-not $Version) { $Version = "latest" }
 if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA "Programs\fl0w" }
 if (-not $BinName) { $BinName = "fl0w" }
-if (-not $Repo) { $Repo = "jackmuva/jev-as-a-workflow" }
+if (-not $Repo) { $Repo = "jackmuva/fl0w-cli" }
 
 function Resolve-ReleaseTag {
     param([string]$RequestedVersion)

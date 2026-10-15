@@ -2,7 +2,7 @@ import type { CapabilityCatalog } from "./models/agent"
 import { HEADLESS } from "./constants"
 import { discoverAgentsMd, discoverSkills, frontLoadMessages } from "./services/agent/hooks/front-load"
 import { ensureFl0wHome, loadAppConfig } from "./services/config/app-config"
-import { jevMessage } from "./services/agent/utils/jev-message"
+import { fl0wMessage } from "./services/agent/utils/fl0w-message"
 import { listUserTools, loadUserTools } from "./services/agent/user-tools/loader"
 import { mcpToolKey } from "./models/mcp"
 import { mcpClient } from "./services/mcp/mcp-client"
@@ -43,7 +43,7 @@ const { App } = await import("./ui/App")
 const { disposeAppClipboard, initAppClipboard } = await import("./ui/lib/clipboard/app-clipboard")
 
 let initialMessage: null | string = syncWarning
-const seedMessages = (await frontLoadMessages()).map((message) => jevMessage(message))
+const seedMessages = (await frontLoadMessages()).map((message) => fl0wMessage(message))
 
 console.log("Connecting MCPs...")
 try {

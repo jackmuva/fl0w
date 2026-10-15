@@ -135,7 +135,7 @@ export const executeWebFetch = async ({ url, format = 'markdown', timeout }: Web
     if (bytes.byteLength > MAX_RESPONSE_SIZE) {
       throw new Error('Response too large (exceeds 5MB limit)');
     }
-    const dir = await mkdtemp(join(tmpdir(), 'jev-fetch-'));
+    const dir = await mkdtemp(join(tmpdir(), 'fl0w-fetch-'));
     const path = join(dir, `image${IMAGE_EXTENSIONS[mime] ?? '.img'}`);
     await writeFile(path, bytes);
     return `Image fetched (${mime}, ${bytes.byteLength} bytes)\n[image:${path}]`;

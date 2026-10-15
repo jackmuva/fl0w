@@ -68,15 +68,15 @@ describe('loadAppConfig', () => {
     const configPath = join(tempRoot, 'config.json');
     await writeFile(
       configPath,
-      JSON.stringify({ llmModel: 'custom/llm', decisionModel: 'custom/jev' }),
+      JSON.stringify({ llmModel: 'custom/llm', decisionModel: 'custom/fl0w' }),
     );
 
     const config = await loadAppConfig(configPath);
-    expect(config).toEqual({ llmModel: 'custom/llm', decisionModel: 'custom/jev' });
+    expect(config).toEqual({ llmModel: 'custom/llm', decisionModel: 'custom/fl0w' });
     expect(process.env.LLM_MODEL).toBe('custom/llm');
-    expect(process.env.DECISION_MODEL).toBe('custom/jev');
+    expect(process.env.DECISION_MODEL).toBe('custom/fl0w');
     expect(LLM_MODEL).toBe('custom/llm');
-    expect(DECISION_MODEL).toBe('custom/jev');
+    expect(DECISION_MODEL).toBe('custom/fl0w');
   });
 
   test('loads contextWindow into process.env and CONTEXT_WINDOW', async () => {

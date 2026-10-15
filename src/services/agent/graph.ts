@@ -11,7 +11,7 @@ import {
 import { compactMessages } from './hooks/compaction';
 import { DECISION_MODEL, HEADLESS, LLM_MODEL } from '../../constants';
 import { recordLlmUsage } from './hooks/session-usage';
-import type { AgentState, JevMessage } from '../../models/agent';
+import type { AgentState, Fl0wMessage } from '../../models/agent';
 import { mcpToolKey } from '../../models/mcp';
 import { mcpClient } from '../mcp/mcp-client';
 import { isCapabilityEnabled, isMcpToolEnabled } from './capabilities';
@@ -25,7 +25,7 @@ import {
 import { listSkills } from './hooks/front-load';
 import { preparePrompt } from './prompt';
 import { executeUserTool, isUserToolKey, listUserTools, loadUserTools } from './user-tools/loader';
-import { appendDecisionMessage, jevMessage, toModelMessages } from './utils/jev-message';
+import { appendDecisionMessage, fl0wMessage, toModelMessages } from './utils/fl0w-message';
 import { retryModelCall } from '../utils';
 import { ASK_QUESTION_ACTION, buildToolCriteria, CREATE_PLAN_ACTION, describeToolCallGenerationFailure, formatToolList, parseToolKey, toolsForEvaluateState } from './utils/tools';
 import { reduceTools } from './hooks/tool-filter';
@@ -39,7 +39,7 @@ const generateRequiredToolCall = async ({
   forceRequired = true,
 }: {
   instructions: string;
-  messages: JevMessage[];
+  messages: Fl0wMessage[];
   tools: Record<string, any>;
   toolName: string;
   maxAttempts?: number;
@@ -95,7 +95,7 @@ const MESSAGE_TOOL_NAME = 'message_answer';
 
 // We avoid consecutive message_answer tool calls because some decision models will keep
 // calling the message tool instead of signaling task completion, trapping the agent in a loop.
-const lastToolCallName = (messages: JevMessage[]): string | undefined => {
+const lastToolCallName = (messages: Fl0wMessage[]): string | undefined => {
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages.at(i)?.message;
     if (message?.role === 'user') return undefined;
@@ -109,7 +109,7 @@ const lastToolCallName = (messages: JevMessage[]): string | undefined => {
   return undefined;
 };
 
-const withoutMessageTool = (tools: ToolList, messages: JevMessage[]): ToolList => {
+const withoutMessageTool = (tools: ToolList, messages: Fl0wMessage[]): ToolList => {
   const lastCall = lastToolCallName(messages);
   if (!lastCall || parseToolKey(lastCall).name !== MESSAGE_TOOL_NAME) return tools;
   return tools.filter((t) => parseToolKey(mcpToolKey(t)).name !== MESSAGE_TOOL_NAME);
@@ -147,7 +147,7 @@ export const initialNode = async (state: AgentState): Promise<AgentState> => {
       role: 'assistant',
       content: "task out of scope"
     };
-    return { state: "END", messages: [...state.messages, jevMessage(message)] };
+    return { state: "END", messages: [...state.messages, fl0wMessage(message)] };
   } else if (answers.nextStep.choice === "createPlan") {
     return {
       state: "PLAN",
@@ -203,7 +203,7 @@ export const actionSelectNode = async (
     };
     return {
       state: {
-        state: "END", messages: [...state.messages, jevMessage(message)],
+        state: "END", messages: [...state.messages, fl0wMessage(message)],
       },
       options: [],
     };
@@ -214,7 +214,7 @@ export const actionSelectNode = async (
     };
     return {
       state: {
-        state: "REWIND", messages: [...state.messages, jevMessage(message)],
+        state: "REWIND", messages: [...state.messages, fl0wMessage(message)],
       },
       options,
     };
@@ -224,7 +224,7 @@ export const actionSelectNode = async (
       content: "Unable to complete the task with given tools",
     };
     return {
-      state: { state: "END", messages: [...state.messages, jevMessage(message)] },
+      state: { state: "END", messages: [...state.messages, fl0wMessage(message)] },
       options: [],
     };
   }
@@ -272,7 +272,7 @@ Do not execute any steps or call any of the tools above yet; only call the Creat
       role: 'assistant',
       content: 'Could not create a plan for this task.',
     };
-    return { state: 'EXECUTE', messages: [...state.messages, jevMessage(message)] };
+    return { state: 'EXECUTE', messages: [...state.messages, fl0wMessage(message)] };
   }
 
   const input = toolCall.input as CreatePlanInput;
@@ -282,8 +282,8 @@ Do not execute any steps or call any of the tools above yet; only call the Creat
     state: 'EXECUTE',
     messages: [
       ...state.messages,
-      jevMessage(toolCallMessage),
-      jevMessage(toolResultMessage),
+      fl0wMessage(toolCallMessage),
+      fl0wMessage(toolResultMessage),
     ],
   };
 };
@@ -304,7 +304,7 @@ Call the AskQuestion tool with concrete options for each question. Provide 2-4 l
       role: 'assistant',
       content: 'I need a bit more detail to proceed. Could you clarify your request?',
     };
-    return { state: 'DISCOVERY', messages: [...state.messages, jevMessage(message)] };
+    return { state: 'DISCOVERY', messages: [...state.messages, fl0wMessage(message)] };
   }
 
   const input = toolCall.input as AskQuestionInput;
@@ -320,7 +320,7 @@ Call the AskQuestion tool with concrete options for each question. Provide 2-4 l
 
   return {
     state: 'DISCOVERY',
-    messages: [...state.messages, jevMessage(message)],
+    messages: [...state.messages, fl0wMessage(message)],
   };
 };
 
@@ -341,7 +341,7 @@ export const prepareToolCallNode = async (state: AgentState): Promise<AgentState
       role: 'assistant',
       content: 'No tool selected to run.',
     };
-    return { state: 'END', messages: [...state.messages, jevMessage(message)] };
+    return { state: 'END', messages: [...state.messages, fl0wMessage(message)] };
   }
 
   if (selectedTool === CREATE_PLAN_ACTION) return createPlanNode(state);
@@ -354,7 +354,7 @@ export const prepareToolCallNode = async (state: AgentState): Promise<AgentState
       role: 'assistant',
       content: `Unknown tool: ${selectedTool}`,
     };
-    return { state: 'END', messages: [...state.messages, jevMessage(message)] };
+    return { state: 'END', messages: [...state.messages, fl0wMessage(message)] };
   }
 
   const { server, name } = parseToolKey(selectedTool);
@@ -380,7 +380,7 @@ export const prepareToolCallNode = async (state: AgentState): Promise<AgentState
       role: 'assistant',
       content: `Could not determine arguments for ${selectedTool}${detail}`,
     };
-    return { ...state, state: 'EXECUTE', messages: [...state.messages, jevMessage(message)] };
+    return { ...state, state: 'EXECUTE', messages: [...state.messages, fl0wMessage(message)] };
   }
 
   const toolCallMessage: ModelMessage = {
@@ -395,7 +395,7 @@ export const prepareToolCallNode = async (state: AgentState): Promise<AgentState
 
   return {
     state: 'EXECUTE',
-    messages: [...state.messages, jevMessage(toolCallMessage)],
+    messages: [...state.messages, fl0wMessage(toolCallMessage)],
     selectedTool,
     probabilities: state.probabilities,
   };
@@ -414,9 +414,9 @@ export const executePreparedToolNode = async (state: AgentState): Promise<AgentS
       : await mcpClient.callTool(server, name, toolCall.input as Record<string, unknown>);
   const toolResultMessage = mcpClient.toMessage(toolCall.toolCallId, toolResult);
 
-  let messages: JevMessage[] = [
+  let messages: Fl0wMessage[] = [
     ...state.messages,
-    jevMessage(toolResultMessage),
+    fl0wMessage(toolResultMessage),
   ];
   messages = await compactMessages(messages);
 
