@@ -8,7 +8,7 @@ import {
   mergeCapabilitySelection,
 } from "../services/agent/capabilities"
 import { findPendingAskQuestion } from "../services/agent/utils/ask-question-state"
-import { fl0wMessage } from "../services/agent/utils/fl0w-message"
+import { fl0wMessage, parseDecisionMessage } from "../services/agent/utils/fl0w-message"
 import { buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { WorkflowStore } from "../db/workflow-store"
@@ -295,6 +295,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
             key={index}
             message={message}
             toolCallInputs={toolCallInputs}
+            decision={index > 0 ? parseDecisionMessage(visibleMessages[index - 1]!) : null}
           />
         ))}
       </scrollbox>

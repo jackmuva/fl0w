@@ -4,7 +4,7 @@ import { USER_INPUT_BORDER_COLOR } from "../primitives/MessageFrame"
 import { WorkflowEdge } from "../primitives/WorkflowEdge"
 
 const MUTED_FG = "#565f89"
-const ACCENT_FG = "#7aa2f7"
+const ACCENT_FG = "#e6d5b8"
 
 const readPrompts = (input: unknown): string[] => {
   const questions = asRecord(input)?.questions

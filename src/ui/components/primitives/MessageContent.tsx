@@ -2,7 +2,7 @@ import type { ModelMessage } from "ai"
 import type { Fl0wMessage } from "../../../models/agent"
 import { parseUserAttachments } from "../../lib/input-completion/at-files"
 import { parseWorkflowPrompt } from "../../../services/workflow/build-message"
-import { parseDecisionMessage } from "../../../services/agent/utils/fl0w-message"
+import { parseDecisionMessage, type DecisionMessagePayload } from "../../../services/agent/utils/fl0w-message"
 import { renderToolCall, renderToolResult } from "../../tool-renderers"
 import {
   formatToolResultText,
@@ -14,7 +14,12 @@ import { filetypeFromPath } from "../../lib/format/message"
 import { selectedDecisionChoice } from "../../lib/decision-choice"
 import { ChoiceProbabilities } from "./ChoiceProbabilities"
 import { HighlightedCode } from "./HighlightedCode"
-import { AGENT_BORDER_COLOR, MessageFrame, MessageFrameKindContext } from "./MessageFrame"
+import {
+  AGENT_BORDER_COLOR,
+  DecisionBackdropContext,
+  MessageFrame,
+  MessageFrameKindContext,
+} from "./MessageFrame"
 
 const formatMessageContent = (message: ModelMessage): string => {
   if (typeof message.content === "string") return message.content
@@ -54,9 +59,12 @@ const hasOnlyToolCalls = (message: ModelMessage): boolean => {
 type MessageContentProps = {
   message: Fl0wMessage
   toolCallInputs: Map<string, { toolName: string; input: unknown }>
+  decision?: DecisionMessagePayload | null
 }
 
-export const MessageContent = ({ message: entry, toolCallInputs }: MessageContentProps) => {
+const MAX_GHOSTS = 3
+
+export const MessageContent = ({ message: entry, toolCallInputs, decision }: MessageContentProps) => {
   const { message, frame } = entry
   const isAgent = message.role === "assistant" || message.role === "tool"
 
@@ -114,6 +122,17 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
   }
 
   if (hasOnlyToolCalls(message) && Array.isArray(message.content)) {
+    const selectedChoice = decision
+      ? selectedDecisionChoice(decision.probabilities, decision.selectedTool)
+      : undefined
+    const ghosts = decision
+      ? Object.entries(decision.probabilities)
+          .filter(([choice]) => choice !== selectedChoice)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, MAX_GHOSTS)
+          .map(([choice, probability]) => ({ choice, probability }))
+      : []
+
     return (
       <MessageFrameKindContext.Provider value="call">
         {message.content.map((part, index) => {
@@ -124,12 +143,16 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
 
           return (
             <box key={toolCall.toolCallId ?? index}>
-              {renderToolCall({
-                toolName: toolCall.toolName,
-                toolCallId: toolCall.toolCallId,
-                input: toolCall.input,
-                text: "",
-              })}
+              <DecisionBackdropContext.Provider
+                value={toolCall.toolName === decision?.selectedTool ? ghosts : []}
+              >
+                {renderToolCall({
+                  toolName: toolCall.toolName,
+                  toolCallId: toolCall.toolCallId,
+                  input: toolCall.input,
+                  text: "",
+                })}
+              </DecisionBackdropContext.Provider>
             </box>
           )
         })}
