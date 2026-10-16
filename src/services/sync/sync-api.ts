@@ -1,9 +1,11 @@
 import { FL0W_API_URL } from '../../constants';
-import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteWorkflowMeta, SyncFilename } from '../../models/sync';
+import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSkillMeta, RemoteWorkflowMeta, SyncFilename } from '../../models/sync';
 import type { WorkflowRecord } from '../../models/workflow';
 import { getAccessToken } from '../auth/token';
 
 const REQUEST_TIMEOUT_MS = 5_000;
+// bundles are up to a few MB, which a slow uplink won't send in 5s
+const UPLOAD_TIMEOUT_MS = 60_000;
 
 export class SyncConflictError extends Error {
   constructor(readonly filename: SyncFilename) {
@@ -11,11 +13,11 @@ export class SyncConflictError extends Error {
   }
 }
 
-async function request(path: string, init: RequestInit = {}): Promise<Response> {
+async function request(path: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const send = async (force: boolean) => fetch(`${FL0W_API_URL}/api/sync${path}`, {
     ...init,
-    headers: { ...init.headers, authorization: `Bearer ${await getAccessToken({ force })}`, 'content-type': 'application/json' },
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    headers: { 'content-type': 'application/json', ...init.headers, authorization: `Bearer ${await getAccessToken({ force })}` },
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const res = await send(false);
   // the token may have been revoked or the clock skewed; one forced refresh before giving up
@@ -88,4 +90,24 @@ export async function pushWorkflow(workflow: WorkflowRecord): Promise<boolean> {
   if (res.status === 409) return false;
   if (!res.ok) return fail(res, `push of "${workflow.title}"`, 'Workflow');
   return true;
+}
+
+export async function listRemoteSkills(): Promise<RemoteSkillMeta[]> {
+  const res = await request('/skills');
+  if (!res.ok) return fail(res, 'list', 'Skill');
+  const body = asErrorBody(await readResponseJson(res)) as { skills?: unknown };
+  return Array.isArray(body.skills) ? body.skills as RemoteSkillMeta[] : [];
+}
+
+/** Uploads a skill's .tar.gz; the server skips storing it when `contentHash` already matches. */
+export async function putSkillBundle(name: string, contentHash: string, bundle: Uint8Array<ArrayBuffer>): Promise<RemoteSkillMeta> {
+  const res = await request(`/skills/${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/gzip', 'x-skill-content-hash': contentHash },
+    body: bundle,
+  }, UPLOAD_TIMEOUT_MS);
+  if (!res.ok) return fail(res, `push of "${name}"`, 'Skill');
+  const parsed = asErrorBody(await readResponseJson(res)) as { skill?: RemoteSkillMeta };
+  if (!parsed.skill) throw new Error(`Skill sync push of "${name}" failed: invalid response body`);
+  return parsed.skill;
 }

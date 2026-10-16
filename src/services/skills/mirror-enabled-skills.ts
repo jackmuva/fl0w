@@ -3,6 +3,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { FL0W_SKILLS_DIR } from '../../constants';
 import type { CapabilitySelection } from '../../models/agent';
 import type { SkillSummary } from '../agent/hooks/front-load';
+import { syncEnabledSkillsInBackground } from './sync-skills';
 
 export const MIRROR_DEBOUNCE_MS = 400;
 
@@ -13,7 +14,7 @@ export type MirrorEnabledSkillsResult = {
   errors: Array<{ name: string; error: string }>;
 };
 
-const isUnderFl0wSkills = (skillDir: string): boolean => {
+export const isUnderFl0wSkills = (skillDir: string): boolean => {
   const base = resolve(FL0W_SKILLS_DIR);
   const target = resolve(skillDir);
   return target === base || target.startsWith(`${base}/`);
@@ -86,6 +87,8 @@ const runQueuedMirror = (): Promise<void> => {
 
   mirrorQueue = mirrorQueue.then(async () => {
     logMirrorResult(await mirrorEnabledSkills(work.selection, work.catalog));
+    // upload from the fresh mirror, but outside this queue so a slow network never delays a flush
+    void syncEnabledSkillsInBackground(work.selection, work.catalog);
   }).catch(() => { });
   return mirrorQueue;
 };

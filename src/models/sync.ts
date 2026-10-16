@@ -19,6 +19,14 @@ export type RemoteWorkflowMeta = {
   updatedAt: string;
 };
 
+/** Server-side metadata for one synced skill bundle (GET /api/sync/skills). */
+export type RemoteSkillMeta = {
+  name: string;
+  contentHash: string;
+  size: number;
+  updatedAt: string;
+};
+
 /** Shape of ~/.fl0w/sync-state.json. */
 export type SyncState = {
   /** fl0w user the state was synced for; a different signed-in user starts fresh. */

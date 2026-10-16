@@ -12,6 +12,9 @@ mock.module('../../constants', () => ({
   ...constants,
   FL0W_HOME: fl0wHome,
   FL0W_SKILLS_DIR: fl0wSkillsDir,
+  // signed out here, so the post-mirror skill sync never reaches the network
+  AUTH_PATH: join(fl0wHome, 'auth.json'),
+  APP_CONFIG_PATH: join(fl0wHome, 'config.json'),
 }));
 
 const { applyCapabilitySelection } = await import('./capabilities');
