@@ -1,6 +1,7 @@
 import { saveFl0wGatewayKey } from '../config/app-config';
 import { syncConfigFiles } from '../sync/config-sync';
 import { syncWorkflows } from '../sync/workflow-sync';
+import { syncSessions } from '../sync/session-sync';
 import { login } from './login';
 import { clearFl0wAuth, readFl0wAuth } from './token';
 
@@ -48,5 +49,11 @@ async function reportLoginSync() {
     if (pushed) console.log(`Pushed ${pushed} workflow${pushed === 1 ? '' : 's'} to fl0w-work.`);
   } catch (error) {
     console.log(`Workflow sync failed: ${error instanceof Error ? error.message : String(error)}. It will retry on next start.`);
+  }
+  try {
+    const synced = await syncSessions();
+    if (synced && (synced.pushed || synced.pulled)) console.log(`Sessions synced with fl0w-work (${synced.pushed} pushed, ${synced.pulled} pulled).`);
+  } catch (error) {
+    console.log(`Session sync failed: ${error instanceof Error ? error.message : String(error)}. It will retry on next start.`);
   }
 }

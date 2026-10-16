@@ -1,10 +1,10 @@
 import { FL0W_API_URL } from '../../constants';
-import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSkillMeta, RemoteWorkflowMeta, SyncFilename } from '../../models/sync';
+import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSession, RemoteSessionMeta, RemoteSkillMeta, RemoteWorkflowMeta, SyncFilename } from '../../models/sync';
 import type { WorkflowRecord } from '../../models/workflow';
 import { getAccessToken } from '../auth/token';
 
 const REQUEST_TIMEOUT_MS = 5_000;
-// bundles are up to a few MB, which a slow uplink won't send in 5s
+// skill bundles and long sessions are up to a few MB, which a slow uplink won't send in 5s
 const UPLOAD_TIMEOUT_MS = 60_000;
 
 export class SyncConflictError extends Error {
@@ -89,6 +89,34 @@ export async function pushWorkflow(workflow: WorkflowRecord): Promise<boolean> {
   const res = await request('/workflows', { method: 'POST', body: JSON.stringify(workflow) });
   if (res.status === 409) return false;
   if (!res.ok) return fail(res, `push of "${workflow.title}"`, 'Workflow');
+  return true;
+}
+
+export async function listRemoteSessions(): Promise<RemoteSessionMeta[]> {
+  const res = await request('/sessions');
+  if (!res.ok) return fail(res, 'list', 'Session');
+  const body = asErrorBody(await readResponseJson(res)) as { sessions?: unknown };
+  return Array.isArray(body.sessions) ? body.sessions as RemoteSessionMeta[] : [];
+}
+
+/** Returns null when fl0w-work no longer has the session (404). */
+export async function getRemoteSession(id: string): Promise<RemoteSession | null> {
+  const res = await request(`/sessions/${encodeURIComponent(id)}`, {}, UPLOAD_TIMEOUT_MS);
+  if (res.status === 404) return null;
+  if (!res.ok) return fail(res, `pull of ${id}`, 'Session');
+  const parsed = asErrorBody(await readResponseJson(res)) as { session?: RemoteSession };
+  if (!parsed.session || !Array.isArray(parsed.session.messages)) throw new Error(`Session sync pull of ${id} failed: invalid response body`);
+  return parsed.session;
+}
+
+/**
+ * Returns false when fl0w-work already has a copy at least as new (409), or the session is
+ * over the request size limit (413); the next sync pulls the newer copy or retries.
+ */
+export async function pushSession({ id, ...session }: RemoteSession): Promise<boolean> {
+  const res = await request(`/sessions/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(session) }, UPLOAD_TIMEOUT_MS);
+  if (res.status === 409 || res.status === 413) return false;
+  if (!res.ok) return fail(res, `push of "${session.title ?? id}"`, 'Session');
   return true;
 }
 

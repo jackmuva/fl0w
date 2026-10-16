@@ -45,6 +45,11 @@ export class SessionStore {
       .all();
   }
 
+  /** Every workspace's sessions, for syncing with fl0w-work. */
+  listAllSessions(): SessionRecord[] {
+    return this.db.select().from(sessions).orderBy(desc(sessions.updatedAt)).all();
+  }
+
   createSession(workspacePath: string): SessionRecord {
     const now = nowIso();
     const session: SessionRecord = {
@@ -108,6 +113,20 @@ export class SessionStore {
         .set({ updatedAt: nowIso(), title: sql`COALESCE(${title}, ${sessions.title})` })
         .where(eq(sessions.id, sessionId))
         .run();
+    }, { behavior: 'immediate' });
+  }
+
+  /** Writes a session synced from fl0w-work as-is, keeping its `updatedAt` so the next sync sees both sides as equal. */
+  importSession({ messages: fl0wMessages, ...session }: SessionRecord & { messages: Fl0wMessage[] }): void {
+    const { id, ...fields } = session;
+    this.db.transaction((tx) => {
+      tx.insert(sessions).values(session).onConflictDoUpdate({ target: sessions.id, set: fields }).run();
+      tx.delete(messages).where(eq(messages.sessionId, id)).run();
+      if (fl0wMessages.length > 0) {
+        tx.insert(messages)
+          .values(fl0wMessages.map((payload, position) => ({ sessionId: id, position, payload })))
+          .run();
+      }
     }, { behavior: 'immediate' });
   }
 }

@@ -1,3 +1,5 @@
+import type { CapabilitySelection, Fl0wMessage } from './agent';
+
 export const SYNC_FILENAMES = ['config.json', 'mcp.json', 'auth.json'] as const;
 
 export type SyncFilename = (typeof SYNC_FILENAMES)[number];
@@ -17,6 +19,21 @@ export type RemoteFile = RemoteFileMeta & { content: JsonObject };
 export type RemoteWorkflowMeta = {
   id: string;
   updatedAt: string;
+};
+
+/** Server-side metadata for one session (GET /api/sync/sessions). */
+export type RemoteSessionMeta = {
+  id: string;
+  updatedAt: string;
+};
+
+/** A session row plus its messages in order, as GET/PUT /api/sync/sessions/:id carry it. */
+export type RemoteSession = RemoteSessionMeta & {
+  workspacePath: string;
+  title: string | null;
+  capabilities: CapabilitySelection | null;
+  createdAt: string;
+  messages: Fl0wMessage[];
 };
 
 /** Server-side metadata for one synced skill bundle (GET /api/sync/skills). */

@@ -3,6 +3,7 @@ import { applyCapabilitySelection } from '../../services/agent/capabilities';
 import { resolve } from 'node:path';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SessionStore, type SessionRecord } from '../../db/session-store';
+import { scheduleSessionPush } from '../../services/sync/session-sync';
 
 type SetMessagesAction = Fl0wMessage[] | ((previous: Fl0wMessage[]) => Fl0wMessage[]);
 
@@ -52,6 +53,7 @@ export const useSessionPersistence = (
     if (!toSave) return;
     pendingMessagesRef.current = null;
     store.saveMessages(sessionId, toSave);
+    scheduleSessionPush(store);
   }, [store]);
 
   useEffect(() => () => flushSave(), [flushSave]);
@@ -63,7 +65,9 @@ export const useSessionPersistence = (
       pendingSaveRef.current = null;
       const toSave = pendingMessagesRef.current;
       pendingMessagesRef.current = null;
-      if (toSave) store.saveMessages(sessionIdRef.current, toSave);
+      if (!toSave) return;
+      store.saveMessages(sessionIdRef.current, toSave);
+      scheduleSessionPush(store);
     }, SAVE_DEBOUNCE_MS);
   }, [store]);
 
@@ -86,6 +90,7 @@ export const useSessionPersistence = (
   const applySessionCapabilities = useCallback(async (selection: CapabilitySelection) => {
     const seed = await applyCapabilitySelection(selection);
     store.saveCapabilities(session.id, selection);
+    scheduleSessionPush(store);
     setSession((previous) => ({ ...previous, capabilities: selection }));
     replaceSeedMessages(seed);
   }, [replaceSeedMessages, session.id, store]);

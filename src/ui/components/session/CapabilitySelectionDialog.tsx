@@ -20,7 +20,6 @@ const INSTRUCTION_SEGMENTS = [
   "Space toggle",
   "Ctrl+A select all",
   "Enter apply",
-  "Esc cancel",
 ]
 const INSTRUCTION_SEPARATOR = " · "
 const ACCENT_FG = "#e6d5b8"
@@ -177,7 +176,7 @@ export const CapabilitySelectionDialog = ({
 
   useKeyboard((key) => {
     if (visibleTabs.length === 0) {
-      if (key.name === "escape" || key.name === "return" || key.name === "kpenter") {
+      if (key.name === "return" || key.name === "kpenter") {
         onDismiss()
       }
       return
@@ -200,14 +199,7 @@ export const CapabilitySelectionDialog = ({
     }
 
     if (rows.length === 0) {
-      if (key.name === "escape") {
-        if (filterQuery.length > 0) {
-          setFilterQuery("")
-          setCursor(0)
-        } else {
-          onDismiss()
-        }
-      } else if (key.name === "return" || key.name === "kpenter") {
+      if (key.name === "return" || key.name === "kpenter") {
         onConfirm(buildSelection())
       }
       return
@@ -221,13 +213,6 @@ export const CapabilitySelectionDialog = ({
       toggleRow(rows[cursor])
     } else if (key.ctrl && key.name === "a") {
       setAllInTab(!allSelectedInTab)
-    } else if (key.name === "escape") {
-      if (filterQuery.length > 0) {
-        setFilterQuery("")
-        setCursor(0)
-      } else {
-        onDismiss()
-      }
     } else if (key.name === "return" || key.name === "kpenter") {
       onConfirm(buildSelection())
     }

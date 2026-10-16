@@ -12,6 +12,7 @@ import { mcpClient } from "./services/mcp/mcp-client"
 import { flushPendingPushes, syncOnStartup, watchLocalConfigWrites } from "./services/sync/config-sync"
 import { isConfigSyncEnabled } from "./services/config/app-config"
 import { flushWorkflowPushes, pushWorkflowsInBackground } from "./services/sync/workflow-sync"
+import { flushSessionPushes, syncSessionsInBackground } from "./services/sync/session-sync"
 import { flushPendingSkillMirrors } from "./services/skills/mirror-enabled-skills"
 
 await ensureFl0wHome()
@@ -24,8 +25,9 @@ if (!isAccountCommand) {
   if (await isConfigSyncEnabled()) console.log("Syncing config files...");
   syncWarning = await syncOnStartup();
   watchLocalConfigWrites();
-  console.log("Syncing workflows...");
+  console.log("Syncing workflows and sessions...");
   pushWorkflowsInBackground();
+  syncSessionsInBackground();
 }
 
 // Load before account commands so `fl0w login` knows whether config.json's aiGatewayApiKey takes precedence.
@@ -41,7 +43,7 @@ if (HEADLESS) {
   const { runHeadless } = await import("./services/workflow/headless-run")
   const code = await runHeadless(Bun.argv.slice(3))
   void flushPendingSkillMirrors()
-  await Promise.all([flushPendingPushes(), flushWorkflowPushes()])
+  await Promise.all([flushPendingPushes(), flushWorkflowPushes(), flushSessionPushes()])
   process.exit(code)
 }
 

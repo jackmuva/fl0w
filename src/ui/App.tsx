@@ -13,6 +13,7 @@ import { buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { WorkflowStore } from "../db/workflow-store"
 import { pushWorkflowsInBackground } from "../services/sync/workflow-sync"
+import { flushSessionPushes } from "../services/sync/session-sync"
 import { flushPendingSkillMirrorsInBackground } from "../services/skills/mirror-enabled-skills"
 import type { WorkflowRecord } from "../models/workflow"
 import { useSessionPersistence } from "./hooks/useSessionPersistence"
@@ -193,6 +194,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
         runAbortRef.current?.abort()
       } else {
         flushPendingSkillMirrorsInBackground()
+        void flushSessionPushes()
         renderer.destroy()
       }
       return

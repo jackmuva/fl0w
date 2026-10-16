@@ -1,0 +1,74 @@
+import { SessionStore } from '../../db/session-store';
+import { readFl0wAuth } from '../auth/token';
+import { isConfigSyncEnabled } from '../config/app-config';
+import { getRemoteSession, listRemoteSessions, pushSession } from './sync-api';
+
+const PUSH_DEBOUNCE_MS = 2_000;
+
+let queue: Promise<unknown> = Promise.resolve();
+let pendingPush: { timer: ReturnType<typeof setTimeout>, store?: SessionStore } | null = null;
+
+export type SessionSyncResult = { pushed: number, pulled: number };
+
+/**
+ * Two-way sync keyed on `updatedAt` (last writer wins per session): pushes sessions that are newer here or
+ * missing on fl0w-work, then pulls ones that are newer there or missing here.
+ * Returns null when not signed in or `sync: false` is set in config.json.
+ */
+export async function syncSessions(store?: SessionStore): Promise<SessionSyncResult | null> {
+  const run = queue.then(async () => {
+    if (!(await readFl0wAuth()) || !(await isConfigSyncEnabled())) return null;
+
+    const local = store ?? SessionStore.open();
+    // whatever is left in here after the push pass is newer on fl0w-work (or missing locally)
+    const toPull = new Map((await listRemoteSessions()).map((s) => [s.id, s.updatedAt]));
+    const result: SessionSyncResult = { pushed: 0, pulled: 0 };
+
+    for (const session of local.listAllSessions()) {
+      const remoteUpdatedAt = toPull.get(session.id);
+      if (remoteUpdatedAt !== undefined && remoteUpdatedAt > session.updatedAt) continue;
+      toPull.delete(session.id);
+      if (remoteUpdatedAt === session.updatedAt) continue;
+      const messages = local.loadMessages(session.id);
+      // every launch and /clear opens an empty session; only conversations are worth syncing
+      if (messages.length && await pushSession({ ...session, messages })) result.pushed++;
+    }
+
+    for (const id of toPull.keys()) {
+      const session = await getRemoteSession(id);
+      if (!session) continue;
+      local.importSession(session);
+      result.pulled++;
+    }
+    return result;
+  });
+  queue = run.catch(() => { });
+  return run;
+}
+
+/** Background sync that never throws; failures retry on the next sync since both sides are re-diffed. */
+export function syncSessionsInBackground(store?: SessionStore): void {
+  void syncSessions(store).catch(() => null);
+}
+
+/** Syncs shortly after a session is saved, coalescing the saves of an active conversation. */
+export function scheduleSessionPush(store?: SessionStore): void {
+  if (pendingPush) clearTimeout(pendingPush.timer);
+  pendingPush = {
+    store,
+    timer: setTimeout(() => {
+      pendingPush = null;
+      syncSessionsInBackground(store);
+    }, PUSH_DEBOUNCE_MS),
+  };
+}
+
+/** Sends a debounced push now and waits for in-flight syncs; call before a deliberate exit. */
+export async function flushSessionPushes(): Promise<void> {
+  if (pendingPush) {
+    clearTimeout(pendingPush.timer);
+    syncSessionsInBackground(pendingPush.store);
+    pendingPush = null;
+  }
+  await queue;
+}
