@@ -12,7 +12,7 @@ import { fl0wMessage, parseDecisionMessage } from "../services/agent/utils/fl0w-
 import { buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { WorkflowStore } from "../db/workflow-store"
-import { deleteRemoteWorkflowInBackground, flushWorkflowPushes, scheduleWorkflowPush } from "../services/sync/workflow-sync"
+import { deleteRemoteWorkflowInBackground, flushWorkflowPushes, syncWorkflows } from "../services/sync/workflow-sync"
 import { flushSessionPushes } from "../services/sync/session-sync"
 import { flushPendingSkillMirrorsInBackground } from "../services/skills/mirror-enabled-skills"
 import type { WorkflowRecord } from "../models/workflow"
@@ -167,12 +167,17 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
         requiredCapabilities,
       })
       refreshWorkflows()
-      scheduleWorkflowPush(workflowStore)
+      const synced = await syncWorkflows(workflowStore)
+      refreshWorkflows()
+      let content = `Workflow saved: ${saved.title}`
+      if (synced?.errors?.length) {
+        content += `\nCould not sync to fl0w-work: ${synced.errors.join("; ")}`
+      }
       setMessages((previous) => [
         ...previous,
         fl0wMessage({
           role: "assistant",
-          content: `Workflow saved: ${saved.title}`,
+          content,
         }),
       ])
     } catch (error) {

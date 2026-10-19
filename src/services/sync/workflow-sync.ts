@@ -4,11 +4,7 @@ import { readFl0wAuth } from '../auth/token';
 import { isConfigSyncEnabled } from '../config/app-config';
 import { deleteRemoteWorkflow, getRemoteWorkflow, listRemoteWorkflows, pushWorkflow } from '../remote-api/sync-api';
 
-const STARTUP_TIMEOUT_MS = 8_000;
-const PUSH_DEBOUNCE_MS = 2_000;
-
 let queue: Promise<unknown> = Promise.resolve();
-let pendingPush: { timer: ReturnType<typeof setTimeout>, store?: WorkflowStore } | null = null;
 
 export type WorkflowSyncResult = { pushed: number, pulled: number, errors?: string[] };
 
@@ -75,17 +71,6 @@ export function syncWorkflowsInBackground(store?: WorkflowStore): void {
   void syncWorkflows(store).catch(() => null);
 }
 
-export function scheduleWorkflowPush(store?: WorkflowStore): void {
-  if (pendingPush) clearTimeout(pendingPush.timer);
-  pendingPush = {
-    store,
-    timer: setTimeout(() => {
-      pendingPush = null;
-      syncWorkflowsInBackground(store);
-    }, PUSH_DEBOUNCE_MS),
-  };
-}
-
 /** Queued behind in-flight syncs so a later sync can't pull the workflow back before it's gone remotely. */
 export function deleteRemoteWorkflowInBackground(id: string): void {
   const run = queue.then(async () => {
@@ -96,25 +81,6 @@ export function deleteRemoteWorkflowInBackground(id: string): void {
 }
 
 export async function flushWorkflowPushes(): Promise<void> {
-  if (pendingPush) {
-    clearTimeout(pendingPush.timer);
-    syncWorkflowsInBackground(pendingPush.store);
-    pendingPush = null;
-  }
   await queue;
 }
 
-export async function syncWorkflowsOnStartup(): Promise<string | null> {
-  if (!(await readFl0wAuth()) || !(await isConfigSyncEnabled())) return null;
-  try {
-    const result = await Promise.race([
-      syncWorkflows(),
-      new Promise<'timeout'>((resolve) => setTimeout(resolve, STARTUP_TIMEOUT_MS, 'timeout').unref()),
-    ]);
-    if (result === 'timeout') return 'Workflow sync with fl0w-work timed out; will retry in the background.';
-    if (result?.errors?.length) return `Workflow sync: ${result.errors.join('; ')}`;
-    return null;
-  } catch (error) {
-    return `Workflow sync with fl0w-work failed: ${error instanceof Error ? error.message : String(error)}`;
-  }
-}
