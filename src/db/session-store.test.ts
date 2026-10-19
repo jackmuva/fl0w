@@ -98,6 +98,45 @@ describe('SessionStore', () => {
     expect(store.deleteSession(session.id)).toBe(false);
   });
 
+  test('draft sessions are not persisted until createSession', () => {
+    const store = SessionStore.openInMemory();
+    const workspace = '/tmp/project-draft';
+    const draft = store.createDraftSession(workspace);
+
+    expect(store.hasSession(draft.id)).toBe(false);
+    expect(store.listSessions(workspace)).toHaveLength(0);
+
+    const persisted = store.createSession(workspace, draft.id);
+    expect(persisted.id).toBe(draft.id);
+    expect(store.hasSession(draft.id)).toBe(true);
+  });
+
+  test('findLatestSessionWithMessages skips empty sessions', () => {
+    const store = SessionStore.openInMemory();
+    const workspace = '/tmp/project-latest';
+    store.createSession(workspace);
+    const withMessages = store.createSession(workspace);
+    store.saveMessages(withMessages.id, [{ message: { role: 'user', content: 'hello' } }]);
+
+    expect(store.findLatestSessionWithMessages(workspace)?.id).toBe(withMessages.id);
+  });
+
+  test('deleteEmptySessions removes orphan rows without messages or capabilities', () => {
+    const store = SessionStore.openInMemory();
+    const workspace = '/tmp/project-prune';
+    const empty = store.createSession(workspace);
+    const withCaps = store.createSession(workspace);
+    const withMessages = store.createSession(workspace);
+    store.saveCapabilities(withCaps.id, emptyCapabilitySelection());
+    store.saveMessages(withMessages.id, [{ message: { role: 'user', content: 'hi' } }]);
+
+    store.deleteEmptySessions(workspace);
+
+    expect(store.hasSession(empty.id)).toBe(false);
+    expect(store.hasSession(withCaps.id)).toBe(true);
+    expect(store.hasSession(withMessages.id)).toBe(true);
+  });
+
   test('clears saved messages when only system messages remain', () => {
     const store = SessionStore.openInMemory();
     const session = store.getOrCreateSession('/tmp/project-d');
