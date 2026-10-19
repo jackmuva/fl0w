@@ -85,12 +85,17 @@ describe('syncWorkflows', () => {
     server.set(existing.id, { ...existing });
 
     expect(await syncWorkflows(store)).toEqual({ pushed: 1, pulled: 0 });
-    expect(requests).toEqual(['GET', 'POST']);
+    expect(requests[0]).toBe('GET');
+    expect(requests.filter((r) => r === 'POST')).toEqual(['POST']);
+    expect(requests).toContain(`GET ${existing.id}`);
     expect(server.get(fresh.id)).toEqual({ ...fresh });
 
     requests = [];
     expect(await syncWorkflows(store)).toEqual({ pushed: 0, pulled: 0 });
-    expect(requests).toEqual(['GET']);
+    expect(requests[0]).toBe('GET');
+    expect(requests.filter((r) => r === 'POST')).toEqual([]);
+    expect(requests).toContain(`GET ${existing.id}`);
+    expect(requests).toContain(`GET ${fresh.id}`);
   });
 
   test('pulls workflows missing locally, with the remote row shape', async () => {
@@ -105,7 +110,7 @@ describe('syncWorkflows', () => {
 
     requests = [];
     expect(await syncWorkflows(store)).toEqual({ pushed: 0, pulled: 0 });
-    expect(requests).toEqual(['GET']);
+    expect(requests).toEqual(['GET', `GET ${remote.id}`]);
   });
 
   test('skips a workflow deleted on the server between list and pull', async () => {
@@ -120,16 +125,38 @@ describe('syncWorkflows', () => {
     expect(store.listWorkflows()).toEqual([]);
   });
 
-  test('treats a 409 race as already synced', async () => {
+  test('treats a 409 race as already synced when the body exists remotely', async () => {
     await write('auth.json', { fl0w: fl0wLogin });
     const store = WorkflowStore.openInMemory();
     const workflow = save(store, 'Raced');
+    server.set(workflow.id, { ...workflow });
     globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-      if ((init?.method ?? 'GET') === 'GET') return Response.json({ workflows: [] });
-      server.set(workflow.id, { ...workflow });
+      if ((init?.method ?? 'GET') === 'GET' && !new URL(String(input)).pathname.endsWith(workflow.id)) {
+        return Response.json({ workflows: [] });
+      }
       return fakeFetch(input, init);
     }) as typeof fetch;
 
     expect(await syncWorkflows(store)).toEqual({ pushed: 0, pulled: 0 });
+  });
+
+  test('pushes when remote metadata exists but the workflow body is missing', async () => {
+    await write('auth.json', { fl0w: fl0wLogin });
+    const store = WorkflowStore.openInMemory();
+    const workflow = save(store, 'Ghost metadata');
+
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/api/sync/workflows' && (init?.method ?? 'GET') === 'GET') {
+        return Response.json({ workflows: [{ id: workflow.id, updatedAt: workflow.updatedAt }] });
+      }
+      if (url.pathname.endsWith(workflow.id) && (init?.method ?? 'GET') === 'GET') {
+        return Response.json({ error: 'not_found' }, { status: 404 });
+      }
+      return fakeFetch(input, init);
+    }) as typeof fetch;
+
+    expect(await syncWorkflows(store)).toEqual({ pushed: 1, pulled: 0 });
+    expect(server.get(workflow.id)).toEqual({ ...workflow });
   });
 });

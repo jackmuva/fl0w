@@ -9,7 +9,7 @@ import { loadUserTools } from "./services/agent/user-tools/loader"
 import { mcpClient } from "./services/mcp/mcp-client"
 import { flushPendingPushes, syncOnStartup, watchLocalConfigWrites } from "./services/sync/config-sync"
 import { isConfigSyncEnabled } from "./services/config/app-config"
-import { flushWorkflowPushes, syncWorkflowsInBackground } from "./services/sync/workflow-sync"
+import { flushWorkflowPushes, syncWorkflowsOnStartup } from "./services/sync/workflow-sync"
 import { flushSessionPushes, syncSessionsInBackground } from "./services/sync/session-sync"
 import { flushPendingSkillMirrors } from "./services/skills/mirror-enabled-skills"
 
@@ -30,7 +30,8 @@ if (!isAccountCommand) {
     syncWarning = await syncOnStartup();
     watchLocalConfigWrites();
     console.log("Syncing workflows and sessions...");
-    syncWorkflowsInBackground();
+    const workflowWarning = await syncWorkflowsOnStartup();
+    syncWarning = [syncWarning, workflowWarning].filter(Boolean).join("\n") || null;
     syncSessionsInBackground();
   }
 }
