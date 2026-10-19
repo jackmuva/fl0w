@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { access, mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
+  AGENT_MODE,
   AI_GATEWAY_API_KEY_PLACEHOLDER,
   applyModelConfig,
   CONTEXT_WINDOW,
   DECISION_MODEL,
+  DEFAULT_AGENT_MODE,
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_DECISION_MODEL,
   DEFAULT_LLM_MODEL,
@@ -26,7 +28,7 @@ afterEach(async () => {
 });
 
 beforeEach(() => {
-  for (const key of ['AI_GATEWAY_API_KEY', 'LLM_MODEL', 'DECISION_MODEL', 'CONTEXT_WINDOW'] as const) {
+  for (const key of ['AI_GATEWAY_API_KEY', 'LLM_MODEL', 'DECISION_MODEL', 'AGENT_MODE', 'CONTEXT_WINDOW'] as const) {
     previousEnv[key] = process.env[key];
     delete process.env[key];
   }
@@ -77,6 +79,28 @@ describe('loadAppConfig', () => {
     expect(process.env.DECISION_MODEL).toBe('custom/fl0w');
     expect(LLM_MODEL).toBe('custom/llm');
     expect(DECISION_MODEL).toBe('custom/fl0w');
+  });
+
+  test('loads mode into process.env and AGENT_MODE', async () => {
+    await mkdir(tempRoot, { recursive: true });
+    const configPath = join(tempRoot, 'config.json');
+    await writeFile(configPath, JSON.stringify({ mode: 'llm', llmModel: 'custom/llm' }));
+
+    const config = await loadAppConfig(configPath);
+    expect(config).toEqual({ mode: 'llm', llmModel: 'custom/llm' });
+    expect(process.env.AGENT_MODE).toBe('llm');
+    expect(AGENT_MODE).toBe('llm');
+  });
+
+  test('ignores invalid mode values', async () => {
+    await mkdir(tempRoot, { recursive: true });
+    const configPath = join(tempRoot, 'config.json');
+    await writeFile(configPath, JSON.stringify({ mode: 'other' }));
+
+    const config = await loadAppConfig(configPath);
+    expect(config as Record<string, unknown>).toEqual({ mode: 'other' });
+    expect(process.env.AGENT_MODE).toBeUndefined();
+    expect(AGENT_MODE).toBe(DEFAULT_AGENT_MODE);
   });
 
   test('loads contextWindow into process.env and CONTEXT_WINDOW', async () => {
@@ -145,6 +169,7 @@ describe('ensureFl0wHome', () => {
       aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER,
       llmModel: DEFAULT_LLM_MODEL,
       decisionModel: DEFAULT_DECISION_MODEL,
+      mode: DEFAULT_AGENT_MODE,
       contextWindow: DEFAULT_CONTEXT_WINDOW,
       sync: true,
     });
@@ -166,6 +191,7 @@ describe('ensureFl0wHome', () => {
       llmModel: 'custom/model',
       aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER,
       decisionModel: DEFAULT_DECISION_MODEL,
+      mode: DEFAULT_AGENT_MODE,
       contextWindow: DEFAULT_CONTEXT_WINDOW,
       sync: true,
     });

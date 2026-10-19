@@ -5,10 +5,12 @@ import {
   AI_GATEWAY_API_KEY_PLACEHOLDER,
   APP_CONFIG_PATH,
   applyModelConfig,
+  DEFAULT_AGENT_MODE,
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_DECISION_MODEL,
   DEFAULT_LLM_MODEL,
   FL0W_HOME,
+  parseAgentMode,
   parseConfigString,
 } from '../../constants';
 import type { AppConfig } from '../../models/config';
@@ -29,6 +31,7 @@ const defaultAppConfig = (): AppConfig => ({
   aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER,
   llmModel: DEFAULT_LLM_MODEL,
   decisionModel: DEFAULT_DECISION_MODEL,
+  mode: DEFAULT_AGENT_MODE,
   contextWindow: DEFAULT_CONTEXT_WINDOW,
   sync: true,
 });
@@ -43,6 +46,7 @@ const ensureConfigDefaults = async (path: string): Promise<void> => {
     aiGatewayApiKey: config.aiGatewayApiKey ?? defaults.aiGatewayApiKey,
     llmModel: config.llmModel ?? defaults.llmModel,
     decisionModel: config.decisionModel ?? defaults.decisionModel,
+    mode: parseAgentMode(config.mode) ?? config.mode ?? defaults.mode,
     contextWindow: config.contextWindow ?? defaults.contextWindow,
     sync: config.sync ?? defaults.sync,
   };
@@ -50,6 +54,7 @@ const ensureConfigDefaults = async (path: string): Promise<void> => {
     merged.aiGatewayApiKey === config.aiGatewayApiKey
     && merged.llmModel === config.llmModel
     && merged.decisionModel === config.decisionModel
+    && merged.mode === config.mode
     && merged.contextWindow === config.contextWindow
     && merged.sync === config.sync
   ) return;
@@ -69,6 +74,8 @@ export async function loadAppConfig(path = APP_CONFIG_PATH): Promise<AppConfig> 
   if (llmModel) process.env.LLM_MODEL = llmModel;
   const decisionModel = parseConfigString(config.decisionModel);
   if (decisionModel) process.env.DECISION_MODEL = decisionModel;
+  const mode = parseAgentMode(config.mode);
+  if (mode) process.env.AGENT_MODE = mode;
   if (config.contextWindow != null && config.contextWindow > 0) {
     process.env.CONTEXT_WINDOW = String(Math.floor(config.contextWindow));
   }

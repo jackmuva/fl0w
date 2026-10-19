@@ -14,20 +14,23 @@ import { recordLlmUsage } from './hooks/session-usage';
 import type { AgentState, Fl0wMessage } from '../../models/agent';
 import { mcpToolKey } from '../../models/mcp';
 import { mcpClient } from '../mcp/mcp-client';
-import { isCapabilityEnabled, isMcpToolEnabled } from './capabilities';
 import { askQuestionTool, type AskQuestionInput } from './default-tools/ask-question';
 import { createPlanTool, type CreatePlanInput, wrapPlanToolMessages } from './default-tools/create-plan';
-import {
-  executeDefaultTool,
-  isDefaultToolKey,
-  listDefaultTools,
-} from './default-tools';
-import { listSkills } from './hooks/front-load';
 import { preparePrompt } from './prompt';
-import { executeUserTool, isUserToolKey, listUserTools, loadUserTools } from './user-tools/loader';
+import { loadUserTools } from './user-tools/loader';
 import { appendDecisionMessage, fl0wMessage, toModelMessages } from './utils/fl0w-message';
 import { retryModelCall } from '../utils';
-import { ASK_QUESTION_ACTION, buildToolCriteria, CREATE_PLAN_ACTION, describeToolCallGenerationFailure, formatToolList, parseToolKey, toolsForEvaluateState } from './utils/tools';
+import {
+  ASK_QUESTION_ACTION,
+  buildToolCriteria,
+  CREATE_PLAN_ACTION,
+  describeToolCallGenerationFailure,
+  executeNamedTool,
+  formatToolList,
+  listAllTools,
+  parseToolKey,
+  toolsForEvaluateState,
+} from './utils/tools';
 import { reduceTools } from './hooks/tool-filter';
 
 const generateRequiredToolCall = async ({
@@ -81,13 +84,6 @@ const generateRequiredToolCall = async ({
 };
 
 await loadUserTools();
-
-const listAllTools = async () => [
-  // load_skill is useless when every skill is disabled
-  ...listDefaultTools().filter((t) => t.name !== 'load_skill' || listSkills().length > 0),
-  ...listUserTools().filter((t) => isCapabilityEnabled('userTools', t.name)),
-  ...(await mcpClient.listTools()).filter((t) => isMcpToolEnabled(t)),
-];
 
 type ToolList = Awaited<ReturnType<typeof listAllTools>>;
 
@@ -406,12 +402,7 @@ export const executePreparedToolNode = async (state: AgentState): Promise<AgentS
   const selectedTool = state.selectedTool ?? toolCall?.toolName;
   if (!toolCall || !selectedTool) return state;
 
-  const { server, name } = parseToolKey(selectedTool);
-  const toolResult = isDefaultToolKey(selectedTool)
-    ? await executeDefaultTool(name, toolCall.input as Record<string, unknown>)
-    : isUserToolKey(selectedTool)
-      ? await executeUserTool(name, toolCall.input as Record<string, unknown>)
-      : await mcpClient.callTool(server, name, toolCall.input as Record<string, unknown>);
+  const toolResult = await executeNamedTool(selectedTool, toolCall.input as Record<string, unknown>);
   const toolResultMessage = mcpClient.toMessage(toolCall.toolCallId, toolResult);
 
   let messages: Fl0wMessage[] = [

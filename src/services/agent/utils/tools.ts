@@ -1,6 +1,11 @@
-import type { generateText, JSONValue } from "ai";
-import { mcpToolKey, type McpTool } from "../../../models/mcp";
+import { jsonSchema, tool, type generateText, type JSONValue } from "ai";
+import { mcpToolKey, type McpTool, type McpToolResult } from "../../../models/mcp";
 import { HEADLESS } from "../../../constants";
+import { mcpClient } from "../../mcp/mcp-client";
+import { isCapabilityEnabled, isMcpToolEnabled } from "../capabilities";
+import { executeDefaultTool, isDefaultToolKey, listDefaultTools } from "../default-tools";
+import { listSkills } from "../hooks/front-load";
+import { executeUserTool, isUserToolKey, listUserTools } from "../user-tools/loader";
 
 export const CREATE_PLAN_ACTION = 'CreatePlan';
 export const ASK_QUESTION_ACTION = 'AskQuestion';
@@ -77,7 +82,33 @@ export const toolsForEvaluateState = (tools: McpTool[]): EvaluateMcpTool[] =>
   }));
 
 export const formatToolList = (tools: McpTool[]) => tools
-  .map((tool) => `- ${tool.server}/${tool.name}${tool.description ? `: ${tool.description}` : ''}`)
+  .map((entry) => `- ${entry.server}/${entry.name}${entry.description ? `: ${entry.description}` : ''}`)
   .join('\n');
+
+export const listAllTools = async () => [
+  // load_skill is useless when every skill is disabled
+  ...listDefaultTools().filter((entry) => entry.name !== 'load_skill' || listSkills().length > 0),
+  ...listUserTools().filter((entry) => isCapabilityEnabled('userTools', entry.name)),
+  ...(await mcpClient.listTools()).filter((entry) => isMcpToolEnabled(entry)),
+];
+
+export const toAiSdkTools = (tools: McpTool[]) =>
+  Object.fromEntries(tools.map((entry) => {
+    const key = mcpToolKey(entry);
+    return [key, tool({
+      description: entry.description ?? `Call the ${key} tool`,
+      inputSchema: jsonSchema<Record<string, unknown>>(entry.inputSchema as Record<string, unknown>),
+    })];
+  }));
+
+export const executeNamedTool = async (
+  toolName: string,
+  input: Record<string, unknown>,
+): Promise<McpToolResult> => {
+  const { server, name } = parseToolKey(toolName);
+  if (isDefaultToolKey(toolName)) return executeDefaultTool(name, input);
+  if (isUserToolKey(toolName)) return executeUserTool(name, input);
+  return mcpClient.callTool(server, name, input);
+};
 
 
