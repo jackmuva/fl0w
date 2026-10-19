@@ -75,7 +75,11 @@ const seedMessages = (await frontLoadMessages()).map((message) => fl0wMessage(me
 console.log("Connecting MCPs...")
 try {
   await mcpClient.loadConfig()
-  await mcpClient.connectAll()
+  const mcpStatuses = await mcpClient.connectAll()
+  const mcpConnectErrors = mcpStatuses.filter((status) => !status.connected).map((status) => `[mcp] ${status.server} not connected: ${status.error}`)
+  if (mcpConnectErrors.length > 0) {
+    initialMessage = [initialMessage, ...mcpConnectErrors].filter(Boolean).join("\n")
+  }
 } catch (e) {
   initialMessage = [initialMessage, "Error with MCP process: " + e].filter(Boolean).join("\n")
 }
@@ -102,8 +106,7 @@ const renderer = await createCliRenderer({
 })
 initAppClipboard(renderer)
 createRoot(renderer).render((
-  <App
-    initialMessage={initialMessage}
+  <App initialMessage={initialMessage}
     seedMessages={seedMessages}
     capabilityCatalog={capabilityCatalog}
   />
