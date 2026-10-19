@@ -90,6 +90,8 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
       console.log(JSON.stringify(line));
     }
     printed = next.length;
+    store.saveMessages(session.id, next);
+    scheduleSessionPush(store);
   };
 
   const abort = new AbortController();
