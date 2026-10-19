@@ -1,13 +1,16 @@
 import { parseArgs } from 'node:util';
+import { resolve } from 'node:path';
 import type { Fl0wMessage } from '../models/agent';
 import type { WorkflowRecord } from '../models/workflow';
 import { WorkflowStore } from '../db/workflow-store';
+import { SessionStore } from '../db/session-store';
 import { applyCapabilitySelection } from '../services/agent/capabilities';
 import { fl0wLoop } from '../services/agent/agent-loop';
 import { findPendingAskQuestion } from '../services/agent/utils/ask-question-state';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
+import { scheduleSessionPush } from '../services/sync/session-sync';
 import { buildWorkflowUserMessage } from '../services/workflow/build-message';
 
 const HEADLESS_INSTRUCTIONS = [
@@ -43,6 +46,10 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     return 1;
   }
 
+  const store = SessionStore.open();
+  const session = store.createSession(resolve(process.cwd()));
+  store.saveCapabilities(session.id, workflow.requiredCapabilities);
+
   console.error('Connecting MCPs...');
   try {
     await mcpClient.loadConfig();
@@ -62,7 +69,6 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   ];
 
   let latest = messages;
-  // seed messages are known to the caller; only stream what the run adds
   let printed = messages.length;
   const onMessages = (next: Fl0wMessage[]) => {
     latest = next;
@@ -77,11 +83,20 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   process.on('SIGTERM', () => abort.abort());
 
   const outcome = await fl0wLoop(messages, onMessages, abort.signal);
+  store.saveMessages(session.id, latest);
+  scheduleSessionPush(store);
+
   const pendingQuestion = findPendingAskQuestion(latest);
   const status = pendingQuestion ? 'needs_input' : outcome;
   const last = latest.at(-1)?.message;
   const finalMessage = typeof last?.content === 'string' ? last.content : undefined;
-  console.log(JSON.stringify({ type: 'result', status, finalMessage, ...(pendingQuestion && { pendingQuestion }) }));
+  console.log(JSON.stringify({
+    type: 'result',
+    status,
+    sessionId: session.id,
+    finalMessage,
+    ...(pendingQuestion && { pendingQuestion }),
+  }));
 
   await mcpClient.close();
   if (status === 'ok') return 0;

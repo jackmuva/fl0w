@@ -29,11 +29,9 @@ if (!isAccountCommand) {
     console.log("Syncing config files...");
     syncWarning = await syncOnStartup();
     watchLocalConfigWrites();
-    if (!HEADLESS) {
-      console.log("Syncing workflows and sessions...");
-      syncWorkflowsInBackground();
-      syncSessionsInBackground();
-    }
+    console.log("Syncing workflows and sessions...");
+    syncWorkflowsInBackground();
+    syncSessionsInBackground();
   }
 }
 

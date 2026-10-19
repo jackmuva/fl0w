@@ -10,12 +10,6 @@ import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
 import { scheduleSessionPush } from '../services/sync/session-sync';
 
-const HEADLESS_INSTRUCTIONS = [
-  'You are running unattended: no human is available to answer questions.',
-  'Do not ask clarifying or follow-up questions. When something is ambiguous, make the most reasonable assumption,',
-  'state it in your output, and continue executing the workflow to completion.',
-].join(' ');
-
 const USAGE =
   'Usage: fl0w session [session-id] [--input "<message>"] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\']';
 
@@ -69,9 +63,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const store = SessionStore.open();
   const workspace = resolve(process.cwd());
 
-  let session = sessionIdArg
-    ? store.listAllSessions().find((entry) => entry.id === sessionIdArg)
-    : undefined;
+  let session = sessionIdArg ? store.listAllSessions().find((entry) => entry.id === sessionIdArg) : undefined;
   if (sessionIdArg && !session) {
     console.error(`Session not found: ${sessionIdArg}`);
     return 1;
@@ -84,7 +76,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     return 1;
   }
 
-  console.error('Connecting MCPs...');
+  console.log('Connecting MCPs...');
   try {
     await mcpClient.loadConfig();
     for (const status of await mcpClient.connectAll()) {
@@ -104,7 +96,6 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const messages: Fl0wMessage[] = [
     ...seed,
     ...saved,
-    fl0wMessage({ role: 'system', content: HEADLESS_INSTRUCTIONS }),
     ...(input ? [fl0wMessage({ role: 'user', content: input })] : []),
   ];
 
