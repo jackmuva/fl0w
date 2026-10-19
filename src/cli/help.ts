@@ -1,0 +1,41 @@
+const HELP_FLAGS = new Set(['help', '-h', '--help']);
+
+export const isHelpInvocation = (): boolean => HELP_FLAGS.has(Bun.argv[2] ?? '');
+
+export const printHelp = (): void => {
+  console.log(`fl0w — agent harness with MCP, skills, and workflows
+
+Usage:
+  fl0w                              Start the interactive TUI
+  fl0w help | -h | --help           Show this help
+  fl0w login                        Sign in and save an AI Gateway key
+  fl0w logout                       Sign out
+  fl0w whoami                       Show signed-in account
+
+Headless commands (agent output as JSON lines on stdout; MCP progress on stderr):
+
+  fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"]
+      Run a saved workflow unattended.
+
+  fl0w capabilities
+      List discoverable skills, MCP tools, user tools, and AGENTS.md (JSON lines).
+
+  fl0w session [session-id] [--input "<message>"] [--capabilities '<json>']
+      Run or continue a session. Omit session-id to create a new session.
+      --capabilities sets CapabilitySelection: {"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}
+
+Headless exit codes (workflow and session): 0 success, 1 error or stopped, 2 ended waiting on input.
+
+Config and data live in FL0W_HOME (default ~/.fl0w). See README.md for setup.`);
+};
+
+/** Prints usage help. Accepts trailing -h / --help (e.g. \`fl0w help -h\`). */
+export const runHelpCommand = async (argv: string[]): Promise<number> => {
+  for (const arg of argv) {
+    if (HELP_FLAGS.has(arg)) continue;
+    console.error(`Unknown option for help: ${arg}`);
+    return 1;
+  }
+  printHelp();
+  return 0;
+};

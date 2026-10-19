@@ -58,8 +58,6 @@ type CapabilitySelectionDialogProps = {
 const truncate = (text: string, width: number) =>
   text.length > width ? `${text.slice(0, Math.max(0, width - 1))}…` : text
 
-// Greedily packs instruction segments into lines that fit `width`, so the
-// rendered line count is known up front and the list height can be sized exactly.
 const layoutInstructions = (width: number) => {
   const lines: string[] = []
   let current = ""

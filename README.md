@@ -75,10 +75,10 @@ fl0w
 Run saved workflows without the TUI (script, cron, sandbox):
 
 ```bash
-fl0w run --workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"]
+fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"]
 ```
 
-- `--workflow` takes a JSON workflow record file or the id of a workflow saved in `~/.fl0w/fl0w-sqlite.db`.
+- The workflow argument is a JSON workflow record file or the id of a workflow saved in `~/.fl0w/fl0w-sqlite.db`.
 - `--input` appends extra instructions to the workflow (e.g. a webhook payload).
 - Headless runs never ask clarifying questions — the agent assumes instead.
 - OAuth MCP servers must already be authorized: run `fl0w` interactively once, or copy

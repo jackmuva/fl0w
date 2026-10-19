@@ -1,13 +1,11 @@
-import type { CapabilityCatalog } from "./models/agent"
-import { HEADLESS } from "./constants"
+import { ACCOUNT_COMMANDS, HEADLESS } from "./constants"
 
 // AI SDK logs provider warnings via process.emitWarning by default; suppress for TUI/CLI.
 globalThis.AI_SDK_LOG_WARNINGS = false
-import { discoverAgentsMd, discoverSkills, frontLoadMessages } from "./services/agent/hooks/front-load"
+import { frontLoadMessages } from "./services/agent/hooks/front-load"
 import { ensureFl0wHome, loadAppConfig } from "./services/config/app-config"
 import { fl0wMessage } from "./services/agent/utils/fl0w-message"
-import { listUserTools, loadUserTools } from "./services/agent/user-tools/loader"
-import { mcpToolKey } from "./models/mcp"
+import { loadUserTools } from "./services/agent/user-tools/loader"
 import { mcpClient } from "./services/mcp/mcp-client"
 import { flushPendingPushes, syncOnStartup, watchLocalConfigWrites } from "./services/sync/config-sync"
 import { isConfigSyncEnabled } from "./services/config/app-config"
@@ -17,7 +15,11 @@ import { flushPendingSkillMirrors } from "./services/skills/mirror-enabled-skill
 
 await ensureFl0wHome()
 
-const ACCOUNT_COMMANDS = ["login", "logout", "whoami"]
+const { isHelpInvocation, runHelpCommand } = await import("./cli/help")
+if (isHelpInvocation()) {
+  process.exit(await runHelpCommand(Bun.argv.slice(3)))
+}
+
 const isAccountCommand = ACCOUNT_COMMANDS.includes(Bun.argv[2] ?? "")
 
 let syncWarning: string | null = null
@@ -45,8 +47,20 @@ if (isAccountCommand) {
 
 if (HEADLESS) {
   if (syncWarning) console.error(syncWarning)
-  const { runHeadless } = await import("./cli/headless-run")
-  const code = await runHeadless(Bun.argv.slice(3))
+  const headlessCommand = Bun.argv[2]!
+  let code = 1
+  if (headlessCommand === "workflow") {
+    const { runWorkflowCommand } = await import("./cli/workflow")
+    code = await runWorkflowCommand(Bun.argv.slice(3))
+  } else if (headlessCommand === "capabilities") {
+    const { runCapabilitiesCommand } = await import("./cli/capabilities")
+    code = await runCapabilitiesCommand(Bun.argv.slice(3))
+  } else if (headlessCommand === "session") {
+    const { runSessionCommand } = await import("./cli/session")
+    code = await runSessionCommand(Bun.argv.slice(3))
+  } else {
+    console.error(`Headless command not implemented: ${headlessCommand}`)
+  }
   void flushPendingSkillMirrors()
   await Promise.all([flushPendingPushes(), flushWorkflowPushes(), flushSessionPushes()])
   process.exit(code)
@@ -69,15 +83,8 @@ try {
 }
 
 await loadUserTools()
-const capabilityCatalog: CapabilityCatalog = {
-  skills: await discoverSkills(),
-  mcpServers: (await mcpClient.listTools()).map((tool) => ({
-    name: mcpToolKey(tool),
-    description: tool.description,
-  })),
-  userTools: listUserTools(),
-  agentsMd: await discoverAgentsMd(),
-}
+const { buildCapabilityCatalog } = await import("./cli/capabilities")
+const capabilityCatalog = await buildCapabilityCatalog()
 
 process.on("exit", () => {
   void mcpClient.close()

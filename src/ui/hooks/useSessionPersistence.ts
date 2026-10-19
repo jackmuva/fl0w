@@ -95,7 +95,6 @@ export const useSessionPersistence = (
     replaceSeedMessages(seed);
   }, [replaceSeedMessages, session.id, store]);
 
-  // Start a fresh session instead of wiping the current one, so it stays resumable.
   const clearSession = useCallback(() => {
     flushSave();
     const hasConversation = store.loadMessages(session.id).length > 0;

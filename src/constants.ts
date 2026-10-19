@@ -3,7 +3,11 @@ import { join } from 'node:path';
 
 export const FL0W_HOME = process.env.FL0W_HOME ?? join(homedir(), '.fl0w');
 
-export const HEADLESS = Bun.argv[2] === 'run';
+export const HEADLESS_COMMANDS = ["workflow", "capabilities", "session"];
+
+export const HEADLESS = HEADLESS_COMMANDS.includes(Bun.argv[2] ?? "");
+
+export const ACCOUNT_COMMANDS = ["login", "logout", "whoami"]
 
 export const APP_CONFIG_PATH = join(FL0W_HOME, 'config.json');
 

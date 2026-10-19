@@ -16,12 +16,10 @@ export const setCapabilitySelection = (next: CapabilitySelection) => {
 export const isCapabilityEnabled = (kind: CapabilityKind, name: string) =>
   selection !== null && selection[kind].includes(name);
 
-/** Whether an MCP tool is enabled in the current session selection. */
 export const isMcpToolEnabled = (tool: Pick<McpTool, 'server' | 'name'>) => {
   if (!selection) return false;
   const key = mcpToolKey(tool);
   if (selection.mcpServers.includes(key)) return true;
-  // Legacy sessions/workflows may store a server name to enable all of its tools.
   return selection.mcpServers.includes(tool.server);
 };
 

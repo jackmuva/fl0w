@@ -16,29 +16,30 @@ const HEADLESS_INSTRUCTIONS = [
   'state it in your output, and continue executing the workflow to completion.',
 ].join(' ');
 
-const USAGE = 'Usage: fl0w run --workflow <path.json | workflow-id> [--input "<extra instructions>"]';
+const USAGE = 'Usage: fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"]';
 
 /** Runs a saved workflow without the TUI. Streams JSON lines to stdout and returns the exit code. */
-export const runHeadless = async (argv: string[]): Promise<number> => {
-  const { values } = parseArgs({
+export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
+  const { values, positionals } = parseArgs({
     args: argv,
     options: {
-      workflow: { type: 'string', short: 'w' },
       input: { type: 'string', short: 'i' },
     },
+    allowPositionals: true,
     strict: true,
   });
-  if (!values.workflow) {
+  const workflowRef = positionals[0];
+  if (!workflowRef) {
     console.error(USAGE);
     return 1;
   }
 
-  const workflowFile = Bun.file(values.workflow);
+  const workflowFile = Bun.file(workflowRef);
   const workflow: WorkflowRecord | null = (await workflowFile.exists())
     ? await workflowFile.json() as WorkflowRecord
-    : WorkflowStore.open().getWorkflow(values.workflow);
+    : WorkflowStore.open().getWorkflow(workflowRef);
   if (!workflow) {
-    console.error(`Workflow not found: ${values.workflow}`);
+    console.error(`Workflow not found: ${workflowRef}`);
     return 1;
   }
 
