@@ -20,8 +20,10 @@ Headless commands (agent output as JSON lines on stdout; MCP progress on stderr)
   fl0w capabilities
       List discoverable skills, MCP tools, user tools, and AGENTS.md (JSON lines).
 
-  fl0w session [session-id] [--input "<message>"] [--capabilities '<json>']
+  fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>']
       Run or continue a session. Omit session-id to create a new session.
+      --answers answers the session's pending question: {"<question-id>":{"optionId":"<id>"}} or {"<question-id>":{"customText":"..."}}.
+      Without --answers, --input answers a pending question as free text.
       --capabilities sets CapabilitySelection: {"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}
 
 Headless exit codes (workflow and session): 0 success, 1 error or stopped, 2 ended waiting on input.

@@ -4,14 +4,14 @@ import type { CapabilityKind, CapabilitySelection, CliOutput, Fl0wMessage } from
 import { SessionStore } from '../db/session-store';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/capabilities';
 import { fl0wLoop } from '../services/agent/agent-loop';
-import { findPendingAskQuestion } from '../services/agent/utils/ask-question-state';
+import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/ask-question-state';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
 import { scheduleSessionPush } from '../services/sync/session-sync';
 
 const USAGE =
-  'Usage: fl0w session [session-id] [--input "<message>"] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\']';
+  'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\']';
 
 const CAPABILITY_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 
@@ -36,12 +36,33 @@ const parseCapabilitiesJson = (raw: string): CapabilitySelection | null => {
   };
 };
 
+const parseAnswersJson = (raw: string): Record<string, QuestionAnswer> | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const answers: Record<string, QuestionAnswer> = {};
+  for (const [questionId, value] of Object.entries(parsed)) {
+    if (!value || typeof value !== 'object') return null;
+    const { optionId, customText } = value as Record<string, unknown>;
+    if (optionId !== undefined && typeof optionId !== 'string') return null;
+    if (customText !== undefined && typeof customText !== 'string') return null;
+    // free text without an option is an "Other" answer, matching the TUI's question box
+    answers[questionId] = { optionId: optionId ?? 'other', customText: customText ?? '' };
+  }
+  return answers;
+};
+
 export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {
       input: { type: 'string', short: 'i' },
       capabilities: { type: 'string', short: 'c' },
+      answers: { type: 'string', short: 'a' },
     },
     allowPositionals: true,
     strict: true,
@@ -59,6 +80,15 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     }
   }
 
+  let answers: Record<string, QuestionAnswer> | null = null;
+  if (values.answers) {
+    answers = parseAnswersJson(values.answers);
+    if (!answers) {
+      console.error('Invalid --answers JSON: expected {"<question-id>": {"optionId"?: string, "customText"?: string}}');
+      return 1;
+    }
+  }
+
   const store = SessionStore.open();
   const workspace = resolve(process.cwd());
 
@@ -68,7 +98,12 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   if (!session) session = store.createSession(workspace, sessionIdArg);
 
   const saved = store.loadMessages(session.id);
-  if (!input && saved.length === 0) {
+  const pendingAsk = findPendingAskQuestion(saved);
+  if (answers && !pendingAsk) {
+    console.error('--answers given but the session has no pending question');
+    return 1;
+  }
+  if (!input && !answers && saved.length === 0) {
     console.error(`${USAGE}\n--input is required for a new or empty session`);
     return 1;
   }
@@ -89,12 +124,26 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     ?? emptyCapabilitySelection();
   if (capabilitiesFromCli) store.saveCapabilities(session.id, capabilities);
 
+  // a pending question is answered with its tool-result (as the TUI's question box does), otherwise the loop stops
+  // on it again; without --answers, --input is the free-text answer
+  const inputIsAnswer = Boolean(pendingAsk && !answers && input);
+  const answerText = pendingAsk && answers ? formatAskQuestionAnswers(pendingAsk.input.questions, answers) : inputIsAnswer ? input : null;
+  const nextMessages: Fl0wMessage[] = [];
+  if (pendingAsk && answerText !== null) {
+    nextMessages.push(fl0wMessage({
+      role: 'tool',
+      content: [{
+        type: 'tool-result',
+        toolCallId: pendingAsk.toolCallId,
+        toolName: 'AskQuestion',
+        output: { type: 'text', value: answerText },
+      }],
+    }));
+  }
+  if (input && !inputIsAnswer) nextMessages.push(fl0wMessage({ role: 'user', content: input }));
+
   const seed = await applyCapabilitySelection(capabilities);
-  const messages: Fl0wMessage[] = [
-    ...seed,
-    ...saved,
-    ...(input ? [fl0wMessage({ role: 'user', content: input })] : []),
-  ];
+  const messages: Fl0wMessage[] = [...seed, ...saved, ...nextMessages];
 
   let latest = messages;
   let printed = messages.length;

@@ -134,13 +134,14 @@ Each line is JSON, for example:
 Send a message and run (or continue) an arbitrary agent session.
 
 ```bash
-fl0w session [session-id] [--input "<message>"] [--capabilities '<json>']
+fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>']
 ```
 
 | Argument / flag | Short | Description |
 | --- | --- | --- |
 | `session-id` | — | Optional. Continue this session, or create it with that id if it does not exist. Omit for a new random id. |
 | `--input` | `-i` | User message for this turn. **Required** when the session is new or has no saved messages. |
+| `--answers` | `-a` | Answers the session's pending question (`needs_input`): JSON keyed by question id, e.g. `{"q1":{"optionId":"yes"}}` or `{"q1":{"customText":"..."}}`. Without it, `--input` answers a pending question as free text. |
 | `--capabilities` | `-c` | JSON [capability selection](#headless-capability-selection) for this run. Saved on the session when set. If omitted, uses capabilities already stored on the session, or empty. |
 
 Example — start a session, then continue it using `sessionId` from the result line:
@@ -148,6 +149,7 @@ Example — start a session, then continue it using `sessionId` from the result 
 ```bash
 fl0w session --input "Summarize open issues in this repo"
 fl0w session abc-123-def --input "Focus on P0 only"
+fl0w session abc-123-def --answers '{"scope":{"optionId":"p0"}}'   # reply to a needs_input result
 ```
 
 ##### Headless capability selection
