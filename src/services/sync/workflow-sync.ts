@@ -1,7 +1,7 @@
 import { WorkflowStore } from '../../db/workflow-store';
 import { readFl0wAuth } from '../auth/token';
 import { isConfigSyncEnabled } from '../config/app-config';
-import { getRemoteWorkflow, listRemoteWorkflows, pushWorkflow } from '../remote-api/sync-api';
+import { deleteRemoteWorkflow, getRemoteWorkflow, listRemoteWorkflows, pushWorkflow } from '../remote-api/sync-api';
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -34,6 +34,15 @@ export async function syncWorkflows(store?: WorkflowStore): Promise<WorkflowSync
 
 export function syncWorkflowsInBackground(store?: WorkflowStore): void {
   void syncWorkflows(store).catch(() => null);
+}
+
+/** Queued behind in-flight syncs so a later sync can't pull the workflow back before it's gone remotely. */
+export function deleteRemoteWorkflowInBackground(id: string): void {
+  const run = queue.then(async () => {
+    if (!(await readFl0wAuth()) || !(await isConfigSyncEnabled())) return;
+    await deleteRemoteWorkflow(id);
+  });
+  queue = run.catch(() => { });
 }
 
 export async function flushWorkflowPushes(): Promise<void> {

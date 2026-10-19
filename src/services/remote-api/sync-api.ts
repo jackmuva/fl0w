@@ -99,6 +99,12 @@ export async function pushWorkflow(workflow: WorkflowRecord): Promise<boolean> {
   return true;
 }
 
+/** Already gone on fl0w-work (404) counts as deleted. */
+export async function deleteRemoteWorkflow(id: string): Promise<void> {
+  const res = await request(`/workflows/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) return fail(res, `delete of ${id}`, 'Workflow');
+}
+
 export async function listRemoteSessions(): Promise<RemoteSessionMeta[]> {
   const res = await request('/sessions');
   if (!res.ok) return fail(res, 'list', 'Session');
@@ -120,6 +126,12 @@ export async function pushSession({ id, ...session }: RemoteSession): Promise<bo
   if (res.status === 409 || res.status === 413) return false;
   if (!res.ok) return fail(res, `push of "${session.title ?? id}"`, 'Session');
   return true;
+}
+
+/** Already gone on fl0w-work (404) counts as deleted. */
+export async function deleteRemoteSession(id: string): Promise<void> {
+  const res = await request(`/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) return fail(res, `delete of ${id}`, 'Session');
 }
 
 export async function listRemoteSkills(): Promise<RemoteSkillMeta[]> {

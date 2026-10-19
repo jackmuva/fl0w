@@ -17,13 +17,11 @@ const chatKeyBindings: KeyBinding[] = [
 
 const MAX_INPUT_LINES = 8
 const BOX_PADDING_X = 1
-const APP_PADDING_X = 1
 
 type ChatInputProps = {
   disabled?: boolean
   placeholder?: string
   allowEmptySubmit?: boolean
-  marginY?: number
   slashCommandHandlers: SlashCommandActions
   onCompletionChange?: (completion: CompletionState) => void
   onSubmit: (text: string) => void | Promise<void>
@@ -33,7 +31,6 @@ export const ChatInput = ({
   disabled = false,
   placeholder = "What would you like to do",
   allowEmptySubmit = false,
-  marginY = 0,
   slashCommandHandlers,
   onCompletionChange,
   onSubmit,
@@ -50,7 +47,6 @@ export const ChatInput = ({
 
   const [lineCount, setLineCount] = useState(1)
 
-  // Textarea has no intrinsic height, so size it to its wrapped content.
   const syncHeight = () => {
     const textarea = textareaRef.current
     if (!textarea) return

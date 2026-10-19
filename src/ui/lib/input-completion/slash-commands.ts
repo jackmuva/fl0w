@@ -7,7 +7,7 @@ export const SLASH_COMMANDS: SlashCommandDefinition[] = [
     description: "Clear the saved conversation for this workspace",
   },
   {
-    name: "resume",
+    name: "sessions",
     description: "Choose a saved session to resume",
   },
   {
@@ -69,7 +69,7 @@ export const executeSlashCommand = (
       handlers.clearSession()
       handlers.clearInput()
       return true
-    case "resume":
+    case "sessions":
       handlers.resumeSession()
       handlers.clearInput()
       return true

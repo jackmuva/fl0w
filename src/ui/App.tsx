@@ -12,7 +12,7 @@ import { fl0wMessage, parseDecisionMessage } from "../services/agent/utils/fl0w-
 import { buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { WorkflowStore } from "../db/workflow-store"
-import { syncWorkflowsInBackground } from "../services/sync/workflow-sync"
+import { deleteRemoteWorkflowInBackground, syncWorkflowsInBackground } from "../services/sync/workflow-sync"
 import { flushSessionPushes } from "../services/sync/session-sync"
 import { flushPendingSkillMirrorsInBackground } from "../services/skills/mirror-enabled-skills"
 import type { WorkflowRecord } from "../models/workflow"
@@ -146,6 +146,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
 
   const handleWorkflowDelete = useCallback((workflowId: string) => {
     if (!workflowStore.deleteWorkflow(workflowId)) return
+    deleteRemoteWorkflowInBackground(workflowId)
     setPendingWorkflow((current) => (current?.id === workflowId ? null : current))
     refreshWorkflows()
   }, [refreshWorkflows, workflowStore])
@@ -293,7 +294,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     }
   }
 
-  const inputDisabled = status === "working" || capabilityPickerOpen || generating
+  const inputDisabled = status === "working" || capabilityPickerOpen || generating || sessionPickerOpen || workflowPickerOpen;
   const chatPlaceholder = pendingWorkflow
     ? `Add instructions for "${pendingWorkflow.title}"…`
     : "What would you like to do"

@@ -194,8 +194,9 @@ export const WorkflowSelectionDialog = ({
 
   const confirmDelete = () => {
     if (!pendingDelete || !onDelete) return
-    onDelete(pendingDelete.id)
-    setPendingDelete(null)
+    const workflowId = pendingDelete.id
+    onDelete(workflowId)
+    queueMicrotask(() => setPendingDelete(null))
   }
 
   return (
@@ -247,7 +248,7 @@ export const WorkflowSelectionDialog = ({
           title="Delete workflow?"
           message={`This permanently removes "${formatWorkflowLabel(pendingDelete)}".`}
           onConfirm={confirmDelete}
-          onCancel={() => setPendingDelete(null)}
+          onCancel={() => queueMicrotask(() => setPendingDelete(null))}
           terminalWidth={terminalWidth}
           terminalHeight={terminalHeight}
         />

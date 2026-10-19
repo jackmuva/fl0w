@@ -3,7 +3,7 @@ import { applyCapabilitySelection } from '../../services/agent/capabilities';
 import { resolve } from 'node:path';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SessionStore, type SessionRecord } from '../../db/session-store';
-import { scheduleSessionPush } from '../../services/sync/session-sync';
+import { deleteRemoteSessionInBackground, scheduleSessionPush } from '../../services/sync/session-sync';
 
 type SetMessagesAction = Fl0wMessage[] | ((previous: Fl0wMessage[]) => Fl0wMessage[]);
 
@@ -129,7 +129,7 @@ export const useSessionPersistence = (
     if (sessionId === session.id) flushSave();
     if (!store.deleteSession(sessionId)) return;
 
-    scheduleSessionPush(store);
+    deleteRemoteSessionInBackground(sessionId);
     if (sessionId !== session.id) return;
 
     const remaining = store.listSessions(workspace);

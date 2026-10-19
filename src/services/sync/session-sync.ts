@@ -1,7 +1,7 @@
 import { SessionStore } from '../../db/session-store';
 import { readFl0wAuth } from '../auth/token';
 import { isConfigSyncEnabled } from '../config/app-config';
-import { getRemoteSession, listRemoteSessions, pushSession } from '../remote-api/sync-api';
+import { deleteRemoteSession, getRemoteSession, listRemoteSessions, pushSession } from '../remote-api/sync-api';
 
 const PUSH_DEBOUNCE_MS = 2_000;
 
@@ -57,6 +57,15 @@ export function scheduleSessionPush(store?: SessionStore): void {
       syncSessionsInBackground(store);
     }, PUSH_DEBOUNCE_MS),
   };
+}
+
+/** Queued behind in-flight syncs so a later sync can't pull the session back before it's gone remotely. */
+export function deleteRemoteSessionInBackground(id: string): void {
+  const run = queue.then(async () => {
+    if (!(await readFl0wAuth()) || !(await isConfigSyncEnabled())) return;
+    await deleteRemoteSession(id);
+  });
+  queue = run.catch(() => { });
 }
 
 export async function flushSessionPushes(): Promise<void> {

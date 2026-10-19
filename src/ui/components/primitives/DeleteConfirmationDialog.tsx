@@ -25,12 +25,16 @@ export const DeleteConfirmationDialog = ({
 }: DeleteConfirmationDialogProps) => {
   useKeyboard((key) => {
     if (key.name === "return" || key.name === "kpenter") {
+      key.stopPropagation()
       onConfirm()
       return
     }
     if (key.name === "escape") {
+      key.stopPropagation()
       onCancel()
+      return
     }
+    key.stopPropagation()
   })
 
   const dialogWidth = Math.min(DIALOG_WIDTH, Math.max(28, terminalWidth - 4))

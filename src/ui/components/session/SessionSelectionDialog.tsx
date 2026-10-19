@@ -138,8 +138,9 @@ export const SessionSelectionDialog = ({
 
   const confirmDelete = () => {
     if (!pendingDelete || !onDelete) return
-    onDelete(pendingDelete.id)
-    setPendingDelete(null)
+    const sessionId = pendingDelete.id
+    onDelete(sessionId)
+    queueMicrotask(() => setPendingDelete(null))
   }
 
   return (
@@ -188,7 +189,7 @@ export const SessionSelectionDialog = ({
           title="Delete session?"
           message={`This permanently removes "${formatSessionLabel(pendingDelete)}" and its messages.`}
           onConfirm={confirmDelete}
-          onCancel={() => setPendingDelete(null)}
+          onCancel={() => queueMicrotask(() => setPendingDelete(null))}
           terminalWidth={terminalWidth}
           terminalHeight={terminalHeight}
         />
