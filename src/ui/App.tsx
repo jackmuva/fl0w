@@ -53,6 +53,9 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     session,
   } = useSessionPersistence(seedMessages)
   const [sessionListRevision, setSessionListRevision] = useState(0)
+  useEffect(() => {
+    setSessionListRevision((revision) => revision + 1)
+  }, [session.id])
   const listedSessions = useMemo(() => {
     void sessionListRevision
     return getSessions()

@@ -65,6 +65,42 @@ export class SessionStore {
     return session;
   }
 
+  /** In-memory session id until the first save; not written to SQLite yet. */
+  createDraftSession(workspacePath: string): SessionRecord {
+    const now = nowIso();
+    return {
+      id: crypto.randomUUID(),
+      workspacePath: resolve(workspacePath),
+      title: null,
+      capabilities: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  hasSession(id: string): boolean {
+    return this.db.select({ id: sessions.id }).from(sessions)
+      .where(eq(sessions.id, id))
+      .get() != null;
+  }
+
+  /** Most recently updated session that has saved conversation messages. */
+  findLatestSessionWithMessages(workspacePath: string): SessionRecord | null {
+    for (const session of this.listSessions(workspacePath)) {
+      if (this.loadMessages(session.id).length > 0) return session;
+    }
+    return null;
+  }
+
+  /** Removes empty rows left over from older builds that created sessions at startup. */
+  deleteEmptySessions(workspacePath: string): void {
+    for (const session of this.listSessions(workspacePath)) {
+      if (this.loadMessages(session.id).length > 0) continue;
+      if (session.capabilities != null) continue;
+      this.deleteSession(session.id);
+    }
+  }
+
   getOrCreateSession(workspacePath: string): SessionRecord {
     const existing = this.db.select().from(sessions)
       .where(eq(sessions.workspacePath, resolve(workspacePath)))
