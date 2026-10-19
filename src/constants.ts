@@ -1,5 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import type { AgentMode } from './models/config';
 
 export const FL0W_HOME = process.env.FL0W_HOME ?? join(homedir(), '.fl0w');
 
@@ -59,10 +60,21 @@ export let LLM_MODEL = parseConfigString(process.env.LLM_MODEL) ?? DEFAULT_LLM_M
 
 export let DECISION_MODEL = parseConfigString(process.env.DECISION_MODEL) ?? DEFAULT_DECISION_MODEL;
 
-/** Re-read `LLM_MODEL`, `DECISION_MODEL`, and `CONTEXT_WINDOW` from `process.env` (after `loadAppConfig`). */
+export const DEFAULT_AGENT_MODE: AgentMode = 'decision';
+
+export const parseAgentMode = (raw: string | undefined): AgentMode | undefined => {
+  const value = parseConfigString(raw);
+  if (value === 'decision' || value === 'llm') return value;
+  return undefined;
+};
+
+export let AGENT_MODE = parseAgentMode(process.env.AGENT_MODE) ?? DEFAULT_AGENT_MODE;
+
+/** Re-read `LLM_MODEL`, `DECISION_MODEL`, `AGENT_MODE`, and `CONTEXT_WINDOW` from `process.env` (after `loadAppConfig`). */
 export const applyModelConfig = (): void => {
   LLM_MODEL = parseConfigString(process.env.LLM_MODEL) ?? DEFAULT_LLM_MODEL;
   DECISION_MODEL = parseConfigString(process.env.DECISION_MODEL) ?? DEFAULT_DECISION_MODEL;
+  AGENT_MODE = parseAgentMode(process.env.AGENT_MODE) ?? DEFAULT_AGENT_MODE;
   CONTEXT_WINDOW = parseContextWindow(process.env.CONTEXT_WINDOW) ?? DEFAULT_CONTEXT_WINDOW;
 };
 

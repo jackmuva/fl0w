@@ -1,51 +1,25 @@
-import { findPendingAskQuestion } from './utils/ask-question-state';
-import type { AgentState, Fl0wMessage } from '../../models/agent';
+import { MAX_ITERATIONS } from '../../../constants';
+import type { AgentState, Fl0wMessage } from '../../../models/agent';
+import { compactionHook } from '../hooks/compaction';
+import { rewindState } from '../hooks/rewind';
+import { findPendingAskQuestion } from '../utils/ask-question-state';
+import { fl0wMessage } from '../utils/fl0w-message';
 import {
+  actionSelectNode,
   clarifyTaskNode,
   createPlanNode,
-  initialNode,
-  prepareToolCallNode,
   executePreparedToolNode,
+  initialNode,
   needsPreparedToolExecution,
-  actionSelectNode,
+  prepareToolCallNode,
 } from './graph';
-import { compactionHook } from './hooks/compaction';
-import { rewindState } from './hooks/rewind';
-import { formatAgentRunError } from './llm-error';
-import { fl0wMessage } from './utils/fl0w-message';
-import { MAX_ITERATIONS } from '../../constants';
-
-export type fl0wLoopCallback = (messages: Fl0wMessage[]) => void;
-
-export type fl0wLoopResult = 'ok' | 'error' | 'stopped';
-
-const sync = (next: AgentState, callback: fl0wLoopCallback): AgentState => {
-  callback(next.messages);
-  return next;
-};
-
-const stopIfAborted = (state: AgentState, callback: fl0wLoopCallback, signal?: AbortSignal,): AgentState | undefined => {
-  if (!signal?.aborted) return undefined;
-  return sync({
-    state: 'END',
-    messages: [
-      ...state.messages,
-      fl0wMessage({ role: 'assistant', content: 'Run stopped.' }),
-    ],
-  }, callback);
-};
-
-const endRunWithError = (
-  state: AgentState,
-  error: unknown,
-  callback: fl0wLoopCallback,
-): AgentState => sync({
-  state: 'END',
-  messages: [
-    ...state.messages,
-    fl0wMessage({ role: 'assistant', content: formatAgentRunError(error) }),
-  ],
-}, callback);
+import {
+  endRunWithError,
+  stopIfAborted,
+  sync,
+  type fl0wLoopCallback,
+  type fl0wLoopResult,
+} from './utils';
 
 const runNode = async (
   state: AgentState,
@@ -76,7 +50,7 @@ const runNode = async (
   return { ok: true, state: current };
 };
 
-export const fl0wLoop = async (
+export const decisionLoop = async (
   messages: Fl0wMessage[],
   callback: fl0wLoopCallback,
   signal?: AbortSignal,
@@ -168,3 +142,5 @@ export const fl0wLoop = async (
   }, callback);
   return 'ok';
 };
+
+

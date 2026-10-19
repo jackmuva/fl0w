@@ -12,8 +12,10 @@ conversational agent that plans, executes, and distills tasks into reusable work
 - **Config** — `config.json` in `FL0W_HOME` (`~/.fl0w`) loads into `process.env` at startup.
 - **Models** — `LLM_MODEL` env (from `llmModel`, default `zai/glm-5.3-flash`);
   `DECISION_MODEL` env (from `decisionModel`, default `openai/gpt-6-luna-decisions`) drives agent planning/choices.
+  `AGENT_MODE` env (from `mode`, default `decision`) selects the runtime: `decision` is the
+  evaluate/rewind graph; `llm` is a standard tool-calling loop on `LLM_MODEL`.
   `CONTEXT_WINDOW` env (from `contextWindow`, default `1000000`) drives compaction thresholds and the UI usage meter.
-  All three load from `config.json` into env at startup, then `applyModelConfig()` refreshes the runtime exports in `constants.ts`.
+  All four load from `config.json` into env at startup, then `applyModelConfig()` refreshes the runtime exports in `constants.ts`.
 - **Auth** — `fl0w login`/`logout`/`whoami` sign in via fl0w-work (`FL0W_API_URL`, default
   `https://www.fl0w.work`); tokens + MCP OAuth state live in `auth.json`. Login saves a Vercel
   AI Gateway key as `aiGatewayApiKey` unless one is set (`config.json` or `AI_GATEWAY_API_KEY`).
@@ -31,8 +33,9 @@ conversational agent that plans, executes, and distills tasks into reusable work
 - **Workflows** — sessions distill into reusable workflows (`/generate-workflow`, `/run-workflow`).
 - **Skills** — found in `./skills`, `FL0W_HOME/skills`, `~/.cursor/skills-cursor`; loaded via `load_skill`.
 - **User tools** — `loadUserTools()` registers custom tools from `FL0W_HOME/tools` in the `user` namespace.
-- **Agent graph** — state machine (`START` → `PLAN`/`DISCOVERY` → `EXECUTE` → `END`, with
-  `REWIND`) in `src/services/agent/graph.ts`, run by `fl0wLoop()`.
+- **Agent graph** — `fl0wLoop()` in `src/services/agent/main-loop.ts` dispatches on `mode`: decision state machine
+  (`START` → `PLAN`/`DISCOVERY` → `EXECUTE` → `END`, with `REWIND`) in
+  `src/services/agent/loops/graph.ts`, or LLM tool-calling loop in `src/services/agent/loops/llm-loop.ts`.
 - **Shutdown** — MCP connections close cleanly on exit.
 
 ## Structure
@@ -63,7 +66,8 @@ src/
 4. `loadUserTools()` registers `user` namespace tools.
 5. Skills/servers/tools/`AGENTS.md` load into a togglable `CapabilityCatalog`.
 6. `@opentui/core` boots and `<App />` renders seeded messages.
-7. `fl0wLoop()` runs the state machine and hooks (`compactionHook`, `rewindState`).
+7. `fl0wLoop()` runs the selected runtime (`loops/graph.ts` + `rewindState` in decision mode,
+   `loops/llm-loop.ts` in LLM mode) with shared hooks (`compactionHook`, front-load, session-usage).
 8. Exit handler closes all MCP connections.
 
 ## Conventions

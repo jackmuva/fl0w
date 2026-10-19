@@ -5,7 +5,7 @@ import type { WorkflowRecord } from '../models/workflow';
 import { WorkflowStore } from '../db/workflow-store';
 import { SessionStore } from '../db/session-store';
 import { applyCapabilitySelection } from '../services/agent/capabilities';
-import { fl0wLoop } from '../services/agent/agent-loop';
+import { fl0wLoop } from '../services/agent/main-loop';
 import { findPendingAskQuestion } from '../services/agent/utils/ask-question-state';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
