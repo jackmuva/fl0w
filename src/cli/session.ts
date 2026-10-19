@@ -11,7 +11,7 @@ import { mcpClient } from '../services/mcp/mcp-client';
 import { scheduleSessionPush } from '../services/sync/session-sync';
 
 const USAGE =
-  'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\']';
+  'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--remote]';
 
 const CAPABILITY_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 
@@ -63,6 +63,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
       input: { type: 'string', short: 'i' },
       capabilities: { type: 'string', short: 'c' },
       answers: { type: 'string', short: 'a' },
+      remote: { type: 'boolean', default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -89,15 +90,20 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     }
   }
 
+  const remote = values.remote === true;
   const store = SessionStore.open();
   const workspace = resolve(process.cwd());
 
   let session = sessionIdArg
     ? store.listAllSessions().find((entry) => entry.id === sessionIdArg)
     : undefined;
-  if (!session) session = store.createSession(workspace, sessionIdArg);
+  if (!session) {
+    session = remote
+      ? { ...store.createDraftSession(workspace), ...(sessionIdArg ? { id: sessionIdArg } : {}) }
+      : store.createSession(workspace, sessionIdArg);
+  }
 
-  const saved = store.loadMessages(session.id);
+  const saved = store.hasSession(session.id) ? store.loadMessages(session.id) : [];
   const pendingAsk = findPendingAskQuestion(saved);
   if (answers && !pendingAsk) {
     console.error('--answers given but the session has no pending question');
@@ -122,7 +128,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const capabilities = capabilitiesFromCli
     ?? store.getCapabilities(session.id)
     ?? emptyCapabilitySelection();
-  if (capabilitiesFromCli) store.saveCapabilities(session.id, capabilities);
+  if (capabilitiesFromCli && !remote) store.saveCapabilities(session.id, capabilities);
 
   // a pending question is answered with its tool-result (as the TUI's question box does), otherwise the loop stops
   // on it again; without --answers, --input is the free-text answer
@@ -155,8 +161,10 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
       console.log(JSON.stringify(line));
     }
     printed = next.length;
-    store.saveMessages(session.id, next);
-    scheduleSessionPush(store);
+    if (!remote) {
+      store.saveMessages(session.id, next);
+      scheduleSessionPush(store);
+    }
   };
 
   const abort = new AbortController();
@@ -164,8 +172,10 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   process.on('SIGTERM', () => abort.abort());
 
   const outcome = await fl0wLoop(messages, onMessages, abort.signal);
-  store.saveMessages(session.id, latest);
-  scheduleSessionPush(store);
+  if (!remote) {
+    store.saveMessages(session.id, latest);
+    scheduleSessionPush(store);
+  }
 
   const pendingQuestion = findPendingAskQuestion(latest);
   const status = pendingQuestion ? 'needs_input' : outcome;

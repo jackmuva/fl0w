@@ -89,6 +89,7 @@ fl0w help | -h | --help    # list commands and flags
   ```
 
   `status` is `ok`, `error`, `stopped`, or `needs_input`. When the agent left an unanswered question, `status` is `needs_input` and the result includes `pendingQuestion` so you can reply in a follow-up `session` run.
+- **`--remote`:** do not write to the local session store or sync sessions to fl0w-work. You still get a `sessionId` in the result (in-memory for the run). An existing stored session can still be loaded by id for context; new turns are not persisted.
 - **Exit codes:** `0` success, `1` error or stopped, `2` ended waiting on input (`needs_input`).
 - OAuth MCP servers must already be authorized: run `fl0w` interactively once, or copy `~/.fl0w/auth.json` (MCP credentials live under its `mcp` key). Unauthorized servers log a warning and the run continues without them.
 
@@ -97,13 +98,14 @@ fl0w help | -h | --help    # list commands and flags
 Run a saved workflow unattended.
 
 ```bash
-fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"] [--session <session-id>]
+fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"] [--session <session-id>] [--remote]
 ```
 
 | Flag | Short | Description |
 | --- | --- | --- |
 | `--input` | `-i` | Extra instructions appended to the workflow prompt (e.g. webhook payload). |
 | `--session` | `-s` | Session to use. Continues an existing session’s messages, or creates one with that id if missing. Omit to start a new session every run. |
+| `--remote` | — | Run without persisting messages or capabilities locally. |
 
 - The positional argument is a workflow JSON file on disk, or a workflow **id** stored in `~/.fl0w/fl0w-sqlite.db` (same records the TUI saves with `/generate-workflow`).
 - Workflow runs inject a system instruction to avoid clarifying questions when possible; the agent should assume and continue.
@@ -135,7 +137,7 @@ Each line is JSON, for example:
 Send a message and run (or continue) an arbitrary agent session.
 
 ```bash
-fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>']
+fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--remote]
 ```
 
 | Argument / flag | Short | Description |
@@ -143,7 +145,8 @@ fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabili
 | `session-id` | — | Optional. Continue this session, or create it with that id if it does not exist. Omit for a new random id. |
 | `--input` | `-i` | User message for this turn. **Required** when the session is new or has no saved messages. |
 | `--answers` | `-a` | Answers the session's pending question (`needs_input`): JSON keyed by question id, e.g. `{"q1":{"optionId":"yes"}}` or `{"q1":{"customText":"..."}}`. Without it, `--input` answers a pending question as free text. |
-| `--capabilities` | `-c` | JSON [capability selection](#headless-capability-selection) for this run. Saved on the session when set. If omitted, uses capabilities already stored on the session, or empty. |
+| `--capabilities` | `-c` | JSON [capability selection](#headless-capability-selection) for this run. Saved on the session when set (not when `--remote`). If omitted, uses capabilities already stored on the session, or empty. |
+| `--remote` | — | Run without persisting messages or capabilities locally. |
 
 Example — start a session, then continue it using `sessionId` from the result line:
 

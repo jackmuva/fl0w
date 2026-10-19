@@ -20,7 +20,7 @@ const HEADLESS_INSTRUCTIONS = [
 ].join(' ');
 
 const USAGE =
-  'Usage: fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>]';
+  'Usage: fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--remote]';
 
 /** Runs a saved workflow without the TUI. Streams JSON lines to stdout and returns the exit code. */
 export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
@@ -29,6 +29,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     options: {
       input: { type: 'string', short: 'i' },
       session: { type: 'string', short: 's' },
+      remote: { type: 'boolean', default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -48,6 +49,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     return 1;
   }
 
+  const remote = values.remote === true;
   const store = SessionStore.open();
   const workspace = resolve(process.cwd());
   const sessionIdArg = values.session?.trim() || undefined;
@@ -55,10 +57,14 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   let session = sessionIdArg
     ? store.listAllSessions().find((entry) => entry.id === sessionIdArg)
     : undefined;
-  if (!session) session = store.createSession(workspace, sessionIdArg);
+  if (!session) {
+    session = remote
+      ? { ...store.createDraftSession(workspace), ...(sessionIdArg ? { id: sessionIdArg } : {}) }
+      : store.createSession(workspace, sessionIdArg);
+  }
 
-  const saved = sessionIdArg ? store.loadMessages(session.id) : [];
-  store.saveCapabilities(session.id, workflow.requiredCapabilities);
+  const saved = sessionIdArg && store.hasSession(session.id) ? store.loadMessages(session.id) : [];
+  if (!remote) store.saveCapabilities(session.id, workflow.requiredCapabilities);
 
   console.error('Connecting MCPs...');
   try {
@@ -90,8 +96,10 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
       console.log(JSON.stringify(line));
     }
     printed = next.length;
-    store.saveMessages(session.id, next);
-    scheduleSessionPush(store);
+    if (!remote) {
+      store.saveMessages(session.id, next);
+      scheduleSessionPush(store);
+    }
   };
 
   const abort = new AbortController();
@@ -99,8 +107,10 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   process.on('SIGTERM', () => abort.abort());
 
   const outcome = await fl0wLoop(messages, onMessages, abort.signal);
-  store.saveMessages(session.id, latest);
-  scheduleSessionPush(store);
+  if (!remote) {
+    store.saveMessages(session.id, latest);
+    scheduleSessionPush(store);
+  }
 
   const pendingQuestion = findPendingAskQuestion(latest);
   const status = pendingQuestion ? 'needs_input' : outcome;
