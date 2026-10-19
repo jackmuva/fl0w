@@ -1,23 +1,23 @@
 import { generateText, type ModelMessage, type ToolSet } from 'ai';
-import { HEADLESS, LLM_MODEL, MAX_ITERATIONS } from '../../constants';
-import type { AgentState, Fl0wMessage } from '../../models/agent';
-import { mcpClient } from '../mcp/mcp-client';
-import { retryModelCall } from '../utils';
-import { askQuestionTool } from './default-tools/ask-question';
-import { createPlanTool, type CreatePlanInput } from './default-tools/create-plan';
-import { compactMessages, compactionHook } from './hooks/compaction';
-import { recordLlmUsage } from './hooks/session-usage';
-import { formatAgentRunError } from './llm-error';
-import { preparePrompt } from './prompt';
-import { findPendingAskQuestion } from './utils/ask-question-state';
-import { fl0wMessage } from './utils/fl0w-message';
+import { HEADLESS, LLM_MODEL, MAX_ITERATIONS } from '../../../constants';
+import type { AgentState, Fl0wMessage } from '../../../models/agent';
+import { mcpClient } from '../../mcp/mcp-client';
+import { retryModelCall } from '../../utils';
+import { askQuestionTool } from '../default-tools/ask-question';
+import { createPlanTool, type CreatePlanInput } from '../default-tools/create-plan';
+import { compactMessages, compactionHook } from '../hooks/compaction';
+import { recordLlmUsage } from '../hooks/session-usage';
+import { endRunWithError, stopIfAborted, sync } from './utils';
+import { preparePrompt } from '../prompt';
+import { findPendingAskQuestion } from '../utils/ask-question-state';
+import { fl0wMessage } from '../utils/fl0w-message';
 import {
   ASK_QUESTION_ACTION,
   CREATE_PLAN_ACTION,
   executeNamedTool,
   listAllTools,
   toAiSdkTools,
-} from './utils/tools';
+} from '../utils/tools';
 
 export type LlmGenerateText = typeof generateText;
 
@@ -42,38 +42,6 @@ const LLM_INSTRUCTIONS = [
   !HEADLESS && 'If the task is too ambiguous to proceed, call AskQuestion with 1-3 focused questions (include an "other" option).',
   'For multi-step work you may call CreatePlan with a short numbered plan before executing.',
 ].filter(Boolean).join(' ');
-
-const sync = (next: AgentState, callback: LoopCallback): AgentState => {
-  callback(next.messages);
-  return next;
-};
-
-const stopIfAborted = (
-  state: AgentState,
-  callback: LoopCallback,
-  signal?: AbortSignal,
-): AgentState | undefined => {
-  if (!signal?.aborted) return undefined;
-  return sync({
-    state: 'END',
-    messages: [
-      ...state.messages,
-      fl0wMessage({ role: 'assistant', content: 'Run stopped.' }),
-    ],
-  }, callback);
-};
-
-const endRunWithError = (
-  state: AgentState,
-  error: unknown,
-  callback: LoopCallback,
-): AgentState => sync({
-  state: 'END',
-  messages: [
-    ...state.messages,
-    fl0wMessage({ role: 'assistant', content: formatAgentRunError(error) }),
-  ],
-}, callback);
 
 const toolResultMessage = (
   toolCallId: string,

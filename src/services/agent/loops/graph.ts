@@ -8,18 +8,18 @@ import {
   type ModelMessage,
   type ToolChoice,
 } from 'ai';
-import { compactMessages } from './hooks/compaction';
-import { DECISION_MODEL, HEADLESS, LLM_MODEL } from '../../constants';
-import { recordLlmUsage } from './hooks/session-usage';
-import type { AgentState, Fl0wMessage } from '../../models/agent';
-import { mcpToolKey } from '../../models/mcp';
-import { mcpClient } from '../mcp/mcp-client';
-import { askQuestionTool, type AskQuestionInput } from './default-tools/ask-question';
-import { createPlanTool, type CreatePlanInput, wrapPlanToolMessages } from './default-tools/create-plan';
-import { preparePrompt } from './prompt';
-import { loadUserTools } from './user-tools/loader';
-import { appendDecisionMessage, fl0wMessage, toModelMessages } from './utils/fl0w-message';
-import { retryModelCall } from '../utils';
+import { compactMessages } from '../hooks/compaction';
+import { DECISION_MODEL, HEADLESS, LLM_MODEL } from '../../../constants';
+import { recordLlmUsage } from '../hooks/session-usage';
+import type { AgentState, Fl0wMessage } from '../../../models/agent';
+import { mcpToolKey } from '../../../models/mcp';
+import { mcpClient } from '../../mcp/mcp-client';
+import { askQuestionTool, type AskQuestionInput } from '../default-tools/ask-question';
+import { createPlanTool, type CreatePlanInput, wrapPlanToolMessages } from '../default-tools/create-plan';
+import { preparePrompt } from '../prompt';
+import { loadUserTools } from '../user-tools/loader';
+import { appendDecisionMessage, fl0wMessage, toModelMessages } from '../utils/fl0w-message';
+import { retryModelCall } from '../../utils';
 import {
   ASK_QUESTION_ACTION,
   buildToolCriteria,
@@ -30,8 +30,8 @@ import {
   listAllTools,
   parseToolKey,
   toolsForEvaluateState,
-} from './utils/tools';
-import { reduceTools } from './hooks/tool-filter';
+} from '../utils/tools';
+import { reduceTools } from '../hooks/tool-filter';
 
 const generateRequiredToolCall = async ({
   instructions,

@@ -6,7 +6,6 @@ export type AppConfig = {
   contextWindow?: number;
   decisionModel?: string;
   llmModel?: string;
-  /** Agent runtime: decision (evaluate + rewind) or llm (standard tool calling). Default decision. */
   mode?: AgentMode;
   /** Sync config files with fl0w-work when signed in (default true). Per device; never synced itself. */
   sync?: boolean;

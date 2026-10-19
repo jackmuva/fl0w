@@ -1,65 +1,25 @@
-import { findPendingAskQuestion } from './utils/ask-question-state';
-import type { AgentState, Fl0wMessage } from '../../models/agent';
-import type { AgentMode } from '../../models/config';
+import { MAX_ITERATIONS } from '../../../constants';
+import type { AgentState, Fl0wMessage } from '../../../models/agent';
+import { compactionHook } from '../hooks/compaction';
+import { rewindState } from '../hooks/rewind';
+import { findPendingAskQuestion } from '../utils/ask-question-state';
+import { fl0wMessage } from '../utils/fl0w-message';
 import {
+  actionSelectNode,
   clarifyTaskNode,
   createPlanNode,
-  initialNode,
-  prepareToolCallNode,
   executePreparedToolNode,
+  initialNode,
   needsPreparedToolExecution,
-  actionSelectNode,
+  prepareToolCallNode,
 } from './graph';
-import { compactionHook } from './hooks/compaction';
-import { rewindState } from './hooks/rewind';
-import { formatAgentRunError } from './llm-error';
-import { llmLoop } from './llm-loop';
-import { fl0wMessage } from './utils/fl0w-message';
-import { AGENT_MODE, LLM_MODEL, MAX_ITERATIONS, parseAgentMode, parseConfigString } from '../../constants';
-
-export type fl0wLoopCallback = (messages: Fl0wMessage[]) => void;
-
-export type fl0wLoopResult = 'ok' | 'error' | 'stopped';
-
-export type Fl0wLoopOptions = {
-  /** Overrides `AGENT_MODE` from config.json `mode` (default `decision`). */
-  mode?: AgentMode;
-  /** Overrides `LLM_MODEL` for LLM-mode generate calls. */
-  llmModel?: string;
-  /** Passed through from config; decision mode still reads `DECISION_MODEL` from env. */
-  decisionModel?: string;
-};
-
-export const resolveAgentMode = (options?: Fl0wLoopOptions): AgentMode =>
-  parseAgentMode(options?.mode) ?? AGENT_MODE;
-
-const sync = (next: AgentState, callback: fl0wLoopCallback): AgentState => {
-  callback(next.messages);
-  return next;
-};
-
-const stopIfAborted = (state: AgentState, callback: fl0wLoopCallback, signal?: AbortSignal,): AgentState | undefined => {
-  if (!signal?.aborted) return undefined;
-  return sync({
-    state: 'END',
-    messages: [
-      ...state.messages,
-      fl0wMessage({ role: 'assistant', content: 'Run stopped.' }),
-    ],
-  }, callback);
-};
-
-const endRunWithError = (
-  state: AgentState,
-  error: unknown,
-  callback: fl0wLoopCallback,
-): AgentState => sync({
-  state: 'END',
-  messages: [
-    ...state.messages,
-    fl0wMessage({ role: 'assistant', content: formatAgentRunError(error) }),
-  ],
-}, callback);
+import {
+  endRunWithError,
+  stopIfAborted,
+  sync,
+  type fl0wLoopCallback,
+  type fl0wLoopResult,
+} from './utils';
 
 const runNode = async (
   state: AgentState,
@@ -90,7 +50,7 @@ const runNode = async (
   return { ok: true, state: current };
 };
 
-const decisionLoop = async (
+export const decisionLoop = async (
   messages: Fl0wMessage[],
   callback: fl0wLoopCallback,
   signal?: AbortSignal,
@@ -183,19 +143,4 @@ const decisionLoop = async (
   return 'ok';
 };
 
-export const fl0wLoop = async (
-  messages: Fl0wMessage[],
-  callback: fl0wLoopCallback,
-  signal?: AbortSignal,
-  options?: Fl0wLoopOptions,
-): Promise<fl0wLoopResult> => {
-  if (resolveAgentMode(options) === 'llm') {
-    return llmLoop(
-      messages,
-      callback,
-      signal,
-      parseConfigString(options?.llmModel) ?? LLM_MODEL,
-    );
-  }
-  return decisionLoop(messages, callback, signal);
-};
+

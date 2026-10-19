@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import type { CapabilityKind, CapabilitySelection, CliOutput, Fl0wMessage } from '../models/agent';
 import { SessionStore } from '../db/session-store';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/capabilities';
-import { fl0wLoop } from '../services/agent/agent-loop';
+import { fl0wLoop } from '../services/agent/main-loop';
 import { findPendingAskQuestion } from '../services/agent/utils/ask-question-state';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';

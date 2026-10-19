@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import type { Fl0wMessage } from '../../models/agent';
-import { fl0wMessage } from './utils/fl0w-message';
-import { getSessionUsageState, resetSessionUsage } from './hooks/session-usage';
+import type { Fl0wMessage } from '../../../models/agent';
+import { fl0wMessage } from '../utils/fl0w-message';
+import { getSessionUsageState, resetSessionUsage } from '../hooks/session-usage';
 import { resetLlmGenerateText, setLlmGenerateText } from './llm-loop';
-import { fl0wLoop, resolveAgentMode } from './agent-loop';
-import { findPendingAskQuestion } from './utils/ask-question-state';
+import { fl0wLoop, resolveAgentMode } from '../main-loop';
+import { findPendingAskQuestion } from '../utils/ask-question-state';
 
 const usage = { inputTokens: 10, outputTokens: 4, totalTokens: 14 };
 

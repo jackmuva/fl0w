@@ -33,9 +33,9 @@ conversational agent that plans, executes, and distills tasks into reusable work
 - **Workflows** — sessions distill into reusable workflows (`/generate-workflow`, `/run-workflow`).
 - **Skills** — found in `./skills`, `FL0W_HOME/skills`, `~/.cursor/skills-cursor`; loaded via `load_skill`.
 - **User tools** — `loadUserTools()` registers custom tools from `FL0W_HOME/tools` in the `user` namespace.
-- **Agent graph** — `fl0wLoop()` dispatches on `mode`: decision state machine
+- **Agent graph** — `fl0wLoop()` in `src/services/agent/main-loop.ts` dispatches on `mode`: decision state machine
   (`START` → `PLAN`/`DISCOVERY` → `EXECUTE` → `END`, with `REWIND`) in
-  `src/services/agent/graph.ts`, or LLM tool-calling loop in `src/services/agent/llm-loop.ts`.
+  `src/services/agent/loops/graph.ts`, or LLM tool-calling loop in `src/services/agent/loops/llm-loop.ts`.
 - **Shutdown** — MCP connections close cleanly on exit.
 
 ## Structure
@@ -66,8 +66,8 @@ src/
 4. `loadUserTools()` registers `user` namespace tools.
 5. Skills/servers/tools/`AGENTS.md` load into a togglable `CapabilityCatalog`.
 6. `@opentui/core` boots and `<App />` renders seeded messages.
-7. `fl0wLoop()` runs the selected runtime (`graph.ts` + `rewindState` in decision mode,
-   `llm-loop.ts` in LLM mode) with shared hooks (`compactionHook`, front-load, session-usage).
+7. `fl0wLoop()` runs the selected runtime (`loops/graph.ts` + `rewindState` in decision mode,
+   `loops/llm-loop.ts` in LLM mode) with shared hooks (`compactionHook`, front-load, session-usage).
 8. Exit handler closes all MCP connections.
 
 ## Conventions

@@ -1,6 +1,6 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { fl0wLoop, type fl0wLoopResult } from "../services/agent/agent-loop"
+import { fl0wLoop, type fl0wLoopResult } from "../services/agent/main-loop"
 import {
   getCapabilitySelection,
   emptyCapabilitySelection,
