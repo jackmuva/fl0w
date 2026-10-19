@@ -23,6 +23,7 @@ conversational agent that plans, executes, and distills tasks into reusable work
   sides since the last sync (`sync-state.json`, 0600), the newer copy wins. Disable per device with `"sync": false` in `config.json` (never synced itself). **Local mode:** signed out with your own
   `AI_GATEWAY_API_KEY`, the CLI works fully offline — no login, no network.
 - **MCP** — servers auto-connect at startup (with OAuth); failure is non-fatal (UI warning).
+  On auth/connection tool-call failures, syncs config and reconnects once when config sync is enabled.
 - **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content, and the skills
   catalog seed the conversation before the UI boots.
 - **Capabilities** — skills, MCP servers, `AGENTS.md`, and user tools are discoverable/toggleable.

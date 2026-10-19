@@ -26,7 +26,6 @@ type Listener = (path: string) => void;
 
 const listeners = new Set<Listener>();
 
-/** Lets config sync hear about local writes without the writers importing the sync service. */
 export function onLocalWrite(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -171,10 +170,8 @@ const pendingPushes = new Map<SyncFilename, ReturnType<typeof setTimeout>>();
 const filenameForPath = (path: string) =>
   (Object.entries(PATHS) as [SyncFilename, string][]).find(([, p]) => p === path)?.[0];
 
-// failures stay local until the next startup sync, which re-diffs against the merge base
 const push = (filenames: SyncFilename[]) => syncConfigFiles(filenames).catch(() => null);
 
-/** Pushes local config changes (token refreshes, `fl0w login`, etc.) shortly after they're written. */
 export function watchLocalConfigWrites(): () => void {
   return onLocalWrite((path) => {
     const filename = filenameForPath(path);
@@ -187,7 +184,6 @@ export function watchLocalConfigWrites(): () => void {
   });
 }
 
-/** Sends debounced pushes now and waits for in-flight syncs; call before a deliberate exit. */
 export async function flushPendingPushes(): Promise<void> {
   const filenames = [...pendingPushes.keys()];
   for (const timer of pendingPushes.values()) clearTimeout(timer);

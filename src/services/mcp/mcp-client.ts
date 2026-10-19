@@ -15,8 +15,20 @@ import type {
   McpToolResult,
 } from '../../models/mcp';
 import { MCP_CONFIG_PATH } from '../../constants';
+import { syncConfigFiles } from '../sync/config-sync';
 
 const CLIENT_INFO = { name: 'fl0w', version: '0.1.0' };
+
+const AUTH_FAILURE = /401|unauthorized|token/i;
+
+const isAuthOrConnectionFailure = (error: unknown): boolean => {
+  if (error instanceof UnauthorizedError) return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return AUTH_FAILURE.test(message);
+};
+
+const formatToolError = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
 
 const isHttpConfig = (config: McpServerConfig): config is HttpServerConfig => 'url' in config;
 
@@ -181,29 +193,69 @@ export class McpClientManager {
     return this.listTools();
   }
 
+  private async invokeCallTool(
+    client: Client,
+    server: string,
+    tool: string,
+    args: Record<string, unknown>,
+  ): Promise<McpToolResult> {
+    const result = await client.callTool({ name: tool, arguments: args });
+    const content = 'content' in result
+      ? formatContent(result.content as ContentPart[])
+      : JSON.stringify(result.toolResult);
+    return { server, tool, isError: Boolean(result.isError), content };
+  }
+
+  private async refreshServerFromSync(server: string): Promise<boolean> {
+    const results = await syncConfigFiles();
+    if (results === null) return false;
+    const errors = Object.values(results).filter((r): r is Error => r instanceof Error);
+    if (errors.length) console.error(`[mcp] Config sync: ${errors.map((e) => e.message).join('; ')}`);
+
+    await this.loadConfig();
+    const config = this.config.mcpServers[server];
+    if (!config) return false;
+
+    try {
+      await this.connect(server, config);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async callTool(
     server: string,
     tool: string,
     args: Record<string, unknown> = {},
   ): Promise<McpToolResult> {
-    const client = this.clients.get(server);
+    const unknownServer = (): McpToolResult => ({
+      server,
+      tool,
+      isError: true,
+      content: `Unknown MCP server: ${server}`,
+    });
+
+    let client = this.clients.get(server);
     if (!client) {
-      return { server, tool, isError: true, content: `Unknown MCP server: ${server}` };
+      if (!(await this.refreshServerFromSync(server))) return unknownServer();
+      client = this.clients.get(server);
+      if (!client) return unknownServer();
     }
 
     try {
-      const result = await client.callTool({ name: tool, arguments: args });
-      const content = 'content' in result
-        ? formatContent(result.content as ContentPart[])
-        : JSON.stringify(result.toolResult);
-      return { server, tool, isError: Boolean(result.isError), content };
+      return await this.invokeCallTool(client, server, tool, args);
     } catch (error) {
-      return {
-        server,
-        tool,
-        isError: true,
-        content: error instanceof Error ? error.message : String(error),
-      };
+      if (!isAuthOrConnectionFailure(error) || !(await this.refreshServerFromSync(server))) {
+        return { server, tool, isError: true, content: formatToolError(error) };
+      }
+      const retryClient = this.clients.get(server);
+      if (!retryClient) return unknownServer();
+      try {
+        return await this.invokeCallTool(retryClient, server, tool, args);
+      } catch (retryError) {
+        return { server, tool, isError: true, content: formatToolError(retryError) };
+      }
     }
   }
 
