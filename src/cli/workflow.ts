@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
-import type { Fl0wMessage } from '../models/agent';
+import type { CliOutput, Fl0wMessage } from '../models/agent';
 import type { WorkflowRecord } from '../models/workflow';
 import { WorkflowStore } from '../db/workflow-store';
 import { SessionStore } from '../db/session-store';
@@ -85,7 +85,10 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     latest = next;
     // compaction can shrink the transcript; don't re-print what was rewritten
     if (next.length < printed) printed = next.length;
-    for (const { message } of next.slice(printed)) console.log(JSON.stringify({ type: 'message', message }));
+    for (const { message } of next.slice(printed)) {
+      const line: CliOutput = { type: 'message', message };
+      console.log(JSON.stringify(line));
+    }
     printed = next.length;
   };
 
@@ -101,13 +104,14 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   const status = pendingQuestion ? 'needs_input' : outcome;
   const last = latest.at(-1)?.message;
   const finalMessage = typeof last?.content === 'string' ? last.content : undefined;
-  console.log(JSON.stringify({
+  const result: CliOutput = {
     type: 'result',
     status,
     sessionId: session.id,
     finalMessage,
     ...(pendingQuestion && { pendingQuestion }),
-  }));
+  };
+  console.log(JSON.stringify(result));
 
   await mcpClient.close();
   if (status === 'ok') return 0;

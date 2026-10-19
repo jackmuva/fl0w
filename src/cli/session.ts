@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
-import type { CapabilityKind, CapabilitySelection, Fl0wMessage } from '../models/agent';
+import type { CapabilityKind, CapabilitySelection, CliOutput, Fl0wMessage } from '../models/agent';
 import { SessionStore } from '../db/session-store';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/capabilities';
 import { fl0wLoop } from '../services/agent/agent-loop';
@@ -101,7 +101,10 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const onMessages = (next: Fl0wMessage[]) => {
     latest = next;
     if (next.length < printed) printed = next.length;
-    for (const { message } of next.slice(printed)) console.log(JSON.stringify({ type: 'message', message }));
+    for (const { message } of next.slice(printed)) {
+      const line: CliOutput = { type: 'message', message };
+      console.log(JSON.stringify(line));
+    }
     printed = next.length;
   };
 
@@ -117,13 +120,14 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const status = pendingQuestion ? 'needs_input' : outcome;
   const last = latest.at(-1)?.message;
   const finalMessage = typeof last?.content === 'string' ? last.content : undefined;
-  console.log(JSON.stringify({
+  const result: CliOutput = {
     type: 'result',
     status,
     sessionId: session.id,
     finalMessage,
     ...(pendingQuestion && { pendingQuestion }),
-  }));
+  };
+  console.log(JSON.stringify(result));
 
   await mcpClient.close();
   if (status === 'ok') return 0;
