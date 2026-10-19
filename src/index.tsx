@@ -25,9 +25,11 @@ if (!isAccountCommand) {
   if (await isConfigSyncEnabled()) console.log("Syncing config files...");
   syncWarning = await syncOnStartup();
   watchLocalConfigWrites();
-  console.log("Syncing workflows and sessions...");
-  pushWorkflowsInBackground();
-  syncSessionsInBackground();
+  if (!HEADLESS) {
+    console.log("Syncing workflows and sessions...");
+    pushWorkflowsInBackground();
+    syncSessionsInBackground();
+  }
 }
 
 // Load before account commands so `fl0w login` knows whether config.json's aiGatewayApiKey takes precedence.
