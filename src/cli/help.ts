@@ -14,15 +14,17 @@ Usage:
 
 Headless commands (agent output as JSON lines on stdout; MCP progress on stderr):
 
-  fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--remote]
+  fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>] [--remote]
       Run a saved workflow unattended. Use --session to run in an existing session or create one with that id.
+      --messages loads prior messages from a JSON file instead of the local session store.
       --remote runs without writing to the local session store or syncing sessions.
 
   fl0w capabilities
       List discoverable skills, MCP tools, user tools, and AGENTS.md (JSON lines).
 
-  fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--remote]
+  fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--messages <path.json>] [--remote]
       Run or continue a session. Omit session-id to create a new session.
+      --messages loads prior messages ([{"message":{...},"frame"?:...}]) from a JSON file instead of the local session store.
       --remote runs without writing to the local session store or syncing sessions.
       --answers answers the session's pending question: {"<question-id>":{"optionId":"<id>"}} or {"<question-id>":{"customText":"..."}}.
       Without --answers, --input answers a pending question as free text.

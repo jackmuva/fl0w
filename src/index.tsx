@@ -21,17 +21,19 @@ if (isHelpInvocation()) {
 }
 
 const isAccountCommand = ACCOUNT_COMMANDS.includes(Bun.argv[2] ?? "")
+const isRemoteRun = HEADLESS && Bun.argv.includes("--remote")
+const log = HEADLESS ? console.error : console.log
 
 let syncWarning: string | null = null
 if (!isAccountCommand) {
   const syncEnabled = await isConfigSyncEnabled()
   if (syncEnabled) {
-    console.log("Syncing config files...");
+    log("Syncing config files...");
     syncWarning = await syncOnStartup();
     watchLocalConfigWrites();
-    console.log("Syncing workflows and sessions...");
+    log(isRemoteRun ? "Syncing workflows..." : "Syncing workflows and sessions...");
     syncWorkflowsInBackground();
-    syncSessionsInBackground();
+    if (!isRemoteRun) syncSessionsInBackground();
   }
 }
 

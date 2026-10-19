@@ -81,7 +81,10 @@ fl0w help | -h | --help    # list commands and flags
 
 **Shared behavior (`workflow` and `session`)**
 
-- Each new agent message is streamed as `{"type":"message","message":{...}}`.
+- The transcript streams as replayable lines of `Fl0wMessage`s (`{"message":{...},"frame"?:"summary"|"decision"}`, system messages excluded):
+  - `{"type":"snapshot","messages":[...]}` first (prior messages plus this turn's input), and again whenever compaction or a rewind rewrites earlier entries.
+  - `{"type":"message","index":N,"message":{...}}` for each appended entry.
+  - Replaying the lines in order rebuilds the transcript.
 - The run ends with a single result line:
 
   ```json
@@ -89,6 +92,7 @@ fl0w help | -h | --help    # list commands and flags
   ```
 
   `status` is `ok`, `error`, `stopped`, or `needs_input`. When the agent left an unanswered question, `status` is `needs_input` and the result includes `pendingQuestion` so you can reply in a follow-up `session` run.
+- **`--messages <path.json>`:** load prior messages (a JSON array of `Fl0wMessage`) from a file instead of the local session store. Pair with `--remote` when another service owns the transcript.
 - **`--remote`:** do not write to the local session store or sync sessions to fl0w-work. You still get a `sessionId` in the result (in-memory for the run). An existing stored session can still be loaded by id for context; new turns are not persisted.
 - **Exit codes:** `0` success, `1` error or stopped, `2` ended waiting on input (`needs_input`).
 - OAuth MCP servers must already be authorized: run `fl0w` interactively once, or copy `~/.fl0w/auth.json` (MCP credentials live under its `mcp` key). Unauthorized servers log a warning and the run continues without them.
@@ -98,13 +102,14 @@ fl0w help | -h | --help    # list commands and flags
 Run a saved workflow unattended.
 
 ```bash
-fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"] [--session <session-id>] [--remote]
+fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"] [--session <session-id>] [--messages <path.json>] [--remote]
 ```
 
 | Flag | Short | Description |
 | --- | --- | --- |
 | `--input` | `-i` | Extra instructions appended to the workflow prompt (e.g. webhook payload). |
 | `--session` | `-s` | Session to use. Continues an existing session’s messages, or creates one with that id if missing. Omit to start a new session every run. |
+| `--messages` | `-m` | Prior messages JSON file, used instead of the local session store. |
 | `--remote` | — | Run without persisting messages or capabilities locally. |
 
 - The positional argument is a workflow JSON file on disk, or a workflow **id** stored in `~/.fl0w/fl0w-sqlite.db` (same records the TUI saves with `/generate-workflow`).
@@ -137,7 +142,7 @@ Each line is JSON, for example:
 Send a message and run (or continue) an arbitrary agent session.
 
 ```bash
-fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--remote]
+fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--messages <path.json>] [--remote]
 ```
 
 | Argument / flag | Short | Description |
@@ -146,6 +151,7 @@ fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabili
 | `--input` | `-i` | User message for this turn. **Required** when the session is new or has no saved messages. |
 | `--answers` | `-a` | Answers the session's pending question (`needs_input`): JSON keyed by question id, e.g. `{"q1":{"optionId":"yes"}}` or `{"q1":{"customText":"..."}}`. Without it, `--input` answers a pending question as free text. |
 | `--capabilities` | `-c` | JSON [capability selection](#headless-capability-selection) for this run. Saved on the session when set (not when `--remote`). If omitted, uses capabilities already stored on the session, or empty. |
+| `--messages` | `-m` | Prior messages JSON file, used instead of the local session store. |
 | `--remote` | — | Run without persisting messages or capabilities locally. |
 
 Example — start a session, then continue it using `sessionId` from the result line:

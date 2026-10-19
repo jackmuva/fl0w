@@ -7,6 +7,7 @@ import { SessionStore } from '../db/session-store';
 import { applyCapabilitySelection } from '../services/agent/capabilities';
 import { fl0wLoop } from '../services/agent/main-loop';
 import { findPendingAskQuestion } from '../services/agent/utils/ask-question-state';
+import { createTranscriptPrinter } from './cli-output';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
@@ -20,7 +21,7 @@ const HEADLESS_INSTRUCTIONS = [
 ].join(' ');
 
 const USAGE =
-  'Usage: fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--remote]';
+  'Usage: fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>] [--remote]';
 
 /** Runs a saved workflow without the TUI. Streams JSON lines to stdout and returns the exit code. */
 export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
@@ -29,6 +30,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     options: {
       input: { type: 'string', short: 'i' },
       session: { type: 'string', short: 's' },
+      messages: { type: 'string', short: 'm' },
       remote: { type: 'boolean', default: false },
     },
     allowPositionals: true,
@@ -49,6 +51,15 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     return 1;
   }
 
+  let messagesFromCli: Fl0wMessage[] | null = null;
+  if (values.messages) {
+    messagesFromCli = await Bun.file(values.messages).json().catch(() => null) as Fl0wMessage[] | null;
+    if (!Array.isArray(messagesFromCli)) {
+      console.error(`Invalid --messages file: expected a JSON array of {"message":{...},"frame"?:...} at ${values.messages}`);
+      return 1;
+    }
+  }
+
   const remote = values.remote === true;
   const store = SessionStore.open();
   const workspace = resolve(process.cwd());
@@ -63,7 +74,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
       : store.createSession(workspace, sessionIdArg);
   }
 
-  const saved = sessionIdArg && store.hasSession(session.id) ? store.loadMessages(session.id) : [];
+  const saved = messagesFromCli ?? (sessionIdArg && store.hasSession(session.id) ? store.loadMessages(session.id) : []);
   if (!remote) store.saveCapabilities(session.id, workflow.requiredCapabilities);
 
   console.error('Connecting MCPs...');
@@ -86,16 +97,11 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   ];
 
   let latest = messages;
-  let printed = messages.length;
+  const printTranscript = createTranscriptPrinter();
+  printTranscript(messages);
   const onMessages = (next: Fl0wMessage[]) => {
     latest = next;
-    // compaction can shrink the transcript; don't re-print what was rewritten
-    if (next.length < printed) printed = next.length;
-    for (const { message } of next.slice(printed)) {
-      const line: CliOutput = { type: 'message', message };
-      console.log(JSON.stringify(line));
-    }
-    printed = next.length;
+    printTranscript(next);
     if (!remote) {
       store.saveMessages(session.id, next);
       scheduleSessionPush(store);
@@ -113,7 +119,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   }
 
   const pendingQuestion = findPendingAskQuestion(latest);
-  const status = pendingQuestion ? 'needs_input' : outcome;
+  const status = pendingQuestion ? 'needs_input' : abort.signal.aborted ? 'stopped' : outcome;
   const last = latest.at(-1)?.message;
   const finalMessage = typeof last?.content === 'string' ? last.content : undefined;
   const result: CliOutput = {

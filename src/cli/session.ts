@@ -5,13 +5,14 @@ import { SessionStore } from '../db/session-store';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/capabilities';
 import { fl0wLoop } from '../services/agent/main-loop';
 import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/ask-question-state';
+import { createTranscriptPrinter } from './cli-output';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
 import { scheduleSessionPush } from '../services/sync/session-sync';
 
 const USAGE =
-  'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--remote]';
+  'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--messages <path.json>] [--remote]';
 
 const CAPABILITY_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 
@@ -63,6 +64,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
       input: { type: 'string', short: 'i' },
       capabilities: { type: 'string', short: 'c' },
       answers: { type: 'string', short: 'a' },
+      messages: { type: 'string', short: 'm' },
       remote: { type: 'boolean', default: false },
     },
     allowPositionals: true,
@@ -90,6 +92,15 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     }
   }
 
+  let messagesFromCli: Fl0wMessage[] | null = null;
+  if (values.messages) {
+    messagesFromCli = await Bun.file(values.messages).json().catch(() => null) as Fl0wMessage[] | null;
+    if (!Array.isArray(messagesFromCli)) {
+      console.error(`Invalid --messages file: expected a JSON array of {"message":{...},"frame"?:...} at ${values.messages}`);
+      return 1;
+    }
+  }
+
   const remote = values.remote === true;
   const store = SessionStore.open();
   const workspace = resolve(process.cwd());
@@ -103,7 +114,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
       : store.createSession(workspace, sessionIdArg);
   }
 
-  const saved = store.hasSession(session.id) ? store.loadMessages(session.id) : [];
+  const saved = messagesFromCli ?? (store.hasSession(session.id) ? store.loadMessages(session.id) : []);
   const pendingAsk = findPendingAskQuestion(saved);
   if (answers && !pendingAsk) {
     console.error('--answers given but the session has no pending question');
@@ -114,7 +125,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     return 1;
   }
 
-  console.log('Connecting MCPs...');
+  console.error('Connecting MCPs...');
   try {
     await mcpClient.loadConfig();
     for (const status of await mcpClient.connectAll()) {
@@ -152,15 +163,11 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const messages: Fl0wMessage[] = [...seed, ...saved, ...nextMessages];
 
   let latest = messages;
-  let printed = messages.length;
+  const printTranscript = createTranscriptPrinter();
+  printTranscript(messages);
   const onMessages = (next: Fl0wMessage[]) => {
     latest = next;
-    if (next.length < printed) printed = next.length;
-    for (const { message } of next.slice(printed)) {
-      const line: CliOutput = { type: 'message', message };
-      console.log(JSON.stringify(line));
-    }
-    printed = next.length;
+    printTranscript(next);
     if (!remote) {
       store.saveMessages(session.id, next);
       scheduleSessionPush(store);
@@ -178,7 +185,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   }
 
   const pendingQuestion = findPendingAskQuestion(latest);
-  const status = pendingQuestion ? 'needs_input' : outcome;
+  const status = pendingQuestion ? 'needs_input' : abort.signal.aborted ? 'stopped' : outcome;
   const last = latest.at(-1)?.message;
   const finalMessage = typeof last?.content === 'string' ? last.content : undefined;
   const result: CliOutput = {

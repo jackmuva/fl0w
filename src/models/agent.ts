@@ -46,9 +46,13 @@ export type CliOutputPendingQuestion = {
   };
 };
 
-/** JSON lines written to stdout by headless `fl0w session` and `fl0w workflow`. */
+/**
+ * JSON lines written to stdout by headless `fl0w session` and `fl0w workflow`. `snapshot` replaces the whole
+ * transcript; `message` sets the entry at `index` (always the next position after the latest snapshot/appends).
+ */
 export type CliOutput =
-  | { type: 'message'; message: ModelMessage }
+  | { type: 'snapshot'; messages: Fl0wMessage[] }
+  | { type: 'message'; index: number; message: Fl0wMessage }
   | {
       type: 'result';
       status: CliOuputStatus;
