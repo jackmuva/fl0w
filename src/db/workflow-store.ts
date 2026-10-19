@@ -50,6 +50,11 @@ export class WorkflowStore {
     return workflow;
   }
 
+  deleteWorkflow(workflowId: string): boolean {
+    const result = this.db.delete(workflows).where(eq(workflows.id, workflowId)).run();
+    return result.changes > 0;
+  }
+
   /** Inserts a workflow pulled from fl0w-work; workflows are immutable, so an existing id is left as is. */
   importWorkflow(workflow: WorkflowRecord): void {
     this.db.insert(workflows).values(workflow).onConflictDoNothing({ target: workflows.id }).run();

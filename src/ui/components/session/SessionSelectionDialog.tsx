@@ -2,13 +2,14 @@ import type { SelectOption } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import type { SessionRecord } from "../../../db/session-store"
+import { DeleteConfirmationDialog } from "../primitives/DeleteConfirmationDialog"
 import { AGENT_BORDER_COLOR } from "../primitives/MessageFrame"
 
 const MAX_VISIBLE_ITEMS = 6
 const DIALOG_WIDTH = 56
 const DIALOG_PADDING = 2
 const DIALOG_BORDER = 2
-const DEFAULT_INSTRUCTIONS = "↑/↓ to navigate · Enter to resume · Esc to dismiss"
+const DEFAULT_INSTRUCTIONS = "↑/↓ to navigate · Enter to resume · x to delete · Esc to dismiss"
 
 type SessionSelectionDialogProps = {
   sessions: SessionRecord[]
@@ -17,6 +18,7 @@ type SessionSelectionDialogProps = {
   instructions?: string
   emptyMessage?: string
   onSelect: (sessionId: string) => void
+  onDelete?: (sessionId: string) => void
   onDismiss: () => void
   terminalWidth: number
   terminalHeight: number
@@ -37,11 +39,13 @@ export const SessionSelectionDialog = ({
   instructions = DEFAULT_INSTRUCTIONS,
   emptyMessage = "No saved sessions for this workspace",
   onSelect,
+  onDelete,
   onDismiss,
   terminalWidth,
   terminalHeight,
 }: SessionSelectionDialogProps) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [pendingDelete, setPendingDelete] = useState<SessionRecord | null>(null)
 
   useEffect(() => {
     if (!currentSessionId) {
@@ -52,7 +56,17 @@ export const SessionSelectionDialog = ({
     setSelectedIndex(currentIndex >= 0 ? currentIndex : 0)
   }, [currentSessionId, sessions])
 
+  useEffect(() => {
+    if (sessions.length === 0) {
+      setPendingDelete(null)
+      return
+    }
+    setSelectedIndex((index) => Math.min(index, sessions.length - 1))
+  }, [sessions.length])
+
   useKeyboard((key) => {
+    if (pendingDelete) return
+
     if (sessions.length === 0) {
       if (key.name === "escape" || key.name === "return" || key.name === "kpenter") {
         onDismiss()
@@ -76,6 +90,12 @@ export const SessionSelectionDialog = ({
       return
     }
 
+    if (key.name === "x" && onDelete) {
+      const session = sessions[selectedIndex]
+      if (session) setPendingDelete(session)
+      return
+    }
+
     if (key.name === "escape") {
       onDismiss()
     }
@@ -83,12 +103,19 @@ export const SessionSelectionDialog = ({
 
   const options: SelectOption[] = useMemo(
     () =>
-      sessions.map((session) => ({
-        name: formatSessionLabel(session),
-        description: formatSessionDescription(session, currentSessionId !== undefined && session.id === currentSessionId),
-        value: session.id,
-      })),
-    [currentSessionId, sessions],
+      sessions.map((session, index) => {
+        const description = formatSessionDescription(
+          session,
+          currentSessionId !== undefined && session.id === currentSessionId,
+        )
+        const deleteHint = onDelete && index === selectedIndex ? " · x" : ""
+        return {
+          name: formatSessionLabel(session),
+          description: `${description}${deleteHint}`,
+          value: session.id,
+        }
+      }),
+    [currentSessionId, onDelete, selectedIndex, sessions],
   )
 
   const dialogWidth = Math.min(DIALOG_WIDTH, Math.max(24, terminalWidth - 4))
@@ -108,6 +135,12 @@ export const SessionSelectionDialog = ({
   const dialogHeight = bodyHeight + chromeLines
   const top = Math.max(1, Math.floor((terminalHeight - dialogHeight) / 2))
   const left = Math.max(1, Math.floor((terminalWidth - dialogWidth) / 2))
+
+  const confirmDelete = () => {
+    if (!pendingDelete || !onDelete) return
+    onDelete(pendingDelete.id)
+    setPendingDelete(null)
+  }
 
   return (
     <>
@@ -150,6 +183,16 @@ export const SessionSelectionDialog = ({
           />
         )}
       </box>
+      {pendingDelete && onDelete && (
+        <DeleteConfirmationDialog
+          title="Delete session?"
+          message={`This permanently removes "${formatSessionLabel(pendingDelete)}" and its messages.`}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+          terminalWidth={terminalWidth}
+          terminalHeight={terminalHeight}
+        />
+      )}
     </>
   )
 }

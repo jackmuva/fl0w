@@ -17,6 +17,7 @@ export type UseSessionPersistenceResult = {
   loadSessionMessages: (sessionId: string) => Fl0wMessage[];
   getSessionCapabilities: (sessionId: string) => CapabilitySelection | null;
   resumeSession: (sessionId: string) => void;
+  deleteStoredSession: (sessionId: string) => void;
   replaceSeedMessages: (seed: Fl0wMessage[]) => void;
   applySessionCapabilities: (selection: CapabilitySelection) => Promise<void>;
   session: SessionRecord;
@@ -124,6 +125,20 @@ export const useSessionPersistence = (
     setMessagesState([...seedMessages, ...saved]);
   }, [flushSave, seedMessages, store, workspace]);
 
+  const deleteStoredSession = useCallback((sessionId: string) => {
+    if (sessionId === session.id) flushSave();
+    if (!store.deleteSession(sessionId)) return;
+
+    scheduleSessionPush(store);
+    if (sessionId !== session.id) return;
+
+    const remaining = store.listSessions(workspace);
+    const replacement = remaining[0] ?? store.createSession(workspace);
+    setSession(replacement);
+    const saved = store.loadMessages(replacement.id);
+    setMessagesState([...seedMessages, ...saved]);
+  }, [flushSave, seedMessages, session.id, store, workspace]);
+
   return {
     messages,
     setMessages,
@@ -132,6 +147,7 @@ export const useSessionPersistence = (
     loadSessionMessages,
     getSessionCapabilities,
     resumeSession,
+    deleteStoredSession,
     replaceSeedMessages,
     applySessionCapabilities,
     session,

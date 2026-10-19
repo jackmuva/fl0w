@@ -86,6 +86,18 @@ describe('SessionStore', () => {
     expect(store.listSessions('/tmp/project-caps')[0]?.capabilities).toEqual(capabilities);
   });
 
+  test('deletes a session and its messages', () => {
+    const store = SessionStore.openInMemory();
+    const workspace = '/tmp/project-delete';
+    const session = store.createSession(workspace);
+
+    store.saveMessages(session.id, [{ message: { role: 'user', content: 'hello' } }]);
+    expect(store.deleteSession(session.id)).toBe(true);
+    expect(store.listSessions(workspace)).toHaveLength(0);
+    expect(store.loadMessages(session.id)).toEqual([]);
+    expect(store.deleteSession(session.id)).toBe(false);
+  });
+
   test('clears saved messages when only system messages remain', () => {
     const store = SessionStore.openInMemory();
     const session = store.getOrCreateSession('/tmp/project-d');

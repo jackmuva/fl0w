@@ -116,6 +116,14 @@ export class SessionStore {
     }, { behavior: 'immediate' });
   }
 
+  deleteSession(sessionId: string): boolean {
+    return this.db.transaction((tx) => {
+      tx.delete(messages).where(eq(messages.sessionId, sessionId)).run();
+      const result = tx.delete(sessions).where(eq(sessions.id, sessionId)).run();
+      return result.changes > 0;
+    }, { behavior: 'immediate' });
+  }
+
   /** Writes a session synced from fl0w-work as-is, keeping its `updatedAt` so the next sync sees both sides as equal. */
   importSession({ messages: fl0wMessages, ...session }: SessionRecord & { messages: Fl0wMessage[] }): void {
     const { id, ...fields } = session;

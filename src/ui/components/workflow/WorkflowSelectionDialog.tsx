@@ -1,7 +1,8 @@
 import type { SelectOption } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { WorkflowRecord } from "../../../models/workflow"
+import { DeleteConfirmationDialog } from "../primitives/DeleteConfirmationDialog"
 import { getFilterKeyAction } from "../../lib/dialog-filter-key"
 import { filterByFuzzyName } from "../../lib/input-completion/fuzzy-match"
 import { AGENT_BORDER_COLOR } from "../primitives/MessageFrame"
@@ -10,13 +11,14 @@ const MAX_VISIBLE_ITEMS = 6
 const DIALOG_WIDTH = 56
 const DIALOG_PADDING = 2
 const DIALOG_BORDER = 2
-const INSTRUCTIONS = "Type to filter · ↑/↓ to navigate · Enter to select · Esc to dismiss"
+const INSTRUCTIONS = "Type to filter · ↑/↓ to navigate · Enter to select · x to delete · Esc to dismiss"
 const TEXT_FG = "#c0caf5"
 const MUTED_FG = "#565f89"
 
 type WorkflowSelectionDialogProps = {
   workflows: WorkflowRecord[]
   onSelect: (workflowId: string) => void
+  onDelete?: (workflowId: string) => void
   onDismiss: () => void
   terminalWidth: number
   terminalHeight: number
@@ -37,12 +39,14 @@ const truncate = (text: string, width: number) =>
 export const WorkflowSelectionDialog = ({
   workflows,
   onSelect,
+  onDelete,
   onDismiss,
   terminalWidth,
   terminalHeight,
 }: WorkflowSelectionDialogProps) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [filterQuery, setFilterQuery] = useState("")
+  const [pendingDelete, setPendingDelete] = useState<WorkflowRecord | null>(null)
 
   const filteredWorkflows = useMemo(() => {
     const entries = workflows.map((workflow) => ({
@@ -51,6 +55,14 @@ export const WorkflowSelectionDialog = ({
     }))
     return filterByFuzzyName(entries, filterQuery).map((entry) => entry.workflow)
   }, [workflows, filterQuery])
+
+  useEffect(() => {
+    if (filteredWorkflows.length === 0) {
+      setPendingDelete(null)
+      return
+    }
+    setSelectedIndex((index) => Math.min(index, filteredWorkflows.length - 1))
+  }, [filteredWorkflows.length])
 
   const applyFilterKey = (action: NonNullable<ReturnType<typeof getFilterKeyAction>>) => {
     if (action.type === "backspace") {
@@ -62,11 +74,7 @@ export const WorkflowSelectionDialog = ({
   }
 
   useKeyboard((key) => {
-    const filterKey = getFilterKeyAction(key)
-    if (filterKey) {
-      if (workflows.length > 0) applyFilterKey(filterKey)
-      return
-    }
+    if (pendingDelete) return
 
     if (workflows.length === 0) {
       if (key.name === "escape" || key.name === "return" || key.name === "kpenter") {
@@ -76,6 +84,11 @@ export const WorkflowSelectionDialog = ({
     }
 
     if (filteredWorkflows.length === 0) {
+      const filterKey = getFilterKeyAction(key)
+      if (filterKey) {
+        applyFilterKey(filterKey)
+        return
+      }
       if (key.name === "escape") {
         if (filterQuery.length > 0) {
           setFilterQuery("")
@@ -84,6 +97,18 @@ export const WorkflowSelectionDialog = ({
           onDismiss()
         }
       }
+      return
+    }
+
+    if (key.name === "x" && onDelete) {
+      const workflow = filteredWorkflows[selectedIndex]
+      if (workflow) setPendingDelete(workflow)
+      return
+    }
+
+    const filterKey = getFilterKeyAction(key)
+    if (filterKey) {
+      applyFilterKey(filterKey)
       return
     }
 
@@ -115,12 +140,15 @@ export const WorkflowSelectionDialog = ({
 
   const options: SelectOption[] = useMemo(
     () =>
-      filteredWorkflows.map((workflow) => ({
-        name: formatWorkflowLabel(workflow),
-        description: formatWorkflowDescription(workflow),
-        value: workflow.id,
-      })),
-    [filteredWorkflows],
+      filteredWorkflows.map((workflow, index) => {
+        const deleteHint = onDelete && index === selectedIndex ? " · x" : ""
+        return {
+          name: formatWorkflowLabel(workflow),
+          description: `${formatWorkflowDescription(workflow)}${deleteHint}`,
+          value: workflow.id,
+        }
+      }),
+    [filteredWorkflows, onDelete, selectedIndex],
   )
 
   const dialogWidth = Math.min(DIALOG_WIDTH, Math.max(24, terminalWidth - 4))
@@ -163,6 +191,12 @@ export const WorkflowSelectionDialog = ({
       />
     )
   })()
+
+  const confirmDelete = () => {
+    if (!pendingDelete || !onDelete) return
+    onDelete(pendingDelete.id)
+    setPendingDelete(null)
+  }
 
   return (
     <>
@@ -208,6 +242,16 @@ export const WorkflowSelectionDialog = ({
         <text fg={MUTED_FG} flexShrink={0}>{INSTRUCTIONS}</text>
         {listBody}
       </box>
+      {pendingDelete && onDelete && (
+        <DeleteConfirmationDialog
+          title="Delete workflow?"
+          message={`This permanently removes "${formatWorkflowLabel(pendingDelete)}".`}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+          terminalWidth={terminalWidth}
+          terminalHeight={terminalHeight}
+        />
+      )}
     </>
   )
 }

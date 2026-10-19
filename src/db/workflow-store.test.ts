@@ -74,6 +74,20 @@ describe('WorkflowStore', () => {
     expect(workflows[1]?.id).toBe(first.id);
   });
 
+  test('deletes a workflow by id', () => {
+    const store = WorkflowStore.openInMemory();
+    const saved = store.saveWorkflow({
+      title: 'Disposable',
+      goal: 'Remove me',
+      requiredCapabilities: emptyCapabilitySelection(),
+      steps: [{ intent: 'Delete', action: 'Remove workflow' }],
+    });
+
+    expect(store.deleteWorkflow(saved.id)).toBe(true);
+    expect(store.listWorkflows()).toHaveLength(0);
+    expect(store.deleteWorkflow(saved.id)).toBe(false);
+  });
+
   test('lists workflows across all saves regardless of source session', () => {
     const store = WorkflowStore.openInMemory();
 

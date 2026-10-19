@@ -48,9 +48,15 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     loadSessionMessages,
     getSessionCapabilities,
     resumeSession,
+    deleteStoredSession,
     applySessionCapabilities,
     session,
   } = useSessionPersistence(seedMessages)
+  const [sessionListRevision, setSessionListRevision] = useState(0)
+  const listedSessions = useMemo(() => {
+    void sessionListRevision
+    return getSessions()
+  }, [getSessions, sessionListRevision])
   const workflowStore = useMemo(() => WorkflowStore.open(), [])
   const [status, setStatus] = useState<"ready" | "working" | "error">("ready")
   const [completion, setCompletion] = useState<CompletionState>({ open: false })
@@ -132,6 +138,17 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
   const handleSessionPickerDismiss = useCallback(() => {
     setSessionPickerOpen(false)
   }, [])
+
+  const handleSessionDelete = useCallback((sessionId: string) => {
+    deleteStoredSession(sessionId)
+    setSessionListRevision((revision) => revision + 1)
+  }, [deleteStoredSession])
+
+  const handleWorkflowDelete = useCallback((workflowId: string) => {
+    if (!workflowStore.deleteWorkflow(workflowId)) return
+    setPendingWorkflow((current) => (current?.id === workflowId ? null : current))
+    refreshWorkflows()
+  }, [refreshWorkflows, workflowStore])
 
   const handleGenerateSessionSelect = useCallback(async (sessionId: string) => {
     setGenerateSessionPickerOpen(false)
@@ -356,9 +373,10 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
       )}
       {sessionPickerOpen && (
         <SessionSelectionDialog
-          sessions={getSessions()}
+          sessions={listedSessions}
           currentSessionId={session.id}
           onSelect={handleSessionSelect}
+          onDelete={handleSessionDelete}
           onDismiss={handleSessionPickerDismiss}
           terminalWidth={width}
           terminalHeight={height}
@@ -366,10 +384,11 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
       )}
       {generateSessionPickerOpen && (
         <SessionSelectionDialog
-          sessions={getSessions()}
+          sessions={listedSessions}
           title="Generate workflow from session"
-          instructions="↑/↓ to navigate · Enter to generate · Esc to dismiss"
+          instructions="↑/↓ to navigate · Enter to generate · x to delete · Esc to dismiss"
           onSelect={handleGenerateSessionSelect}
+          onDelete={handleSessionDelete}
           onDismiss={handleGenerateSessionPickerDismiss}
           terminalWidth={width}
           terminalHeight={height}
@@ -379,6 +398,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
         <WorkflowSelectionDialog
           workflows={workflows}
           onSelect={handleWorkflowSelect}
+          onDelete={handleWorkflowDelete}
           onDismiss={handleWorkflowPickerDismiss}
           terminalWidth={width}
           terminalHeight={height}
