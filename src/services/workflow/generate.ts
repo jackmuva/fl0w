@@ -9,8 +9,31 @@ import {
 import { recordLlmUsage } from '../agent/hooks/session-usage';
 import { LLM_MODEL } from '../../constants';
 import type { Fl0wMessage } from '../../models/agent';
-import type { GeneratedWorkflow, WorkflowStep } from '../../models/workflow';
 import { extractToolCalls, hasConversationContent } from './extract-tool-calls';
+import type { GeneratedWorkflow, WorkflowStep } from '../../models/workflow';
+
+export const normalizeWorkflowStep = (step: {
+  intent: string;
+  action: string;
+  toolParameters?: Record<string, unknown>;
+}): WorkflowStep => {
+  const intent = step.intent.trim();
+  const action = step.action.trim();
+  if (!step.toolParameters) return { intent, action };
+
+  const toolParameters: Record<string, string> = {};
+  for (const [key, value] of Object.entries(step.toolParameters)) {
+    if (value === undefined || value === null) continue;
+    toolParameters[key] = typeof value === 'string' ? value : JSON.stringify(value);
+  }
+
+  return Object.keys(toolParameters).length > 0
+    ? { intent, action, toolParameters }
+    : { intent, action };
+};
+
+export const normalizeWorkflowSteps = (steps: WorkflowStep[]): WorkflowStep[] =>
+  steps.map(normalizeWorkflowStep);
 
 const workflowSchema = jsonSchema<GeneratedWorkflow>({
   type: 'object',
@@ -141,21 +164,11 @@ const finalizeGeneratedWorkflow = (workflow: GeneratedWorkflow): GeneratedWorkfl
   return normalized;
 };
 
-const normalizeGeneratedWorkflow = (workflow: GeneratedWorkflow): GeneratedWorkflow => {
-  const steps: WorkflowStep[] = workflow.steps.map((step) => ({
-    intent: step.intent.trim(),
-    action: step.action.trim(),
-    ...(step.toolParameters && Object.keys(step.toolParameters).length > 0
-      ? { toolParameters: step.toolParameters }
-      : {}),
-  }));
-
-  return {
-    title: workflow.title.trim(),
-    goal: workflow.goal.trim(),
-    steps,
-  };
-};
+const normalizeGeneratedWorkflow = (workflow: GeneratedWorkflow): GeneratedWorkflow => ({
+  title: workflow.title.trim(),
+  goal: workflow.goal.trim(),
+  steps: normalizeWorkflowSteps(workflow.steps),
+});
 
 export class WorkflowGenerationError extends Error {
   constructor(message: string) {

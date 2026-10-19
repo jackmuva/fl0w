@@ -1,7 +1,8 @@
 import { FL0W_API_URL } from '../../constants';
 import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSession, RemoteSessionMeta, RemoteSkillMeta, RemoteWorkflowMeta, SyncFilename } from '../../models/sync';
-import type { WorkflowRecord } from '../../models/workflow';
+import { type WorkflowRecord } from '../../models/workflow';
 import { getAccessToken } from '../auth/token';
+import { normalizeWorkflowSteps } from '../workflow/generate';
 
 const REQUEST_TIMEOUT_MS = 5_000;
 // skill bundles and long sessions are up to a few MB, which a slow uplink won't send in 5s
@@ -93,7 +94,8 @@ export async function getRemoteWorkflow(id: string): Promise<WorkflowRecord | nu
 }
 
 export async function pushWorkflow(workflow: WorkflowRecord): Promise<boolean> {
-  const res = await request('/workflows', { method: 'POST', body: JSON.stringify(workflow) });
+  const payload = { ...workflow, steps: normalizeWorkflowSteps(workflow.steps) };
+  const res = await request('/workflows', { method: 'POST', body: JSON.stringify(payload) });
   if (res.status === 409) return false;
   if (!res.ok) return fail(res, `push of "${workflow.title}"`, 'Workflow');
   return true;

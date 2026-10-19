@@ -1,8 +1,9 @@
 import { desc, eq } from 'drizzle-orm';
 import { DB_PATH } from '../constants';
 import type { CapabilitySelection } from '../models/agent';
-import type { WorkflowRecord, WorkflowStep } from '../models/workflow';
+import { type WorkflowRecord, type WorkflowStep } from '../models/workflow';
 import { nowIso, openDatabase, workflows, type FlowDatabase } from './schema';
+import { normalizeWorkflowSteps } from '../services/workflow/generate';
 
 export class WorkflowStore {
   private readonly db: FlowDatabase;
@@ -40,7 +41,7 @@ export class WorkflowStore {
       sourceSessionId: input.sourceSessionId ?? null,
       title: input.title.trim(),
       goal: input.goal.trim(),
-      steps: input.steps,
+      steps: normalizeWorkflowSteps(input.steps),
       requiredCapabilities: input.requiredCapabilities,
       createdAt: now,
       updatedAt: now,
