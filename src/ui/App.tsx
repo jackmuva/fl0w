@@ -12,7 +12,7 @@ import { fl0wMessage, parseDecisionMessage } from "../services/agent/utils/fl0w-
 import { buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { WorkflowStore } from "../db/workflow-store"
-import { pushWorkflowsInBackground } from "../services/sync/workflow-sync"
+import { syncWorkflowsInBackground } from "../services/sync/workflow-sync"
 import { flushSessionPushes } from "../services/sync/session-sync"
 import { flushPendingSkillMirrorsInBackground } from "../services/skills/mirror-enabled-skills"
 import type { WorkflowRecord } from "../models/workflow"
@@ -149,7 +149,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
         requiredCapabilities,
       })
       refreshWorkflows()
-      pushWorkflowsInBackground(workflowStore)
+      syncWorkflowsInBackground(workflowStore)
       setMessages((previous) => [
         ...previous,
         fl0wMessage({

@@ -45,8 +45,8 @@ async function reportLoginSync() {
     console.log(`Config sync failed: ${error instanceof Error ? error.message : String(error)}. It will retry on next start.`);
   }
   try {
-    const pushed = await syncWorkflows();
-    if (pushed) console.log(`Pushed ${pushed} workflow${pushed === 1 ? '' : 's'} to fl0w-work.`);
+    const synced = await syncWorkflows();
+    if (synced && (synced.pushed || synced.pulled)) console.log(`Workflows synced with fl0w-work (${synced.pushed} pushed, ${synced.pulled} pulled).`);
   } catch (error) {
     console.log(`Workflow sync failed: ${error instanceof Error ? error.message : String(error)}. It will retry on next start.`);
   }

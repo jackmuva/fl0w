@@ -14,47 +14,21 @@ describe('jsonEqual', () => {
 });
 
 describe('mergeConfig', () => {
-  test('takes one-sided changes from each side', () => {
-    const base = { llmModel: 'a', aiGatewayApiKey: 'k' };
-    const merged = mergeConfig('config.json', {
-      base,
-      local: { ...base, llmModel: 'local-model' },
-      remote: { ...base, aiGatewayApiKey: 'k2' },
-      preferLocal: false,
-    });
-    expect(merged).toEqual({ llmModel: 'local-model', aiGatewayApiKey: 'k2' });
-  });
-
-  test('propagates deletions', () => {
+  test('takes the only side that changed, whichever is newer', () => {
     const base = { llmModel: 'a', extra: true };
-    expect(mergeConfig('config.json', { base, local: { llmModel: 'a' }, remote: base, preferLocal: false }))
-      .toEqual({ llmModel: 'a' });
-    expect(mergeConfig('config.json', { base, local: base, remote: { llmModel: 'a' }, preferLocal: true }))
-      .toEqual({ llmModel: 'a' });
+    const edited = { llmModel: 'b' };
+    expect(mergeConfig('config.json', { base, local: edited, remote: base, preferLocal: false })).toEqual(edited);
+    expect(mergeConfig('config.json', { base, local: base, remote: edited, preferLocal: true })).toEqual(edited);
   });
 
-  test('resolves a two-sided conflict toward the newer side', () => {
-    const args = { base: { llmModel: 'a' }, local: { llmModel: 'l' }, remote: { llmModel: 'r' } };
-    expect(mergeConfig('config.json', { ...args, preferLocal: true })).toEqual({ llmModel: 'l' });
-    expect(mergeConfig('config.json', { ...args, preferLocal: false })).toEqual({ llmModel: 'r' });
-  });
-
-  test('merges mcp.json servers and auth.json mcp entries per server', () => {
-    const base = { mcpServers: { a: { url: 'a' } } };
-    expect(mergeConfig('mcp.json', {
-      base,
+  test('takes the newer file whole when both sides changed', () => {
+    const args = {
+      base: { mcpServers: { a: { url: 'a' } } },
       local: { mcpServers: { a: { url: 'a' }, b: { url: 'b' } } },
-      remote: { mcpServers: { a: { url: 'a2' }, c: { url: 'c' } } },
-      preferLocal: true,
-    })).toEqual({ mcpServers: { a: { url: 'a2' }, b: { url: 'b' }, c: { url: 'c' } } });
-
-    const authBase = { mcp: { linear: { tokens: { access_token: 'old' } } } };
-    expect(mergeConfig('auth.json', {
-      base: authBase,
-      local: { mcp: { ...authBase.mcp, notion: { tokens: { access_token: 'n' } } } },
-      remote: { mcp: { linear: { tokens: { access_token: 'new' } } } },
-      preferLocal: true,
-    })).toEqual({ mcp: { linear: { tokens: { access_token: 'new' } }, notion: { tokens: { access_token: 'n' } } } });
+      remote: { mcpServers: { c: { url: 'c' } } },
+    };
+    expect(mergeConfig('mcp.json', { ...args, preferLocal: true })).toEqual(args.local);
+    expect(mergeConfig('mcp.json', { ...args, preferLocal: false })).toEqual(args.remote);
   });
 
   test('keeps the longer-lived fl0w login regardless of which side is newer', () => {

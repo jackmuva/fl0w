@@ -49,4 +49,9 @@ export class WorkflowStore {
     this.db.insert(workflows).values(workflow).run();
     return workflow;
   }
+
+  /** Inserts a workflow pulled from fl0w-work; workflows are immutable, so an existing id is left as is. */
+  importWorkflow(workflow: WorkflowRecord): void {
+    this.db.insert(workflows).values(workflow).onConflictDoNothing({ target: workflows.id }).run();
+  }
 }

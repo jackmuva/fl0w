@@ -1,7 +1,7 @@
 import { SessionStore } from '../../db/session-store';
 import { readFl0wAuth } from '../auth/token';
 import { isConfigSyncEnabled } from '../config/app-config';
-import { getRemoteSession, listRemoteSessions, pushSession } from './sync-api';
+import { getRemoteSession, listRemoteSessions, pushSession } from '../remote-api/sync-api';
 
 const PUSH_DEBOUNCE_MS = 2_000;
 
@@ -20,7 +20,6 @@ export async function syncSessions(store?: SessionStore): Promise<SessionSyncRes
     if (!(await readFl0wAuth()) || !(await isConfigSyncEnabled())) return null;
 
     const local = store ?? SessionStore.open();
-    // whatever is left in here after the push pass is newer on fl0w-work (or missing locally)
     const toPull = new Map((await listRemoteSessions()).map((s) => [s.id, s.updatedAt]));
     const result: SessionSyncResult = { pushed: 0, pulled: 0 };
 
@@ -30,7 +29,6 @@ export async function syncSessions(store?: SessionStore): Promise<SessionSyncRes
       toPull.delete(session.id);
       if (remoteUpdatedAt === session.updatedAt) continue;
       const messages = local.loadMessages(session.id);
-      // every launch and /clear opens an empty session; only conversations are worth syncing
       if (messages.length && await pushSession({ ...session, messages })) result.pushed++;
     }
 
@@ -46,12 +44,10 @@ export async function syncSessions(store?: SessionStore): Promise<SessionSyncRes
   return run;
 }
 
-/** Background sync that never throws; failures retry on the next sync since both sides are re-diffed. */
 export function syncSessionsInBackground(store?: SessionStore): void {
   void syncSessions(store).catch(() => null);
 }
 
-/** Syncs shortly after a session is saved, coalescing the saves of an active conversation. */
 export function scheduleSessionPush(store?: SessionStore): void {
   if (pendingPush) clearTimeout(pendingPush.timer);
   pendingPush = {
@@ -63,7 +59,6 @@ export function scheduleSessionPush(store?: SessionStore): void {
   };
 }
 
-/** Sends a debounced push now and waits for in-flight syncs; call before a deliberate exit. */
 export async function flushSessionPushes(): Promise<void> {
   if (pendingPush) {
     clearTimeout(pendingPush.timer);

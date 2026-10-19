@@ -164,27 +164,32 @@ describe('syncConfigFiles', () => {
     expect(await read('config.json')).toEqual({ llmModel: 'from-web' });
   });
 
-  test('three-way merges when both sides changed', async () => {
+  test('takes the newer file when both sides changed', async () => {
     await write('config.json', { llmModel: 'base', aiGatewayApiKey: 'k' });
     await syncConfigFiles();
     await write('config.json', { llmModel: 'local-edit', aiGatewayApiKey: 'k' });
     await backdate('config.json');
-    server.set('config.json', { version: 2, updatedAt: new Date().toISOString(), content: { llmModel: 'base', aiGatewayApiKey: 'k2' } });
+    const remote = { llmModel: 'base', aiGatewayApiKey: 'k2' };
+    server.set('config.json', { version: 2, updatedAt: new Date().toISOString(), content: remote });
 
-    expect((await syncConfigFiles())?.['config.json']).toBe('merged');
-    const expected = { llmModel: 'local-edit', aiGatewayApiKey: 'k2' };
-    expect(await read('config.json')).toEqual(expected);
-    expect(server.get('config.json')).toMatchObject({ version: 3, content: expected });
+    expect((await syncConfigFiles())?.['config.json']).toBe('pulled');
+    expect(await read('config.json')).toEqual(remote);
+
+    await write('config.json', { llmModel: 'local-edit' });
+    server.set('config.json', { version: 3, updatedAt: new Date(0).toISOString(), content: { llmModel: 'stale' } });
+    expect((await syncConfigFiles())?.['config.json']).toBe('pushed');
+    expect(server.get('config.json')).toMatchObject({ version: 4, content: { llmModel: 'local-edit' } });
   });
 
-  test('re-merges once when another device pushes first', async () => {
+  test('retries once against the latest version when another device pushes first', async () => {
     await write('config.json', { llmModel: 'base', aiGatewayApiKey: 'k' });
     await syncConfigFiles();
     await write('config.json', { llmModel: 'base', aiGatewayApiKey: 'k-local' });
+    await backdate('config.json');
     conflictOnce = 'config.json';
 
-    expect((await syncConfigFiles())?.['config.json']).toBe('merged');
-    const expected = { llmModel: 'raced', aiGatewayApiKey: 'k-local' };
+    expect((await syncConfigFiles())?.['config.json']).toBe('pulled');
+    const expected = { llmModel: 'raced', aiGatewayApiKey: 'k' };
     expect(await read('config.json')).toEqual(expected);
     expect(server.get('config.json')?.content).toEqual(expected);
   });

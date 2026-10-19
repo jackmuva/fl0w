@@ -13,7 +13,7 @@ import {
 } from '../../constants';
 import type { AppConfig } from '../../models/config';
 import type { McpConfig } from '../../models/mcp';
-import { notifyLocalWrite } from '../../services/sync/local-writes';
+import { notifyLocalWrite } from '../../services/sync/config-sync';
 import { asJsonObject } from '../../services/sync/merge';
 import { writeJsonAtomic } from '../../services/utils';
 
@@ -76,7 +76,6 @@ export async function loadAppConfig(path = APP_CONFIG_PATH): Promise<AppConfig> 
   return config;
 }
 
-/** `sync: false` in config.json turns off config sync on this device; missing or unreadable config means on. */
 export async function isConfigSyncEnabled(path = APP_CONFIG_PATH): Promise<boolean> {
   try {
     return (asJsonObject(await Bun.file(path).json()) as AppConfig).sync !== false;

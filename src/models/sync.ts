@@ -51,7 +51,7 @@ export type SyncState = {
   files: Partial<Record<SyncFilename, {
     version: number;
     updatedAt: string;
-    /** Content both sides agreed on at `version`; the base for three-way merges. */
+    /** Content both sides agreed on at `version`; tells which side changed since. */
     base: JsonObject;
   }>>;
 };

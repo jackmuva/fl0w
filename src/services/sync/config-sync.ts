@@ -6,9 +6,8 @@ import { updateAuthFile } from '../auth/auth-store';
 import { isConfigSyncEnabled } from '../config/app-config';
 import { readFl0wAuth } from '../auth/token';
 import { writeJsonAtomic } from '../utils';
-import { onLocalWrite } from './local-writes';
 import { asJsonObject, jsonEqual, mergeConfig, shareable } from './merge';
-import { getRemote, listRemote, putRemote, SyncConflictError } from './sync-api';
+import { getRemote, listRemote, putRemote, SyncConflictError } from '../remote-api/sync-api';
 import { readSyncState, writeSyncState } from './sync-state';
 
 const STARTUP_TIMEOUT_MS = 8_000;
@@ -22,6 +21,20 @@ const PATHS: Record<SyncFilename, string> = {
 
 export type FileSyncResult = 'unchanged' | 'pulled' | 'pushed' | 'merged' | Error;
 export type SyncResults = Partial<Record<SyncFilename, FileSyncResult>>;
+
+type Listener = (path: string) => void;
+
+const listeners = new Set<Listener>();
+
+/** Lets config sync hear about local writes without the writers importing the sync service. */
+export function onLocalWrite(listener: Listener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function notifyLocalWrite(path: string): void {
+  for (const listener of listeners) listener(path);
+}
 
 /** Undefined when missing; throws on invalid JSON so a half-edited file is never overwritten. */
 async function readLocal(path: string): Promise<JsonObject | undefined> {
@@ -112,7 +125,7 @@ let queue: Promise<unknown> = Promise.resolve();
 
 /**
  * Reconciles local config files with fl0w-work: pulls server changes, pushes local ones, and
- * three-way merges when both moved. Returns null when not signed in or `sync: false` is set in config.json.
+ * keeps the newer copy when both moved. Returns null when not signed in or `sync: false` is set in config.json.
  */
 export async function syncConfigFiles(filenames: readonly SyncFilename[] = SYNC_FILENAMES): Promise<SyncResults | null> {
   const run = queue.then(async () => {
@@ -138,7 +151,6 @@ export async function syncConfigFiles(filenames: readonly SyncFilename[] = SYNC_
   return run;
 }
 
-/** Startup sync: bounded and never throws, so a slow or offline fl0w-work can't block the CLI. Returns a warning, if any. */
 export async function syncOnStartup(): Promise<string | null> {
   if (!(await isConfigSyncEnabled())) return null;
   try {

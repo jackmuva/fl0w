@@ -5,7 +5,7 @@ import type { CapabilitySelection } from '../../models/agent';
 import type { SkillSummary } from '../agent/hooks/front-load';
 import { readFl0wAuth } from '../auth/token';
 import { isConfigSyncEnabled } from '../config/app-config';
-import { listRemoteSkills, putSkillBundle } from '../sync/sync-api';
+import { listRemoteSkills, putSkillBundle } from '../remote-api/sync-api';
 import { isUnderFl0wSkills } from './mirror-enabled-skills';
 
 /** Matches fl0w-work's limit, which sits under Vercel's 4.5 MB request body cap. */

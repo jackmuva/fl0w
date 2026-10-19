@@ -1,14 +1,14 @@
 import { parseArgs } from 'node:util';
-import type { Fl0wMessage } from '../../models/agent';
-import type { WorkflowRecord } from '../../models/workflow';
-import { WorkflowStore } from '../../db/workflow-store';
-import { applyCapabilitySelection } from '../agent/capabilities';
-import { fl0wLoop } from '../agent/agent-loop';
-import { findPendingAskQuestion } from '../agent/utils/ask-question-state';
-import { fl0wMessage } from '../agent/utils/fl0w-message';
-import { loadUserTools } from '../agent/user-tools/loader';
-import { mcpClient } from '../mcp/mcp-client';
-import { buildWorkflowUserMessage } from './build-message';
+import type { Fl0wMessage } from '../models/agent';
+import type { WorkflowRecord } from '../models/workflow';
+import { WorkflowStore } from '../db/workflow-store';
+import { applyCapabilitySelection } from '../services/agent/capabilities';
+import { fl0wLoop } from '../services/agent/agent-loop';
+import { findPendingAskQuestion } from '../services/agent/utils/ask-question-state';
+import { fl0wMessage } from '../services/agent/utils/fl0w-message';
+import { loadUserTools } from '../services/agent/user-tools/loader';
+import { mcpClient } from '../services/mcp/mcp-client';
+import { buildWorkflowUserMessage } from '../services/workflow/build-message';
 
 const HEADLESS_INSTRUCTIONS = [
   'You are running unattended: no human is available to answer questions.',

@@ -60,7 +60,7 @@ Skills, MCPs, and templates can be toggled per session to keep the context windo
 
 ### Keeping your setup in sync
 
-When signed in, fl0w keeps `config.json`, `mcp.json`, and `auth.json` in sync with your fl0w-work account — encrypted at rest and versioned on the server, so you can move between machines. Changes push ~1 second after you make them; at startup fl0w pulls the latest. Local edits are never overwritten (smart three-way merge). Disable with `FL0W_SYNC=0`.
+When signed in, fl0w keeps `config.json`, `mcp.json`, and `auth.json` in sync with your fl0w-work account — encrypted at rest and versioned on the server, so you can move between machines. Changes push ~1 second after you make them; at startup fl0w pulls the latest. If a file changed on both sides since the last sync, the newer copy wins. Disable with `FL0W_SYNC=0`.
 
 **Local mode**: signed out with your own `AI_GATEWAY_API_KEY` (env or `config.json`), fl0w works fully offline — no network calls, no login required.
 

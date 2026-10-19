@@ -20,7 +20,6 @@ async function request(path: string, init: RequestInit = {}, timeoutMs = REQUEST
     signal: AbortSignal.timeout(timeoutMs),
   });
   const res = await send(false);
-  // the token may have been revoked or the clock skewed; one forced refresh before giving up
   return res.status === 401 ? send(true) : res;
 }
 
@@ -84,7 +83,15 @@ export async function listRemoteWorkflows(): Promise<RemoteWorkflowMeta[]> {
   return Array.isArray(body.workflows) ? body.workflows as RemoteWorkflowMeta[] : [];
 }
 
-/** Returns false when fl0w-work already has a workflow with this id (409). */
+export async function getRemoteWorkflow(id: string): Promise<WorkflowRecord | null> {
+  const res = await request(`/workflows/${encodeURIComponent(id)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) return fail(res, `pull of ${id}`, 'Workflow');
+  const parsed = asErrorBody(await readResponseJson(res)) as { workflow?: WorkflowRecord };
+  if (!parsed.workflow || !Array.isArray(parsed.workflow.steps)) throw new Error(`Workflow sync pull of ${id} failed: invalid response body`);
+  return parsed.workflow;
+}
+
 export async function pushWorkflow(workflow: WorkflowRecord): Promise<boolean> {
   const res = await request('/workflows', { method: 'POST', body: JSON.stringify(workflow) });
   if (res.status === 409) return false;
@@ -99,7 +106,6 @@ export async function listRemoteSessions(): Promise<RemoteSessionMeta[]> {
   return Array.isArray(body.sessions) ? body.sessions as RemoteSessionMeta[] : [];
 }
 
-/** Returns null when fl0w-work no longer has the session (404). */
 export async function getRemoteSession(id: string): Promise<RemoteSession | null> {
   const res = await request(`/sessions/${encodeURIComponent(id)}`, {}, UPLOAD_TIMEOUT_MS);
   if (res.status === 404) return null;
@@ -109,10 +115,6 @@ export async function getRemoteSession(id: string): Promise<RemoteSession | null
   return parsed.session;
 }
 
-/**
- * Returns false when fl0w-work already has a copy at least as new (409), or the session is
- * over the request size limit (413); the next sync pulls the newer copy or retries.
- */
 export async function pushSession({ id, ...session }: RemoteSession): Promise<boolean> {
   const res = await request(`/sessions/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(session) }, UPLOAD_TIMEOUT_MS);
   if (res.status === 409 || res.status === 413) return false;
@@ -127,7 +129,6 @@ export async function listRemoteSkills(): Promise<RemoteSkillMeta[]> {
   return Array.isArray(body.skills) ? body.skills as RemoteSkillMeta[] : [];
 }
 
-/** Uploads a skill's .tar.gz; the server skips storing it when `contentHash` already matches. */
 export async function putSkillBundle(name: string, contentHash: string, bundle: Uint8Array<ArrayBuffer>): Promise<RemoteSkillMeta> {
   const res = await request(`/skills/${encodeURIComponent(name)}`, {
     method: 'PUT',

@@ -19,8 +19,8 @@ conversational agent that plans, executes, and distills tasks into reusable work
   AI Gateway key as `aiGatewayApiKey` unless one is set (`config.json` or `AI_GATEWAY_API_KEY`).
   Model calls always go directly to AI Gateway.
 - **Config sync** — when signed in, `config.json`, `mcp.json`, `auth.json` sync with fl0w-work:
-  reconciled at startup and after `fl0w login`, pushed ~1s after writes, three-way-merged against
-  `sync-state.json` (0600). Disable per device with `"sync": false` in `config.json` (never synced itself). **Local mode:** signed out with your own
+  reconciled at startup and after `fl0w login`, pushed ~1s after writes; when a file changed on both
+  sides since the last sync (`sync-state.json`, 0600), the newer copy wins. Disable per device with `"sync": false` in `config.json` (never synced itself). **Local mode:** signed out with your own
   `AI_GATEWAY_API_KEY`, the CLI works fully offline — no login, no network.
 - **MCP** — servers auto-connect at startup (with OAuth); failure is non-fatal (UI warning).
 - **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content, and the skills

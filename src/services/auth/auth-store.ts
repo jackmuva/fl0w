@@ -1,6 +1,6 @@
 import { AUTH_PATH } from '../../constants';
 import type { AuthFile } from '../../models/auth';
-import { notifyLocalWrite } from '../sync/local-writes';
+import { notifyLocalWrite } from '../sync/config-sync';
 import { writeJsonAtomic } from '../utils';
 
 export async function readAuthFile(path = AUTH_PATH): Promise<AuthFile> {

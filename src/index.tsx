@@ -11,7 +11,7 @@ import { mcpToolKey } from "./models/mcp"
 import { mcpClient } from "./services/mcp/mcp-client"
 import { flushPendingPushes, syncOnStartup, watchLocalConfigWrites } from "./services/sync/config-sync"
 import { isConfigSyncEnabled } from "./services/config/app-config"
-import { flushWorkflowPushes, pushWorkflowsInBackground } from "./services/sync/workflow-sync"
+import { flushWorkflowPushes, syncWorkflowsInBackground } from "./services/sync/workflow-sync"
 import { flushSessionPushes, syncSessionsInBackground } from "./services/sync/session-sync"
 import { flushPendingSkillMirrors } from "./services/skills/mirror-enabled-skills"
 
@@ -22,13 +22,16 @@ const isAccountCommand = ACCOUNT_COMMANDS.includes(Bun.argv[2] ?? "")
 
 let syncWarning: string | null = null
 if (!isAccountCommand) {
-  if (await isConfigSyncEnabled()) console.log("Syncing config files...");
-  syncWarning = await syncOnStartup();
-  watchLocalConfigWrites();
-  if (!HEADLESS) {
-    console.log("Syncing workflows and sessions...");
-    pushWorkflowsInBackground();
-    syncSessionsInBackground();
+  const syncEnabled = await isConfigSyncEnabled()
+  if (syncEnabled) {
+    console.log("Syncing config files...");
+    syncWarning = await syncOnStartup();
+    watchLocalConfigWrites();
+    if (!HEADLESS) {
+      console.log("Syncing workflows and sessions...");
+      syncWorkflowsInBackground();
+      syncSessionsInBackground();
+    }
   }
 }
 
@@ -42,7 +45,7 @@ if (isAccountCommand) {
 
 if (HEADLESS) {
   if (syncWarning) console.error(syncWarning)
-  const { runHeadless } = await import("./services/workflow/headless-run")
+  const { runHeadless } = await import("./cli/headless-run")
   const code = await runHeadless(Bun.argv.slice(3))
   void flushPendingSkillMirrors()
   await Promise.all([flushPendingPushes(), flushWorkflowPushes(), flushSessionPushes()])
