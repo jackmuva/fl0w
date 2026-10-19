@@ -36,7 +36,6 @@ const parseCapabilitiesJson = (raw: string): CapabilitySelection | null => {
   };
 };
 
-/** Runs or continues a saved session without the TUI. Streams JSON lines to stdout. */
 export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
     args: argv,

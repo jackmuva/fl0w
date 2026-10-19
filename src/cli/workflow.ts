@@ -19,7 +19,8 @@ const HEADLESS_INSTRUCTIONS = [
   'state it in your output, and continue executing the workflow to completion.',
 ].join(' ');
 
-const USAGE = 'Usage: fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"]';
+const USAGE =
+  'Usage: fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>]';
 
 /** Runs a saved workflow without the TUI. Streams JSON lines to stdout and returns the exit code. */
 export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
@@ -27,6 +28,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     args: argv,
     options: {
       input: { type: 'string', short: 'i' },
+      session: { type: 'string', short: 's' },
     },
     allowPositionals: true,
     strict: true,
@@ -47,7 +49,15 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   }
 
   const store = SessionStore.open();
-  const session = store.createSession(resolve(process.cwd()));
+  const workspace = resolve(process.cwd());
+  const sessionIdArg = values.session?.trim() || undefined;
+
+  let session = sessionIdArg
+    ? store.listAllSessions().find((entry) => entry.id === sessionIdArg)
+    : undefined;
+  if (!session) session = store.createSession(workspace, sessionIdArg);
+
+  const saved = sessionIdArg ? store.loadMessages(session.id) : [];
   store.saveCapabilities(session.id, workflow.requiredCapabilities);
 
   console.error('Connecting MCPs...');
@@ -64,6 +74,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   const seed = await applyCapabilitySelection(workflow.requiredCapabilities);
   const messages: Fl0wMessage[] = [
     ...seed,
+    ...saved,
     fl0wMessage({ role: 'system', content: HEADLESS_INSTRUCTIONS }),
     fl0wMessage(buildWorkflowUserMessage(workflow, values.input ?? '')),
   ];

@@ -14,8 +14,8 @@ Usage:
 
 Headless commands (agent output as JSON lines on stdout; MCP progress on stderr):
 
-  fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"]
-      Run a saved workflow unattended.
+  fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>]
+      Run a saved workflow unattended. Use --session to run in an existing session or create one with that id.
 
   fl0w capabilities
       List discoverable skills, MCP tools, user tools, and AGENTS.md (JSON lines).

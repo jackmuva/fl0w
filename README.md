@@ -70,29 +70,98 @@ When signed in, fl0w keeps `config.json`, `mcp.json`, and `auth.json` in sync wi
 fl0w
 ```
 
-### Headless workflow runs
+### Headless CLI
 
-Run saved workflows without the TUI (script, cron, sandbox):
+Run the agent from scripts, cron, or sandboxes without the TUI. Headless commands print **JSON lines on stdout** (one object per line). MCP connection progress and warnings go to **stderr**.
 
 ```bash
-fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"]
+fl0w help | -h | --help    # list commands and flags
 ```
 
-- The workflow argument is a JSON workflow record file or the id of a workflow saved in `~/.fl0w/fl0w-sqlite.db`.
-- `--input` appends extra instructions to the workflow (e.g. a webhook payload).
-- Headless runs never ask clarifying questions — the agent assumes instead.
-- OAuth MCP servers must already be authorized: run `fl0w` interactively once, or copy
-  `~/.fl0w/auth.json` (MCP credentials live under its `mcp` key). Unauthorized servers fail
-  fast and the run continues without them.
+**Shared behavior (`workflow` and `session`)**
 
-Output is JSON lines on stdout (one per agent message, then a final result):
+- Each new agent message is streamed as `{"type":"message","message":{...}}`.
+- The run ends with a single result line:
+
+  ```json
+  {"type":"result","status":"ok","sessionId":"...","finalMessage":"..."}
+  ```
+
+  `status` is `ok`, `error`, `stopped`, or `needs_input`. When the agent left an unanswered question, `status` is `needs_input` and the result includes `pendingQuestion` so you can reply in a follow-up `session` run.
+- **Exit codes:** `0` success, `1` error or stopped, `2` ended waiting on input (`needs_input`).
+- OAuth MCP servers must already be authorized: run `fl0w` interactively once, or copy `~/.fl0w/auth.json` (MCP credentials live under its `mcp` key). Unauthorized servers log a warning and the run continues without them.
+
+#### `fl0w workflow`
+
+Run a saved workflow unattended.
+
+```bash
+fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"] [--session <session-id>]
+```
+
+| Flag | Short | Description |
+| --- | --- | --- |
+| `--input` | `-i` | Extra instructions appended to the workflow prompt (e.g. webhook payload). |
+| `--session` | `-s` | Session to use. Continues an existing session’s messages, or creates one with that id if missing. Omit to start a new session every run. |
+
+- The positional argument is a workflow JSON file on disk, or a workflow **id** stored in `~/.fl0w/fl0w-sqlite.db` (same records the TUI saves with `/generate-workflow`).
+- Workflow runs inject a system instruction to avoid clarifying questions when possible; the agent should assume and continue.
+
+Example:
+
+```bash
+fl0w workflow deploy-site --input "target=production" --session nightly-deploy
+```
+
+#### `fl0w capabilities`
+
+List everything the agent can enable for a session: skills, MCP tools, user tools, and discovered `AGENTS.md` files. Takes no arguments. Useful for building `--capabilities` JSON for `fl0w session`.
+
+```bash
+fl0w capabilities
+```
+
+Each line is JSON, for example:
 
 ```json
-{"type":"message","message":{"role":"assistant","content":"..."}}
-{"type":"result","status":"ok","finalMessage":"..."}
+{"kind":"skills","name":"my-skill","description":"..."}
+{"kind":"mcpServers","name":"github__search_issues","description":"..."}
 ```
 
-Progress and MCP warnings go to stderr. Exit codes: `0` success, `1` error or stopped, `2` the run ended waiting on a question it couldn't ask.
+
+#### `fl0w session`
+
+Send a message and run (or continue) an arbitrary agent session.
+
+```bash
+fl0w session [session-id] [--input "<message>"] [--capabilities '<json>']
+```
+
+| Argument / flag | Short | Description |
+| --- | --- | --- |
+| `session-id` | — | Optional. Continue this session, or create it with that id if it does not exist. Omit for a new random id. |
+| `--input` | `-i` | User message for this turn. **Required** when the session is new or has no saved messages. |
+| `--capabilities` | `-c` | JSON [capability selection](#headless-capability-selection) for this run. Saved on the session when set. If omitted, uses capabilities already stored on the session, or empty. |
+
+Example — start a session, then continue it using `sessionId` from the result line:
+
+```bash
+fl0w session --input "Summarize open issues in this repo"
+fl0w session abc-123-def --input "Focus on P0 only"
+```
+
+##### Headless capability selection
+
+`--capabilities` on `fl0w session` must match this shape (all four keys, string arrays of **names** from `fl0w capabilities`):
+
+```json
+{
+  "skills": ["my-skill"],
+  "mcpServers": ["github__search_issues"],
+  "userTools": ["my-tool"],
+  "agentsMd": ["AGENTS.md"]
+}
+```
 
 ## Development
 
