@@ -12,14 +12,14 @@ describe("slash commands", () => {
       "/clear",
       "/configure",
       "/generate",
-      "/resume",
+      "/sessions",
       "/workflow",
     ])
   })
 
   test("filters completions by prefix", () => {
-    const items = getSlashCompletions("re")
-    expect(items.map((item) => item.label)).toEqual(["/resume"])
+    const items = getSlashCompletions("se")
+    expect(items.map((item) => item.label)).toEqual(["/sessions"])
   })
 
   test("filters completions with fuzzy matching", () => {
@@ -29,11 +29,11 @@ describe("slash commands", () => {
 
   test("finds slash command from input", () => {
     expect(findSlashCommand("/clear")?.name).toBe("clear")
-    expect(findSlashCommand("/resume please")?.name).toBe("resume")
+    expect(findSlashCommand("/sessions please")?.name).toBe("sessions")
     expect(findSlashCommand("hello")).toBeNull()
   })
 
-  test("executes clear, resume, configure, generate, and workflow handlers", () => {
+  test("executes clear, sessions, configure, generate, and workflow handlers", () => {
     const calls: string[] = []
     const handlers = {
       clearInput: () => calls.push("clearInput"),
@@ -48,7 +48,7 @@ describe("slash commands", () => {
     expect(calls).toEqual(["clearSession", "clearInput"])
 
     calls.length = 0
-    expect(executeSlashCommand("resume", handlers)).toBe(true)
+    expect(executeSlashCommand("sessions", handlers)).toBe(true)
     expect(calls).toEqual(["resumeSession", "clearInput"])
 
     calls.length = 0

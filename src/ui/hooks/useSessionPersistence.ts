@@ -117,12 +117,13 @@ export const useSessionPersistence = (
 
   const applySessionCapabilities = useCallback(async (selection: CapabilitySelection) => {
     const seed = await applyCapabilitySelection(selection);
-    const active = store.hasSession(session.id) ? session : ensurePersistedSession();
-    store.saveCapabilities(active.id, selection);
+    const sessionId = sessionIdRef.current;
+    if (!store.hasSession(sessionId)) ensurePersistedSession();
+    store.saveCapabilities(sessionId, selection);
     scheduleSessionPush(store);
     setSession((previous) => ({ ...previous, capabilities: selection }));
     replaceSeedMessages(seed);
-  }, [ensurePersistedSession, replaceSeedMessages, session, store]);
+  }, [ensurePersistedSession, replaceSeedMessages, store]);
 
   const clearSession = useCallback(() => {
     flushSave();

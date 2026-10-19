@@ -81,13 +81,20 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
   useEffect(() => {
     if (isCatalogEmpty(capabilityCatalog)) return
 
+    let cancelled = false
+
     if (session.capabilities) {
       void applySessionCapabilities(session.capabilities).then(() => {
-        setCapabilityPickerOpen(false)
+        if (!cancelled) setCapabilityPickerOpen(false)
       })
     } else {
       setCapabilityPickerOpen(true)
     }
+
+    return () => {
+      cancelled = true
+    }
+    // Only re-sync when switching sessions; /configure opens the picker without changing session id.
   }, [applySessionCapabilities, capabilityCatalog, session.id])
   const { width, height } = useTerminalDimensions()
   const { contextPercent, sessionCostUsd, sessionTokensUsed } = useProviderMetadata(session.id)
