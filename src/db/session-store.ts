@@ -50,10 +50,10 @@ export class SessionStore {
     return this.db.select().from(sessions).orderBy(desc(sessions.updatedAt)).all();
   }
 
-  createSession(workspacePath: string): SessionRecord {
+  createSession(workspacePath: string, id?: string): SessionRecord {
     const now = nowIso();
     const session: SessionRecord = {
-      id: crypto.randomUUID(),
+      id: id ?? crypto.randomUUID(),
       workspacePath: resolve(workspacePath),
       title: null,
       capabilities: null,

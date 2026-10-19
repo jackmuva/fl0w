@@ -63,12 +63,10 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const store = SessionStore.open();
   const workspace = resolve(process.cwd());
 
-  let session = sessionIdArg ? store.listAllSessions().find((entry) => entry.id === sessionIdArg) : undefined;
-  if (sessionIdArg && !session) {
-    console.error(`Session not found: ${sessionIdArg}`);
-    return 1;
-  }
-  if (!session) session = store.createSession(workspace);
+  let session = sessionIdArg
+    ? store.listAllSessions().find((entry) => entry.id === sessionIdArg)
+    : undefined;
+  if (!session) session = store.createSession(workspace, sessionIdArg);
 
   const saved = store.loadMessages(session.id);
   if (!input && saved.length === 0) {
