@@ -186,13 +186,10 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
 
   const pendingQuestion = findPendingAskQuestion(latest);
   const status = pendingQuestion ? 'needs_input' : abort.signal.aborted ? 'stopped' : outcome;
-  const last = latest.at(-1)?.message;
-  const finalMessage = typeof last?.content === 'string' ? last.content : undefined;
   const result: CliOutput = {
     type: 'result',
     status,
     sessionId: session.id,
-    finalMessage,
     ...(pendingQuestion && { pendingQuestion }),
   };
   console.log(JSON.stringify(result));

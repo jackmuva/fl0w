@@ -88,7 +88,7 @@ fl0w help | -h | --help    # list commands and flags
 - The run ends with a single result line:
 
   ```json
-  {"type":"result","status":"ok","sessionId":"...","finalMessage":"..."}
+  {"type":"result","status":"ok","sessionId":"..."}
   ```
 
   `status` is `ok`, `error`, `stopped`, or `needs_input`. When the agent left an unanswered question, `status` is `needs_input` and the result includes `pendingQuestion` so you can reply in a follow-up `session` run.

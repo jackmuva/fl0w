@@ -57,6 +57,5 @@ export type CliOutput =
       type: 'result';
       status: CliOuputStatus;
       sessionId: string;
-      finalMessage?: string;
       pendingQuestion?: CliOutputPendingQuestion;
     };
