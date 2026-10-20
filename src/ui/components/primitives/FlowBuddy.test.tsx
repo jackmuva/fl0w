@@ -13,18 +13,18 @@ const OLIVE_FG = "#6e8b3d"
 const idleRows = [
   "             ",
   "    ▄▄▄▄▄    ",
-  "   ▄█████▄   ",
-  "  ███◕ ◕███  ",
-  " ●─▀██◡██▀─● ",
+  "   ███████   ",
+  "  ███◕█◕███  ",
+  " ●─███◡███─● ",
   "    │   │    ",
   "    ●   ●    ",
 ]
 
 const danceRows = [
   " ●─ ▄▄▄▄▄ ─● ",
-  "   ▄█████▄   ",
-  "  ███◕ ◕███  ",
-  "   ▀██◡██▀   ",
+  "   ███████   ",
+  "  ███◕█◕███  ",
+  "   ███◡███   ",
   "     │ │     ",
   "     ● ●     ",
   "             ",
@@ -72,7 +72,7 @@ describe("FlowBuddy", () => {
       expect(lines.some((line) => line.includes("MESSAGE_FRAME"))).toBe(true)
       expect(spanColor(screen, "◕")?.equals(RGBA.fromHex(CREAM_FG))).toBe(true)
       expect(spanColor(screen, "▄▄▄▄▄")?.equals(RGBA.fromHex(GREEN_FG))).toBe(true)
-      expect(spanColor(screen, "▄█████▄")?.equals(RGBA.fromHex(OLIVE_FG))).toBe(true)
+      expect(spanColor(screen, "███████")?.equals(RGBA.fromHex(OLIVE_FG))).toBe(true)
       expect(spanColor(screen, "●   ●")?.equals(RGBA.fromHex(CREAM_FG))).toBe(true)
 
       const first = screen.captureCharFrame()

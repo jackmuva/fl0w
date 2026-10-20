@@ -20,18 +20,18 @@ const cream = (text: string): Segment => ({ fg: CREAM_FG, text })
 const idleSprite: Sprite = [
   [cream("             ")],
   [highlight("    ▄▄▄▄▄    ")],
-  [olive("   ▄█████▄   ")],
-  [olive("  ███"), cream("◕ ◕"), olive("███  ")],
-  [cream(" ●─"), olive("▀██"), cream("◡"), olive("██▀"), cream("─● ")],
+  [olive("   ███████   ")],
+  [olive("  ███"), cream("◕"), olive("█"), cream("◕"), olive("███  ")],
+  [cream(" ●─"), olive("███"), cream("◡"), olive("███"), cream("─● ")],
   [cream("    │   │    ")],
   [cream("    ●   ●    ")],
 ]
 
 const danceSprite: Sprite = [
   [cream(" ●─ "), highlight("▄▄▄▄▄"), cream(" ─● ")],
-  [olive("   ▄█████▄   ")],
-  [olive("  ███"), cream("◕ ◕"), olive("███  ")],
-  [olive("   ▀██"), cream("◡"), olive("██▀   ")],
+  [olive("   ███████   ")],
+  [olive("  ███"), cream("◕"), olive("█"), cream("◕"), olive("███  ")],
+  [olive("   ███"), cream("◡"), olive("███   ")],
   [cream("     │ │     ")],
   [cream("     ● ●     ")],
   [cream("             ")],
