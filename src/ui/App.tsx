@@ -27,6 +27,7 @@ import { ClarifyQuestionBox } from "./components/primitives/ClarifyQuestionBox"
 import { MessageContent } from "./components/primitives/MessageContent"
 import { ContextCostStatusBar } from "./components/primitives/ContextCostStatusBar"
 import { WorkingIndicator } from "./components/primitives/WorkingIndicator"
+import { Mascot } from "./components/primitives/Mascot"
 import { useCopyOnSelection } from "./hooks/useCopyOnSelection"
 import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
@@ -316,24 +317,31 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
 
   return (
     <box flexDirection="column" height={height} width="100%" padding={1} position="relative">
-      <scrollbox
-        flexGrow={1}
-        flexShrink={1}
-        minHeight={0}
-        width="100%"
-        stickyScroll={true}
-        stickyStart="bottom"
-      >
-        {initialMessage && <text fg={"red"}>{initialMessage}</text>}
-        {visibleMessages.map((message, index) => (
-          <MessageContent
-            key={index}
-            message={message}
-            toolCallInputs={toolCallInputs}
-            decision={index > 0 ? parseDecisionMessage(visibleMessages[index - 1]!) : null}
-          />
-        ))}
-      </scrollbox>
+      <box flexGrow={1} flexShrink={1} minHeight={0} width="100%" position="relative">
+        <scrollbox
+          flexGrow={1}
+          flexShrink={1}
+          minHeight={0}
+          width="100%"
+          stickyScroll={true}
+          stickyStart="bottom"
+        >
+          {initialMessage && <text fg={"red"}>{initialMessage}</text>}
+          {visibleMessages.map((message, index) => (
+            <MessageContent
+              key={index}
+              message={message}
+              toolCallInputs={toolCallInputs}
+              decision={index > 0 ? parseDecisionMessage(visibleMessages[index - 1]!) : null}
+            />
+          ))}
+        </scrollbox>
+        {width >= 64 && (
+          <box position="absolute" right={1} bottom={0} zIndex={1}>
+            <Mascot working={status === "working" || generating} />
+          </box>
+        )}
+      </box>
       <box flexDirection="column" flexShrink={0} width="100%" paddingTop={1}>
         <box flexDirection="row" width="100%" justifyContent="space-between" alignItems="center">
           {(status === "working" || generating) ? (
