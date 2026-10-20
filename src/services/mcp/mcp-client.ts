@@ -14,7 +14,7 @@ import type {
   McpTool,
   McpToolResult,
 } from '../../models/mcp';
-import { MCP_CONFIG_PATH } from '../../constants';
+import { HEADLESS, HEADLESS_MCP_CONNECT_TIMEOUT_MS, MCP_CONFIG_PATH } from '../../constants';
 import { syncConfigFiles } from '../sync/config-sync';
 
 const CLIENT_INFO = { name: 'fl0w', version: '0.1.0' };
@@ -126,7 +126,22 @@ export class McpClientManager {
 
   private async connectClient(transport: Transport) {
     const client = new Client(CLIENT_INFO);
-    await client.connect(transport);
+    const connecting = client.connect(transport, HEADLESS ? { timeout: HEADLESS_MCP_CONNECT_TIMEOUT_MS } : undefined);
+    // read now: connect spawns the server synchronously, and a failed connect forgets it before the rejection lands
+    const pid = transport instanceof StdioClientTransport ? transport.pid : null;
+    try {
+      await connecting;
+    } catch (error) {
+      // the SDK's close only SIGTERMs after a 2s grace that headless runs exit before, orphaning a stuck server
+      if (pid !== null) {
+        try {
+          process.kill(pid, 'SIGTERM');
+        } catch {
+          // already exited
+        }
+      }
+      throw error;
+    }
     return client;
   }
 

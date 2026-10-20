@@ -14,6 +14,9 @@ export const APP_CONFIG_PATH = join(FL0W_HOME, 'config.json');
 
 export const MCP_CONFIG_PATH = join(FL0W_HOME, 'mcp.json');
 
+/** Headless runs give up on an MCP server that hasn't initialized by then, e.g. one waiting on a browser sign-in. */
+export const HEADLESS_MCP_CONNECT_TIMEOUT_MS = 5_000;
+
 export const USER_TOOLS_DIR = join(FL0W_HOME, 'tools');
 
 export const FL0W_SKILLS_DIR = join(FL0W_HOME, 'skills');
