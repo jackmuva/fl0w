@@ -33,11 +33,12 @@ const LEG_COLS = [ARM_SIDE + 3, ARM_SIDE + 6]
 
 type Pose = { squat: boolean; leftUp: boolean; rightUp: boolean }
 
-const IDLE: Pose = { squat: false, leftUp: false, rightUp: false }
+const IDLE: Pose = { squat: true, leftUp: false, rightUp: false }
+const STAND: Pose = { squat: false, leftUp: false, rightUp: false }
 const DANCE: Pose[] = [
-  IDLE,
+  STAND,
   { squat: true, leftUp: true, rightUp: false },
-  IDLE,
+  STAND,
   { squat: true, leftUp: false, rightUp: true },
 ]
 
