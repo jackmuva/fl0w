@@ -26,6 +26,7 @@ import { ChatInput } from "./components/input/ChatInput"
 import { ClarifyQuestionBox } from "./components/primitives/ClarifyQuestionBox"
 import { MessageContent } from "./components/primitives/MessageContent"
 import { ContextCostStatusBar } from "./components/primitives/ContextCostStatusBar"
+import { FlowBuddy } from "./components/primitives/FlowBuddy"
 import { WorkingIndicator } from "./components/primitives/WorkingIndicator"
 import { useCopyOnSelection } from "./hooks/useCopyOnSelection"
 import { useProviderMetadata } from "./hooks/useProviderMetadata"
@@ -316,24 +317,27 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
 
   return (
     <box flexDirection="column" height={height} width="100%" padding={1} position="relative">
-      <scrollbox
-        flexGrow={1}
-        flexShrink={1}
-        minHeight={0}
-        width="100%"
-        stickyScroll={true}
-        stickyStart="bottom"
-      >
-        {initialMessage && <text fg={"red"}>{initialMessage}</text>}
-        {visibleMessages.map((message, index) => (
-          <MessageContent
-            key={index}
-            message={message}
-            toolCallInputs={toolCallInputs}
-            decision={index > 0 ? parseDecisionMessage(visibleMessages[index - 1]!) : null}
-          />
-        ))}
-      </scrollbox>
+      <box flexGrow={1} flexShrink={1} minHeight={0} width="100%" position="relative" overflow="hidden" flexDirection="column">
+        <scrollbox
+          flexGrow={1}
+          flexShrink={1}
+          minHeight={0}
+          width="100%"
+          stickyScroll={true}
+          stickyStart="bottom"
+        >
+          {initialMessage && <text fg={"red"}>{initialMessage}</text>}
+          {visibleMessages.map((message, index) => (
+            <MessageContent
+              key={index}
+              message={message}
+              toolCallInputs={toolCallInputs}
+              decision={index > 0 ? parseDecisionMessage(visibleMessages[index - 1]!) : null}
+            />
+          ))}
+        </scrollbox>
+        <FlowBuddy dancing={status === "working" || generating} terminalWidth={width} />
+      </box>
       <box flexDirection="column" flexShrink={0} width="100%" paddingTop={1}>
         <box flexDirection="row" width="100%" justifyContent="space-between" alignItems="center">
           {(status === "working" || generating) ? (
