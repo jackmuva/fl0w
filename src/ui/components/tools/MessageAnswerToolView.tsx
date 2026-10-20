@@ -15,17 +15,8 @@ const renderAnswerView = (
   />
 )
 
+// The answer body is shown by the result view; the call only marks that an answer was sent.
 export const MessageAnswerToolCallView = (props: ToolViewProps) => {
-  const answer = readStringField(props.input, "answer") ?? ""
-
-  if (answer) {
-    return renderAnswerView(
-      { ...props, text: "" },
-      answer,
-      callTitle(props.toolName),
-    )
-  }
-
   return (
     <MessageFrame title={callTitle(props.toolName)}>
       <text>Preparing answer...</text>

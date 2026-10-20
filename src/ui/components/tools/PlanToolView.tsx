@@ -35,13 +35,8 @@ const renderPlanView = (props: ToolViewProps, planText: string, title = "Plan") 
   )
 }
 
+// The plan body is shown by the result view; the call only marks that a plan was made.
 export const PlanToolCallView = (props: ToolViewProps) => {
-  const planText = readStringField(props.input, "plan") ?? ""
-
-  if (planText) {
-    return renderPlanView({ ...props, text: "" }, planText, callTitle(props.toolName))
-  }
-
   return (
     <MessageFrame title={callTitle(props.toolName)}>
       <text>Creating plan...</text>
