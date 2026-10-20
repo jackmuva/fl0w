@@ -27,6 +27,7 @@ import { ClarifyQuestionBox } from "./components/primitives/ClarifyQuestionBox"
 import { MessageContent } from "./components/primitives/MessageContent"
 import { ContextCostStatusBar } from "./components/primitives/ContextCostStatusBar"
 import { WorkingIndicator } from "./components/primitives/WorkingIndicator"
+import { Fl0wMascot } from "./components/primitives/Fl0wMascot"
 import { useCopyOnSelection } from "./hooks/useCopyOnSelection"
 import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
@@ -361,6 +362,11 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
           <text fg="#565f89">
             {`Running workflow: ${pendingWorkflow.title} (Esc to cancel)`}
           </text>
+        )}
+        {height >= 24 && (
+          <box flexDirection="row" justifyContent="flex-end" width="100%" flexShrink={0}>
+            <Fl0wMascot dancing={status === "working" || generating} />
+          </box>
         )}
         {pendingAsk ? (
           <ClarifyQuestionBox
