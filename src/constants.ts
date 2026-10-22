@@ -53,9 +53,9 @@ export const TOOL_TRUNCATE_STEPS = [12_000, 8_000, 4_000, 2_000, 800, 400];
 
 export const TOOL_RESULT_MIN_KEEP = 120;
 
-export const DEFAULT_DECISION_MODEL = 'perplexity/pplx-decider-v1.2';
+export const DEFAULT_DECISION_MODEL = 'typesafe-ai/jev';
 
-export const DEFAULT_LLM_MODEL = 'deepseek/deepseek-v4-flash-0731';
+export const DEFAULT_LLM_MODEL = 'zai/glm-5.3';
 
 export const AI_GATEWAY_API_KEY_PLACEHOLDER = 'YOUR_VERCEL_AI_GATEWAY_API_KEY';
 
