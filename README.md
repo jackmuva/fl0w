@@ -14,13 +14,13 @@ The design is twofold:
 Linux and macOS (latest release):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | bash
 ```
 
 Specific version:
 
 ```bash
-FL0W_VERSION=v0.1.52 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | sh
+FL0W_VERSION=v0.1.52 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | bash
 ```
 
 Windows (PowerShell):
