@@ -13,9 +13,9 @@ mock.module('../../constants', () => ({
   AUTH_PATH: join(home, 'auth.json'),
   SYNC_STATE_PATH: join(home, 'sync-state.json'),
 }));
-const { AUTH_PATH, SYNC_STATE_PATH } = await import('../../constants');
+const { APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH } = await import('../../constants');
 // these tests write config files; never let them reach the real ~/.fl0w
-if (!AUTH_PATH.startsWith(home) || !SYNC_STATE_PATH.startsWith(home)) throw new Error('config-sync test is not isolated');
+if (![APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('config-sync test is not isolated');
 const { flushPendingPushes, syncConfigFiles, syncOnStartup, watchLocalConfigWrites } = await import('./config-sync');
 const { saveFl0wGatewayKey } = await import('../config/app-config');
 

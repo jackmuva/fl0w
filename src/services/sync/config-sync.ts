@@ -13,10 +13,11 @@ import { readSyncState, writeSyncState } from './sync-state';
 const STARTUP_TIMEOUT_MS = 8_000;
 const PUSH_DEBOUNCE_MS = 1_000;
 
+// getters read the live bindings, so paths stay correct even if constants are patched after this module loads
 const PATHS: Record<SyncFilename, string> = {
-  'config.json': APP_CONFIG_PATH,
-  'mcp.json': MCP_CONFIG_PATH,
-  'auth.json': AUTH_PATH,
+  get 'config.json'() { return APP_CONFIG_PATH; },
+  get 'mcp.json'() { return MCP_CONFIG_PATH; },
+  get 'auth.json'() { return AUTH_PATH; },
 };
 
 export type FileSyncResult = 'unchanged' | 'pulled' | 'pushed' | 'merged' | Error;
