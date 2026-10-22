@@ -294,7 +294,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
       content: [{
         type: "tool-result",
         toolCallId: pendingAsk.toolCallId,
-        toolName: "AskQuestion",
+        toolName: pendingAsk.toolName,
         output: { type: "text", value: answersText },
       }],
     })

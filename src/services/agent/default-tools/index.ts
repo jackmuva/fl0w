@@ -1,6 +1,16 @@
 import type { McpTool, McpToolResult } from '../../../models/mcp';
 import { applyPatchDescription, applyPatchTool, applyPatchToolSchema, executeApplyPatch } from './apply-patch';
-import { askQuestionTool } from './ask-question';
+import {
+  askQuestionDescription,
+  askQuestionTool,
+  askQuestionToolSchema,
+} from './ask-question';
+import {
+  createPlanDescription,
+  createPlanTool,
+  createPlanToolSchema,
+  type CreatePlanInput,
+} from './create-plan';
 import { bashDescription, bashTool, bashToolSchema, executeBash } from './bash';
 import { editFileDescription, editFileTool, editFileToolSchema, executeEditFile } from './edit-file';
 import { executeGlob, globDescription, globTool, globToolSchema } from './glob';
@@ -32,6 +42,24 @@ const defaultToolEntries: DefaultToolEntry[] = [
     inputSchema: messageAnswerToolSchema,
     execute: (args) => executeMessageAnswer(args as Parameters<typeof executeMessageAnswer>[0]),
     tool: messageAnswerTool,
+  },
+  {
+    name: 'create_plan',
+    description: createPlanDescription,
+    inputSchema: createPlanToolSchema,
+    execute: (args) => {
+      const plan = String((args as CreatePlanInput).plan ?? '').trim();
+      if (!plan) throw new Error('create_plan requires a non-empty `plan` string');
+      return Promise.resolve(plan);
+    },
+    tool: createPlanTool,
+  },
+  {
+    name: 'ask_question',
+    description: askQuestionDescription,
+    inputSchema: askQuestionToolSchema,
+    execute: (_args: Record<string, unknown>) => Promise.resolve(''),
+    tool: askQuestionTool,
   },
   {
     name: 'bash',
@@ -157,4 +185,4 @@ export const defaultAiTools = Object.fromEntries(
   defaultToolEntries.map((entry) => [entry.name, entry.tool]),
 );
 
-export { askQuestionTool, DEFAULT_TOOL_SERVER };
+export { askQuestionTool, createPlanTool, DEFAULT_TOOL_SERVER };

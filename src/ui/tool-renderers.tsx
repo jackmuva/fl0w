@@ -31,8 +31,8 @@ const toolResultComponents: Record<string, ToolComponent> = {
   "default/webfetch": WebFetchToolResultView,
   "default/websearch": WebSearchToolResultView,
   "default/message_answer": MessageAnswerToolResultView,
-  AskQuestion: AskQuestionToolResultView,
-  CreatePlan: PlanToolResultView,
+  "default/ask_question": AskQuestionToolResultView,
+  "default/create_plan": PlanToolResultView,
 }
 
 const toolCallComponents: Record<string, ToolComponent> = {
@@ -47,8 +47,8 @@ const toolCallComponents: Record<string, ToolComponent> = {
   "default/webfetch": WebFetchToolCallView,
   "default/websearch": WebSearchToolCallView,
   "default/message_answer": MessageAnswerToolCallView,
-  AskQuestion: AskQuestionToolCallView,
-  CreatePlan: PlanToolCallView,
+  "default/ask_question": AskQuestionToolCallView,
+  "default/create_plan": PlanToolCallView,
 }
 
 const lookupComponent = (

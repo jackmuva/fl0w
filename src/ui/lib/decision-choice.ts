@@ -2,8 +2,8 @@ import type { ChoiceProbabilities } from "../../models/agent"
 
 // Tools reached via the initial routing step carry probabilities keyed by route name.
 const ROUTE_CHOICE_BY_TOOL: Record<string, string> = {
-  AskQuestion: "clarifyTask",
-  CreatePlan: "createPlan",
+  "default/ask_question": "clarifyTask",
+  "default/create_plan": "createPlan",
 }
 
 export const TERMINAL_DECISION_CHOICES = new Set(["taskCompleted", "notPossible"])

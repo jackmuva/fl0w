@@ -152,7 +152,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
       content: [{
         type: 'tool-result',
         toolCallId: pendingAsk.toolCallId,
-        toolName: 'AskQuestion',
+        toolName: pendingAsk.toolName,
         output: { type: 'text', value: answerText },
       }],
     }));

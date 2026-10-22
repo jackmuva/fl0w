@@ -1,8 +1,10 @@
 import type { Fl0wMessage } from "../../../models/agent";
 import type { AskQuestionInput, AskQuestionItem } from "../default-tools/ask-question";
+import { ASK_QUESTION_ACTION } from "./tools";
 
 export type PendingAskQuestion = {
   toolCallId: string;
+  toolName: string;
   input: AskQuestionInput;
 };
 
@@ -34,9 +36,10 @@ export const findPendingAskQuestion = (
   for (const { message } of messages) {
     if (message.role === "assistant" && Array.isArray(message.content)) {
       for (const part of message.content) {
-        if (part.type === "tool-call" && part.toolName === "AskQuestion") {
+        if (part.type === "tool-call" && part.toolName === ASK_QUESTION_ACTION) {
           pending = {
             toolCallId: part.toolCallId,
+            toolName: part.toolName,
             input: normalizeAskQuestionInput(part.input),
           };
         }

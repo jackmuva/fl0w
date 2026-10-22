@@ -249,12 +249,12 @@ If a plan already exists, revise it to reflect new information.
 We have the following tools to complete the task:
 ${toolList || '(none)'}
 
-Do not execute any steps or call any of the tools above yet; only call the CreatePlan tool with the plan as a markdown numbered list.`;
+Do not execute any steps or call any of the tools above yet; only call the ${CREATE_PLAN_ACTION} tool with the plan as a markdown numbered list.`;
 
   let { toolCall } = await generateRequiredToolCall({
     instructions: planInstructions,
     messages: state.messages,
-    tools: { CreatePlan: createPlanTool },
+    tools: { [CREATE_PLAN_ACTION]: createPlanTool },
     toolName: CREATE_PLAN_ACTION,
     maxAttempts: 1,
     forceRequired: true,
@@ -264,7 +264,7 @@ Do not execute any steps or call any of the tools above yet; only call the Creat
     ({ toolCall } = await generateRequiredToolCall({
       instructions: planInstructions,
       messages: state.messages,
-      tools: { CreatePlan: createPlanTool },
+      tools: { [CREATE_PLAN_ACTION]: createPlanTool },
       toolName: CREATE_PLAN_ACTION,
     }));
   }
@@ -295,9 +295,9 @@ export const clarifyTaskNode = async (state: AgentState): Promise<AgentState> =>
     instructions: `You are helping clarify an ambiguous user task. Ask 1-3 focused follow-up questions to resolve what is unclear.
 
 
-Call the AskQuestion tool with concrete options for each question. Provide 2-4 likely answers per question based on the task and available tools. Always include an option with id "other" and label "Other" so the user can type a custom answer.`,
+Call the ${ASK_QUESTION_ACTION} tool with concrete options for each question. Provide 2-4 likely answers per question based on the task and available tools. Always include an option with id "other" and label "Other" so the user can type a custom answer.`,
     messages: state.messages,
-    tools: { AskQuestion: askQuestionTool },
+    tools: { [ASK_QUESTION_ACTION]: askQuestionTool },
     toolName: ASK_QUESTION_ACTION,
   });
 

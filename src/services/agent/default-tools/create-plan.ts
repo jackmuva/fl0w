@@ -1,4 +1,5 @@
 import { jsonSchema, tool, type ModelMessage } from 'ai';
+import { DEFAULT_CREATE_PLAN_TOOL } from './utils';
 
 export type CreatePlanInput = {
   plan: string;
@@ -16,7 +17,7 @@ export const wrapPlanToolMessages = (
       content: [{
         type: 'tool-call',
         toolCallId,
-        toolName: 'CreatePlan',
+        toolName: DEFAULT_CREATE_PLAN_TOOL,
         input,
       }],
     },
@@ -25,7 +26,7 @@ export const wrapPlanToolMessages = (
       content: [{
         type: 'tool-result',
         toolCallId,
-        toolName: 'CreatePlan',
+        toolName: DEFAULT_CREATE_PLAN_TOOL,
         output: { type: 'text', value: plan },
       }],
     },
@@ -47,7 +48,12 @@ const createPlanInputSchema = jsonSchema<CreatePlanInput>({
     : { success: false, error: new Error('CreatePlan requires a non-empty `plan` string') },
 });
 
+export const createPlanDescription =
+  'Present a step-by-step plan for completing a multi-step task.';
+
 export const createPlanTool = tool({
-  description: 'Present a step-by-step plan for completing a multi-step task.',
+  description: createPlanDescription,
   inputSchema: createPlanInputSchema,
 });
+
+export const createPlanToolSchema = createPlanInputSchema.jsonSchema as Record<string, unknown>;

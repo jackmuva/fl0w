@@ -3,8 +3,7 @@ import { HEADLESS, LLM_MODEL, MAX_ITERATIONS } from '../../../constants';
 import type { AgentState, Fl0wMessage } from '../../../models/agent';
 import { mcpClient } from '../../mcp/mcp-client';
 import { retryModelCall } from '../../utils';
-import { askQuestionTool } from '../default-tools/ask-question';
-import { createPlanTool, type CreatePlanInput } from '../default-tools/create-plan';
+import { type CreatePlanInput } from '../default-tools/create-plan';
 import { compactMessages, compactionHook } from '../hooks/compaction';
 import { recordLlmUsage } from '../hooks/session-usage';
 import { endRunWithError, stopIfAborted, sync } from './utils';
@@ -39,8 +38,8 @@ const LLM_INSTRUCTIONS = [
   "You are a software engineering agent. Use the available tools to complete the user's task.",
   'Call tools when you need to inspect or change the workspace, search, or fetch information.',
   'When the task is complete, respond with a concise final answer in text without calling a tool.',
-  !HEADLESS && 'If the task is too ambiguous to proceed, call AskQuestion with 1-3 focused questions (include an "other" option).',
-  'For multi-step work you may call CreatePlan with a short numbered plan before executing.',
+  !HEADLESS && `If the task is too ambiguous to proceed, call ${ASK_QUESTION_ACTION} with 1-3 focused questions (include an "other" option).`,
+  `For multi-step work you may call ${CREATE_PLAN_ACTION} with a short numbered plan before executing.`,
 ].filter(Boolean).join(' ');
 
 const toolResultMessage = (
@@ -103,7 +102,7 @@ const executeLlmToolCall = async (call: {
       ? String((call.input as CreatePlanInput).plan)
       : '';
     if (!plan.trim()) {
-      return toolResultMessage(call.toolCallId, call.toolName, 'CreatePlan requires a non-empty plan.', true);
+      return toolResultMessage(call.toolCallId, call.toolName, 'create_plan requires a non-empty plan.', true);
     }
     return toolResultMessage(call.toolCallId, call.toolName, plan);
   }
@@ -118,11 +117,7 @@ const runLlmTurn = async (
   signal?: AbortSignal,
 ): Promise<AgentState> => {
   const availableTools = await listAllTools();
-  const tools: ToolSet = {
-    ...toAiSdkTools(availableTools),
-    CreatePlan: createPlanTool,
-    ...(!HEADLESS && { AskQuestion: askQuestionTool }),
-  };
+  const tools: ToolSet = toAiSdkTools(availableTools);
   const prompt = preparePrompt(LLM_INSTRUCTIONS, state.messages);
   const result = await retryModelCall(() => generateLlmText({
     model,

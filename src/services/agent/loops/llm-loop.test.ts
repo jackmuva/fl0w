@@ -4,6 +4,7 @@ import { fl0wMessage } from '../utils/fl0w-message';
 import { getSessionUsageState, resetSessionUsage } from '../hooks/session-usage';
 import { resetLlmGenerateText, setLlmGenerateText } from './llm-loop';
 import { fl0wLoop, resolveAgentMode } from '../main-loop';
+import { ASK_QUESTION_ACTION, CREATE_PLAN_ACTION } from '../utils/tools';
 import { findPendingAskQuestion } from '../utils/ask-question-state';
 
 const usage = { inputTokens: 10, outputTokens: 4, totalTokens: 14 };
@@ -110,7 +111,7 @@ describe('fl0wLoop llm mode', () => {
 
   test('records a CreatePlan tool result without a separate executor', async () => {
     generateText
-      .mockImplementationOnce(async () => toolTurn('CreatePlan', { plan: '1. inspect\n2. edit' }))
+      .mockImplementationOnce(async () => toolTurn(CREATE_PLAN_ACTION, { plan: '1. inspect\n2. edit' }))
       .mockImplementationOnce(async () => textTurn('Plan captured.'));
     const run = collected();
 
@@ -123,14 +124,14 @@ describe('fl0wLoop llm mode', () => {
       const part = toolResult.content[0];
       expect(part?.type).toBe('tool-result');
       if (part?.type === 'tool-result') {
-        expect(part.toolName).toBe('CreatePlan');
+        expect(part.toolName).toBe(CREATE_PLAN_ACTION);
         if ('value' in part.output) expect(part.output.value).toBe('1. inspect\n2. edit');
       }
     }
   });
 
   test('pauses when the model calls AskQuestion', async () => {
-    generateText.mockImplementation(async () => toolTurn('AskQuestion', {
+    generateText.mockImplementation(async () => toolTurn(ASK_QUESTION_ACTION, {
       questions: [{
         id: 'q1',
         question: 'Which file?',

@@ -3,12 +3,13 @@ import { mcpToolKey, type McpTool, type McpToolResult } from "../../../models/mc
 import { HEADLESS } from "../../../constants";
 import { mcpClient } from "../../mcp/mcp-client";
 import { isCapabilityEnabled, isMcpToolEnabled } from "../capabilities";
-import { executeDefaultTool, isDefaultToolKey, listDefaultTools } from "../default-tools";
+import { executeDefaultTool, getDefaultTool, isDefaultToolKey, listDefaultTools } from "../default-tools";
+import { DEFAULT_ASK_QUESTION_TOOL, DEFAULT_CREATE_PLAN_TOOL } from "../default-tools/utils";
 import { listSkills } from "../hooks/front-load";
 import { executeUserTool, isUserToolKey, listUserTools } from "../user-tools/loader";
 
-export const CREATE_PLAN_ACTION = 'CreatePlan';
-export const ASK_QUESTION_ACTION = 'AskQuestion';
+export const CREATE_PLAN_ACTION = DEFAULT_CREATE_PLAN_TOOL;
+export const ASK_QUESTION_ACTION = DEFAULT_ASK_QUESTION_TOOL;
 export type EvaluateMcpTool = Pick<McpTool, 'server' | 'name' | 'description' | 'inputSchema'>;
 
 export const parseToolKey = (key: string): { server: string, name: string } => {
@@ -51,15 +52,6 @@ export const buildToolCriteria = (tools: McpTool[], onlyTools: boolean = false) 
 
   criteria = {
     ...criteria,
-    [CREATE_PLAN_ACTION]: {
-      description: 'Create or revise a numbered plan based on progress and new information.',
-    },
-    // headless runs have nobody to answer, so never offer follow-up questions
-    ...(!HEADLESS && {
-      [ASK_QUESTION_ACTION]: {
-        description: 'Ask follow-up questions when the task needs more clarity.',
-      },
-    }),
     taskCompleted: {
       description: "The user's task was completed"
     },
@@ -87,7 +79,11 @@ export const formatToolList = (tools: McpTool[]) => tools
 
 export const listAllTools = async () => [
   // load_skill is useless when every skill is disabled
-  ...listDefaultTools().filter((entry) => entry.name !== 'load_skill' || listSkills().length > 0),
+  ...listDefaultTools().filter((entry) => {
+    if (entry.name === 'load_skill' && listSkills().length === 0) return false;
+    if (HEADLESS && entry.name === 'ask_question') return false;
+    return true;
+  }),
   ...listUserTools().filter((entry) => isCapabilityEnabled('userTools', entry.name)),
   ...(await mcpClient.listTools()).filter((entry) => isMcpToolEnabled(entry)),
 ];
@@ -95,6 +91,8 @@ export const listAllTools = async () => [
 export const toAiSdkTools = (tools: McpTool[]) =>
   Object.fromEntries(tools.map((entry) => {
     const key = mcpToolKey(entry);
+    const defaultEntry = entry.server === 'default' ? getDefaultTool(entry.name) : undefined;
+    if (defaultEntry?.tool) return [key, defaultEntry.tool];
     return [key, tool({
       description: entry.description ?? `Call the ${key} tool`,
       inputSchema: jsonSchema<Record<string, unknown>>(entry.inputSchema as Record<string, unknown>),

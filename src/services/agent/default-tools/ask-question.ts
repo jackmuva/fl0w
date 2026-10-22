@@ -46,7 +46,12 @@ const askQuestionInputSchema = jsonSchema<AskQuestionInput>({
   required: ['questions'],
 });
 
+export const askQuestionDescription =
+  'Ask the user clarifying questions with selectable options or a custom answer.';
+
 export const askQuestionTool = tool({
-  description: 'Ask the user clarifying questions with selectable options or a custom answer.',
+  description: askQuestionDescription,
   inputSchema: askQuestionInputSchema,
 });
+
+export const askQuestionToolSchema = askQuestionInputSchema.jsonSchema as Record<string, unknown>;

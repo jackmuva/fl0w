@@ -3,6 +3,7 @@ import type { Fl0wMessage } from "../../../models/agent"
 import { parseUserAttachments } from "../../lib/input-completion/at-files"
 import { parseWorkflowPrompt } from "../../../services/workflow/build-message"
 import { parseDecisionMessage, type DecisionMessagePayload } from "../../../services/agent/utils/fl0w-message"
+import { ASK_QUESTION_ACTION } from "../../../services/agent/utils/tools"
 import { renderToolCall, renderToolResult } from "../../tool-renderers"
 import {
   formatToolResultText,
@@ -144,7 +145,7 @@ export const MessageContent = ({ message: entry, toolCallInputs, decision }: Mes
           if (part.type !== "tool-call") return null
           const toolCall = part as ToolCallPart
 
-          if (toolCall.toolName === "AskQuestion") return null
+          if (toolCall.toolName === ASK_QUESTION_ACTION) return null
 
           return (
             <box key={toolCall.toolCallId ?? index}>

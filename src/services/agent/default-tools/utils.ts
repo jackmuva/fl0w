@@ -3,6 +3,11 @@ import { stat } from 'node:fs/promises';
 
 export const DEFAULT_TOOL_SERVER = 'default';
 
+export const defaultToolKey = (name: string) => `${DEFAULT_TOOL_SERVER}/${name}`;
+
+export const DEFAULT_CREATE_PLAN_TOOL = defaultToolKey('create_plan');
+export const DEFAULT_ASK_QUESTION_TOOL = defaultToolKey('ask_question');
+
 export const MAX_OUTPUT_LINES = 2000;
 export const MAX_OUTPUT_BYTES = 30_000;
 
