@@ -29,8 +29,11 @@ const toolToText = (tool: McpTool): string => {
 const estimateToolTokens = (tools: McpTool[]): number =>
   tools.reduce((total, tool) => total + estimateTextTokens(toolToText(tool)), 0);
 
-const toolsWithinLimits = (tools: McpTool[], maxToolCount: number): boolean =>
-  estimateToolTokens(tools) <= toolTokenLimit() && tools.length <= maxToolCount;
+const withinToolTokenBudget = (tools: McpTool[]): boolean =>
+  estimateToolTokens(tools) <= toolTokenLimit();
+
+const withinRoutedLimits = (tools: McpTool[]): boolean =>
+  withinToolTokenBudget(tools) && tools.length <= MAX_ROUTED_TOOL_OPTIONS;
 
 const fitToolsToLimits = (tools: McpTool[], maxToolCount: number): McpTool[] => {
   const kept: McpTool[] = [];
@@ -157,27 +160,26 @@ const orderToolsByKeys = (tools: McpTool[], keys: string[]): McpTool[] => {
 export const reduceTools = async (
   state: AgentState,
   tools: McpTool[],
-  maxToolCount = MAX_ROUTED_TOOL_OPTIONS,
 ): Promise<McpTool[]> => {
   if (tools.length === 0) return tools;
-  if (toolsWithinLimits(tools, maxToolCount)) return tools;
+  if (withinToolTokenBudget(tools)) return tools;
 
   let selectedKeys: string[] = [];
   try {
-    selectedKeys = await selectToolNamesWithLlm(state, tools, maxToolCount);
+    selectedKeys = await selectToolNamesWithLlm(state, tools, MAX_ROUTED_TOOL_OPTIONS);
   } catch {
     selectedKeys = [];
   }
 
   let reduced = selectedKeys.length > 0
     ? orderToolsByKeys(tools, selectedKeys)
-    : fitToolsToLimits(tools, maxToolCount);
+    : fitToolsToLimits(tools, MAX_ROUTED_TOOL_OPTIONS);
 
-  if (!toolsWithinLimits(reduced, maxToolCount)) {
-    reduced = fitToolsToLimits(reduced, maxToolCount);
+  if (!withinRoutedLimits(reduced)) {
+    reduced = fitToolsToLimits(reduced, MAX_ROUTED_TOOL_OPTIONS);
   }
 
-  if (!toolsWithinLimits(reduced, maxToolCount)) {
+  if (!withinRoutedLimits(reduced)) {
     const tokens = estimateToolTokens(reduced);
     throw new Error(
       `Could not reduce enabled tools for routing (estimated ${tokens} tokens, limit ${toolTokenLimit()}). Try disabling some MCP servers or capabilities.`,

@@ -97,7 +97,6 @@ export const CapabilitySelectionDialog = ({
   const [tabIndex, setTabIndex] = useState(0)
   const [cursor, setCursor] = useState(0)
   const [filterQuery, setFilterQuery] = useState("")
-
   const activeTab = visibleTabs[tabIndex] ?? visibleTabs[0]
   const activeKind = activeTab?.kind ?? "skills"
   const activeItems = catalog[activeKind]
