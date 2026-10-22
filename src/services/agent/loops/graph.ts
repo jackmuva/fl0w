@@ -193,13 +193,15 @@ export const actionSelectNode = async (
   const selectedAction = options[0] ?? answers.selectedAction.choice;
 
   if (answers.selectedAction.choice === "taskCompleted") {
+    const choice = "taskCompleted";
     const message: ModelMessage = {
       role: "assistant",
       content: "Task Complete",
     };
     return {
       state: {
-        state: "END", messages: [...state.messages, fl0wMessage(message)],
+        state: "END",
+        messages: [...appendDecisionMessage(state.messages, probabilities, choice), fl0wMessage(message)],
       },
       options: [],
     };
@@ -215,12 +217,16 @@ export const actionSelectNode = async (
       options,
     };
   } else if (answers.selectedAction.choice === "notPossible") {
+    const choice = "notPossible";
     const message: ModelMessage = {
       role: "assistant",
       content: "Unable to complete the task with given tools",
     };
     return {
-      state: { state: "END", messages: [...state.messages, fl0wMessage(message)] },
+      state: {
+        state: "END",
+        messages: [...appendDecisionMessage(state.messages, probabilities, choice), fl0wMessage(message)],
+      },
       options: [],
     };
   }

@@ -6,6 +6,14 @@ const ROUTE_CHOICE_BY_TOOL: Record<string, string> = {
   CreatePlan: "createPlan",
 }
 
+export const TERMINAL_DECISION_CHOICES = new Set(["taskCompleted", "notPossible"])
+
+export const terminalDecisionLabel = (choice: string): string | null => {
+  if (choice === "taskCompleted") return "Task Complete"
+  if (choice === "notPossible") return "Unable to complete the task with given tools"
+  return null
+}
+
 export const selectedDecisionChoice = (
   probabilities: ChoiceProbabilities,
   toolName: string,

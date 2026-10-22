@@ -11,7 +11,11 @@ import {
   type ToolResultPart,
 } from "../../lib/format/message"
 import { filetypeFromPath } from "../../lib/format/message"
-import { selectedDecisionChoice } from "../../lib/decision-choice"
+import {
+  selectedDecisionChoice,
+  TERMINAL_DECISION_CHOICES,
+  terminalDecisionLabel,
+} from "../../lib/decision-choice"
 import { ChoiceProbabilities } from "./ChoiceProbabilities"
 import { HighlightedCode } from "./HighlightedCode"
 import {
@@ -71,6 +75,7 @@ export const MessageContent = ({ message: entry, toolCallInputs, decision }: Mes
   if (frame === "decision") {
     const decision = parseDecisionMessage(entry)
     if (!decision) return null
+    if (TERMINAL_DECISION_CHOICES.has(decision.selectedTool)) return null
     return (
       <MessageFrameKindContext.Provider value="call">
         <ChoiceProbabilities
@@ -162,6 +167,33 @@ export const MessageContent = ({ message: entry, toolCallInputs, decision }: Mes
 
   const text = formatMessageContent(message)
   if (!text) return null
+
+  if (
+    message.role === "assistant"
+    && decision
+    && TERMINAL_DECISION_CHOICES.has(decision.selectedTool)
+    && terminalDecisionLabel(decision.selectedTool) === text
+  ) {
+    return (
+      <box width="100%" marginBottom={1}>
+        <MessageFrameKindContext.Provider value="call">
+          <ChoiceProbabilities
+            probabilities={decision.probabilities}
+            selected={selectedDecisionChoice(decision.probabilities, decision.selectedTool)}
+          />
+          <box
+            border={["left"]}
+            borderColor={AGENT_BORDER_COLOR}
+            paddingLeft={1}
+            marginTop={1}
+            width="100%"
+          >
+            <text>{text}</text>
+          </box>
+        </MessageFrameKindContext.Provider>
+      </box>
+    )
+  }
 
   if (message.role === "user") {
     const workflow = parseWorkflowPrompt(text)
