@@ -1,4 +1,3 @@
-import { saveFl0wGatewayKey } from '../config/app-config';
 import { syncConfigFiles } from '../sync/config-sync';
 import { syncWorkflows } from '../sync/workflow-sync';
 import { syncSessions } from '../sync/session-sync';
@@ -8,14 +7,8 @@ import { clearFl0wAuth, readFl0wAuth } from './token';
 export async function runAccountCommand(command: string): Promise<number> {
   try {
     if (command === 'login') {
-      const { auth, aiGatewayApiKey } = await login();
-      if (!aiGatewayApiKey) {
-        console.log(`Signed in as ${auth.user.email}, but fl0w couldn't issue an AI Gateway key. Try \`fl0w login\` again later, or set AI_GATEWAY_API_KEY.`);
-      } else if (await saveFl0wGatewayKey(aiGatewayApiKey)) {
-        console.log(`Signed in as ${auth.user.email}. Your fl0w AI Gateway key was saved to config.json.`);
-      } else {
-        console.log(`Signed in as ${auth.user.email}. Keeping your own AI Gateway key (AI_GATEWAY_API_KEY or config.json's aiGatewayApiKey); remove it and run \`fl0w login\` again to use fl0w's key.`);
-      }
+      const auth = await login();
+      console.log(`Signed in as ${auth.user.email}.`);
       await reportLoginSync();
       return 0;
     }

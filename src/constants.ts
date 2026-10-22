@@ -58,8 +58,6 @@ export const DEFAULT_DECISION_MODEL = 'typesafe-ai/jev';
 
 export const DEFAULT_LLM_MODEL = 'zai/glm-5.3';
 
-export const AI_GATEWAY_API_KEY_PLACEHOLDER = 'YOUR_VERCEL_AI_GATEWAY_API_KEY';
-
 export let LLM_MODEL = parseConfigString(process.env.LLM_MODEL) ?? DEFAULT_LLM_MODEL;
 
 export let DECISION_MODEL = parseConfigString(process.env.DECISION_MODEL) ?? DEFAULT_DECISION_MODEL;

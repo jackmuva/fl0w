@@ -1,7 +1,6 @@
 export type AgentMode = 'decision' | 'llm';
 
 export type AppConfig = {
-  aiGatewayApiKey?: string;
   /** Context window (tokens) for compaction thresholds and UI usage meter (default 1_000_000). */
   contextWindow?: number;
   decisionModel?: string;

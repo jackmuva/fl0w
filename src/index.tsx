@@ -2,6 +2,9 @@ import { ACCOUNT_COMMANDS, HEADLESS } from "./constants"
 
 // AI SDK logs provider warnings via process.emitWarning by default; suppress for TUI/CLI.
 globalThis.AI_SDK_LOG_WARNINGS = false
+import { fl0wModelProvider } from "./services/auth/token"
+// Model ids resolve through the default provider: fl0w-work's AI proxy, authenticated with the fl0w login.
+globalThis.AI_SDK_DEFAULT_PROVIDER = fl0wModelProvider
 import { frontLoadMessages } from "./services/agent/hooks/front-load"
 import { ensureFl0wHome, loadAppConfig } from "./services/config/app-config"
 import { fl0wMessage } from "./services/agent/utils/fl0w-message"
@@ -37,7 +40,6 @@ if (!isAccountCommand) {
   }
 }
 
-// Load before account commands so `fl0w login` knows whether config.json's aiGatewayApiKey takes precedence.
 await loadAppConfig()
 
 if (isAccountCommand) {

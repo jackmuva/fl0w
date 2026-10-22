@@ -17,13 +17,13 @@ conversational agent that plans, executes, and distills tasks into reusable work
   `CONTEXT_WINDOW` env (from `contextWindow`, default `1000000`) drives compaction thresholds and the UI usage meter.
   All four load from `config.json` into env at startup, then `applyModelConfig()` refreshes the runtime exports in `constants.ts`.
 - **Auth** — `fl0w login`/`logout`/`whoami` sign in via fl0w-work (`FL0W_API_URL`, default
-  `https://www.fl0w.work`); tokens + MCP OAuth state live in `auth.json`. Login saves a Vercel
-  AI Gateway key as `aiGatewayApiKey` unless one is set (`config.json` or `AI_GATEWAY_API_KEY`).
-  Model calls always go directly to AI Gateway.
+  `https://www.fl0w.work`); tokens + MCP OAuth state live in `auth.json`. There is no AI Gateway key
+  on the client: `index.tsx` sets `AI_SDK_DEFAULT_PROVIDER` to `fl0wModelProvider` (`services/auth/token.ts`),
+  a gateway provider pointed at fl0w-work's `/api/cli/ai` proxy and authenticated with the fl0w access token,
+  so every model id string resolves through it. Model calls require `fl0w login`.
 - **Config sync** — when signed in, `config.json`, `mcp.json`, `auth.json` sync with fl0w-work:
   reconciled at startup and after `fl0w login`, pushed ~1s after writes; when a file changed on both
-  sides since the last sync (`sync-state.json`, 0600), the newer copy wins. Disable per device with `"sync": false` in `config.json` (never synced itself). **Local mode:** signed out with your own
-  `AI_GATEWAY_API_KEY`, the CLI works fully offline — no login, no network.
+  sides since the last sync (`sync-state.json`, 0600), the newer copy wins. Disable per device with `"sync": false` in `config.json` (never synced itself).
 - **MCP** — servers auto-connect at startup (with OAuth); failure is non-fatal (UI warning).
   On auth/connection tool-call failures, syncs config and reconnects once when config sync is enabled.
 - **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content, and the skills

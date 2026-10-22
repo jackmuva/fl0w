@@ -49,10 +49,10 @@ const isBudgetExceededError = (error: unknown): boolean => {
 
 export const formatAgentRunError = (error: unknown): string => {
   if (isBudgetExceededError(error)) {
-    return 'Your AI Gateway budget is used up. Set your own AI_GATEWAY_API_KEY (or config.json\'s aiGatewayApiKey) to keep going.';
+    return 'The fl0w model budget is used up. Try again later.';
   }
   if (isMissingCredentialsError(error)) {
-    return 'No valid AI Gateway key. Run `fl0w login` to get one, or set AI_GATEWAY_API_KEY.';
+    return 'fl0w could not authenticate the model call. Run `fl0w login` and try again.';
   }
   if (APICallError.isInstance(error)) {
     if (isTooManyToolsError(error)) {
@@ -64,7 +64,7 @@ export const formatAgentRunError = (error: unknown): string => {
     const statusCode = 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
     const prefix = statusCode != null ? `API error (${statusCode})` : 'API error';
     const detail = error.message.trim();
-    const hint = statusCode === 401 ? ' Run `fl0w login` or set a valid AI_GATEWAY_API_KEY.' : '';
+    const hint = statusCode === 401 ? ' Run `fl0w login` and try again.' : '';
     return (detail ? `${prefix}: ${detail}` : prefix) + hint;
   }
 

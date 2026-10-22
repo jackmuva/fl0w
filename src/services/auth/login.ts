@@ -5,7 +5,7 @@ import { openBrowser } from '../utils';
 import { callbackUrl, listenForAuthCode } from './callback-server';
 import { requestTokens, saveFl0wAuth } from './token';
 
-export async function login(log: (line: string) => void = console.log): Promise<{ auth: Fl0wAuth, aiGatewayApiKey?: string }> {
+export async function login(log: (line: string) => void = console.log): Promise<Fl0wAuth> {
   const state = crypto.randomUUID();
   const codeVerifier = randomBytes(32).toString('base64url');
   const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
@@ -19,7 +19,7 @@ export async function login(log: (line: string) => void = console.log): Promise<
   log(`Opening your browser to sign in. If it doesn't open, visit:\n${loginUrl}`);
   openBrowser(loginUrl.toString());
 
-  const result = await requestTokens({ grant_type: 'authorization_code', code: await code, code_verifier: codeVerifier });
-  await saveFl0wAuth(result.auth);
-  return result;
+  const auth = await requestTokens({ grant_type: 'authorization_code', code: await code, code_verifier: codeVerifier });
+  await saveFl0wAuth(auth);
+  return auth;
 }

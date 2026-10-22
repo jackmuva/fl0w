@@ -2,7 +2,6 @@ import { mkdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
-  AI_GATEWAY_API_KEY_PLACEHOLDER,
   APP_CONFIG_PATH,
   applyModelConfig,
   DEFAULT_AGENT_MODE,
@@ -15,7 +14,6 @@ import {
 } from '../../constants';
 import type { AppConfig } from '../../models/config';
 import type { McpConfig } from '../../models/mcp';
-import { notifyLocalWrite } from '../../services/sync/config-sync';
 import { asJsonObject } from '../../services/sync/merge';
 import { writeJsonAtomic } from '../../services/utils';
 
@@ -28,7 +26,6 @@ const writeDefaultJsonIfMissing = async (path: string, content: unknown): Promis
 };
 
 const defaultAppConfig = (): AppConfig => ({
-  aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER,
   llmModel: DEFAULT_LLM_MODEL,
   decisionModel: DEFAULT_DECISION_MODEL,
   mode: DEFAULT_AGENT_MODE,
@@ -43,33 +40,18 @@ const ensureConfigDefaults = async (path: string): Promise<void> => {
   const config = asJsonObject(await file.json()) as AppConfig;
   const defaults = defaultAppConfig();
   const merged: AppConfig = {
-    aiGatewayApiKey: config.aiGatewayApiKey ?? defaults.aiGatewayApiKey,
     llmModel: config.llmModel ?? defaults.llmModel,
     decisionModel: config.decisionModel ?? defaults.decisionModel,
     mode: parseAgentMode(config.mode) ?? config.mode ?? defaults.mode,
     contextWindow: config.contextWindow ?? defaults.contextWindow,
     sync: config.sync ?? defaults.sync,
   };
-  if (
-    merged.aiGatewayApiKey === config.aiGatewayApiKey
-    && merged.llmModel === config.llmModel
-    && merged.decisionModel === config.decisionModel
-    && merged.mode === config.mode
-    && merged.contextWindow === config.contextWindow
-    && merged.sync === config.sync
-  ) return;
   await writeJsonAtomic(path, merged);
 };
 
 export async function loadAppConfig(path = APP_CONFIG_PATH): Promise<AppConfig> {
   const file = Bun.file(path);
   const config = await file.exists() ? asJsonObject(await file.json()) as AppConfig : {};
-  if (
-    config.aiGatewayApiKey
-    && config.aiGatewayApiKey !== AI_GATEWAY_API_KEY_PLACEHOLDER
-  ) {
-    process.env.AI_GATEWAY_API_KEY = config.aiGatewayApiKey;
-  }
   const llmModel = parseConfigString(config.llmModel);
   if (llmModel) process.env.LLM_MODEL = llmModel;
   const decisionModel = parseConfigString(config.decisionModel);
@@ -89,18 +71,6 @@ export async function isConfigSyncEnabled(path = APP_CONFIG_PATH): Promise<boole
   } catch {
     return true;
   }
-}
-
-export async function saveFl0wGatewayKey(key: string, path = APP_CONFIG_PATH): Promise<boolean> {
-  const file = Bun.file(path);
-  const config = await file.exists() ? asJsonObject(await file.json()) as AppConfig : {};
-  const configKey = config.aiGatewayApiKey === AI_GATEWAY_API_KEY_PLACEHOLDER ? undefined : config.aiGatewayApiKey;
-  const current = configKey ?? process.env.AI_GATEWAY_API_KEY;
-  if (current && current !== key) return false;
-  await writeJsonAtomic(path, { ...config, aiGatewayApiKey: key });
-  notifyLocalWrite(path);
-  process.env.AI_GATEWAY_API_KEY = key;
-  return true;
 }
 
 export async function ensureFl0wHome(home = FL0W_HOME): Promise<void> {

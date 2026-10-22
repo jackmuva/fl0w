@@ -8,7 +8,7 @@ export const printHelp = (): void => {
 Usage:
   fl0w                              Start the interactive TUI
   fl0w help | -h | --help           Show this help
-  fl0w login                        Sign in and save an AI Gateway key
+  fl0w login                        Sign in to fl0w (model calls use your fl0w account)
   fl0w logout                       Sign out
   fl0w whoami                       Show signed-in account
 

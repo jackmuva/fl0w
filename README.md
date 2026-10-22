@@ -33,9 +33,7 @@ The installer downloads a standalone binary and installs it as `fl0w` (default `
 
 ## Setup
 
-**Sign in** (recommended): run `fl0w login` and approve the code in your browser. fl0w issues you a Vercel AI Gateway key (with a usage budget) saved as `aiGatewayApiKey` in `~/.fl0w/config.json` — no Vercel account needed. `fl0w whoami` shows the account; `fl0w logout` signs out.
-
-**Or bring your own Vercel AI Gateway API Key** ([get one here](https://vercel.com/ai-gateway)). If `AI_GATEWAY_API_KEY` is set (env or `config.json`), `fl0w login` keeps it instead of replacing it.
+**Sign in**: run `fl0w login` and approve the code in your browser. Model calls go through your fl0w account (fl0w-work's AI proxy), so there's no API key to manage. `fl0w whoami` shows the account; `fl0w logout` signs out.
 
 On first launch fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`, and `tools/`. Sign-in tokens and MCP OAuth credentials are stored in `~/.fl0w/auth.json` (mode 0600).
 
@@ -43,7 +41,6 @@ On first launch fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`, 
 
    ```json
    {
-     "aiGatewayApiKey": "YOUR_VERCEL_AI_GATEWAY_API_KEY",
      "llmModel": "zai/glm-5.3",
      "decisionModel": "typesafe-ai/jev",
      "mode": "decision",
@@ -52,7 +49,7 @@ On first launch fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`, 
    }
    ```
 
-   `fl0w login` fills in `aiGatewayApiKey` (or set your own / `AI_GATEWAY_API_KEY`). Adjust `llmModel` and `decisionModel` (tool choices) as needed. Set `"mode": "llm"` to run a standard tool-calling loop on `llmModel` instead of the decision-model graph (`decisionModel` is unused in that mode). Model names in [Vercel's model list](https://vercel.com/ai-gateway/models). Set `contextWindow` (or `CONTEXT_WINDOW`) to match your model’s context size — it drives compaction and the usage meter (default `232000`).
+   Adjust `llmModel` and `decisionModel` (tool choices) as needed. Set `"mode": "llm"` to run a standard tool-calling loop on `llmModel` instead of the decision-model graph (`decisionModel` is unused in that mode). Model names in [Vercel's model list](https://vercel.com/ai-gateway/models). Set `contextWindow` (or `CONTEXT_WINDOW`) to match your model’s context size — it drives compaction and the usage meter (default `232000`).
 2. Optional: local skills in `~/.fl0w/skills/`.
 3. Optional: MCPs in `~/.fl0w/mcp.json`, using [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers).
 4. Optional: `AGENTS.md` files alongside your skills.
@@ -62,8 +59,6 @@ Skills, MCPs, and templates can be toggled per session to keep the context windo
 ### Keeping your setup in sync
 
 When signed in, fl0w keeps `config.json`, `mcp.json`, and `auth.json` in sync with your fl0w-work account — encrypted at rest and versioned on the server, so you can move between machines. Changes push ~1 second after you make them; at startup fl0w pulls the latest. If a file changed on both sides since the last sync, the newer copy wins. Disable with `FL0W_SYNC=0`.
-
-**Local mode**: signed out with your own `AI_GATEWAY_API_KEY` (env or `config.json`), fl0w works fully offline — no network calls, no login required.
 
 ## Usage
 
@@ -243,10 +238,8 @@ src/
 
 ## Sync & Auth
 
-`fl0w login` signs you into fl0w-work via browser, issues a Vercel AI Gateway key (saved as
-`aiGatewayApiKey` unless one is set), and stores sign-in tokens + MCP OAuth credentials in
-`~/.fl0w/auth.json` (mode 0600). `fl0w whoami` prints the account; `fl0w logout` signs out.
+`fl0w login` signs you into fl0w-work via browser and stores sign-in tokens + MCP OAuth credentials in
+`~/.fl0w/auth.json` (mode 0600). Every model call goes through fl0w-work's AI proxy with that sign-in. `fl0w whoami` prints the account; `fl0w logout` signs out.
 
 When signed in, `config.json`, `mcp.json`, and `auth.json` sync with fl0w-work so your setup
-follows you across machines (see **Keeping your setup in sync**). In local mode (signed out,
-own `AI_GATEWAY_API_KEY`), sync makes no network calls and no login is required.
+follows you across machines (see **Keeping your setup in sync**).

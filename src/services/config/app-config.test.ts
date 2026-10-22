@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { access, mkdir, rm, stat, writeFile } from 'node:fs/promises';
+import { access, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   AGENT_MODE,
-  AI_GATEWAY_API_KEY_PLACEHOLDER,
   applyModelConfig,
   CONTEXT_WINDOW,
   DECISION_MODEL,
@@ -13,7 +12,7 @@ import {
   DEFAULT_LLM_MODEL,
   LLM_MODEL,
 } from '../../constants';
-import { ensureFl0wHome, loadAppConfig, saveFl0wGatewayKey } from './app-config';
+import { ensureFl0wHome, loadAppConfig } from './app-config';
 
 const tempRoot = join(import.meta.dir, '__fixtures__', 'app-config');
 
@@ -28,7 +27,7 @@ afterEach(async () => {
 });
 
 beforeEach(() => {
-  for (const key of ['AI_GATEWAY_API_KEY', 'LLM_MODEL', 'DECISION_MODEL', 'AGENT_MODE', 'CONTEXT_WINDOW'] as const) {
+  for (const key of ['LLM_MODEL', 'DECISION_MODEL', 'AGENT_MODE', 'CONTEXT_WINDOW'] as const) {
     previousEnv[key] = process.env[key];
     delete process.env[key];
   }
@@ -39,30 +38,6 @@ describe('loadAppConfig', () => {
   test('returns empty config when file is missing', async () => {
     const config = await loadAppConfig(join(tempRoot, 'missing.json'));
     expect(config).toEqual({});
-    expect(process.env.AI_GATEWAY_API_KEY).toBeUndefined();
-  });
-
-  test('ignores placeholder aiGatewayApiKey', async () => {
-    await mkdir(tempRoot, { recursive: true });
-    const configPath = join(tempRoot, 'config.json');
-    await writeFile(
-      configPath,
-      JSON.stringify({ aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER }),
-    );
-
-    const config = await loadAppConfig(configPath);
-    expect(config).toEqual({ aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER });
-    expect(process.env.AI_GATEWAY_API_KEY).toBeUndefined();
-  });
-
-  test('loads aiGatewayApiKey into process.env', async () => {
-    await mkdir(tempRoot, { recursive: true });
-    const configPath = join(tempRoot, 'config.json');
-    await writeFile(configPath, JSON.stringify({ aiGatewayApiKey: 'test-key' }));
-
-    const config = await loadAppConfig(configPath);
-    expect(config).toEqual({ aiGatewayApiKey: 'test-key' });
-    expect(process.env.AI_GATEWAY_API_KEY).toBe('test-key');
   });
 
   test('loads llmModel and decisionModel into process.env', async () => {
@@ -115,48 +90,6 @@ describe('loadAppConfig', () => {
   });
 });
 
-describe('saveFl0wGatewayKey', () => {
-  const readConfig = async (path: string) => JSON.parse(await Bun.file(path).text());
-
-  test('replaces the placeholder, keeps other settings, and restricts permissions', async () => {
-    await mkdir(tempRoot, { recursive: true });
-    const configPath = join(tempRoot, 'config.json');
-    await writeFile(configPath, JSON.stringify({ aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER, llmModel: 'custom/model' }));
-
-    expect(await saveFl0wGatewayKey('fl0w-key', configPath)).toBe(true);
-    expect(await readConfig(configPath)).toEqual({ aiGatewayApiKey: 'fl0w-key', llmModel: 'custom/model' });
-    expect((await stat(configPath)).mode & 0o777).toBe(0o600);
-    expect(process.env.AI_GATEWAY_API_KEY).toBe('fl0w-key');
-  });
-
-  test('creates config.json when missing', async () => {
-    await mkdir(tempRoot, { recursive: true });
-    const configPath = join(tempRoot, 'config.json');
-
-    expect(await saveFl0wGatewayKey('fl0w-key', configPath)).toBe(true);
-    expect(await readConfig(configPath)).toEqual({ aiGatewayApiKey: 'fl0w-key' });
-  });
-
-  test('keeps a different user-supplied key in config.json', async () => {
-    await mkdir(tempRoot, { recursive: true });
-    const configPath = join(tempRoot, 'config.json');
-    await writeFile(configPath, JSON.stringify({ aiGatewayApiKey: 'own-key' }));
-
-    expect(await saveFl0wGatewayKey('fl0w-key', configPath)).toBe(false);
-    expect(await readConfig(configPath)).toEqual({ aiGatewayApiKey: 'own-key' });
-  });
-
-  test('keeps a user-supplied AI_GATEWAY_API_KEY env var', async () => {
-    await mkdir(tempRoot, { recursive: true });
-    const configPath = join(tempRoot, 'config.json');
-    await writeFile(configPath, JSON.stringify({ aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER }));
-    process.env.AI_GATEWAY_API_KEY = 'own-key';
-
-    expect(await saveFl0wGatewayKey('fl0w-key', configPath)).toBe(false);
-    expect(await readConfig(configPath)).toEqual({ aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER });
-  });
-});
-
 describe('ensureFl0wHome', () => {
   test('creates default home layout when missing', async () => {
     const home = join(tempRoot, 'fresh-home');
@@ -166,7 +99,6 @@ describe('ensureFl0wHome', () => {
 
     const config = JSON.parse(await Bun.file(join(home, 'config.json')).text());
     expect(config).toEqual({
-      aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER,
       llmModel: DEFAULT_LLM_MODEL,
       decisionModel: DEFAULT_DECISION_MODEL,
       mode: DEFAULT_AGENT_MODE,
@@ -189,7 +121,6 @@ describe('ensureFl0wHome', () => {
     const config = JSON.parse(await Bun.file(join(home, 'config.json')).text());
     expect(config).toEqual({
       llmModel: 'custom/model',
-      aiGatewayApiKey: AI_GATEWAY_API_KEY_PLACEHOLDER,
       decisionModel: DEFAULT_DECISION_MODEL,
       mode: DEFAULT_AGENT_MODE,
       contextWindow: DEFAULT_CONTEXT_WINDOW,
@@ -198,5 +129,30 @@ describe('ensureFl0wHome', () => {
 
     const mcpConfig = JSON.parse(await Bun.file(join(home, 'mcp.json')).text());
     expect(mcpConfig.mcpServers.demo).toEqual({ command: 'echo' });
+  });
+
+  test('drops the retired aiGatewayApiKey and aiProxy fields', async () => {
+    const home = join(tempRoot, 'legacy-home');
+    await mkdir(home, { recursive: true });
+    await writeFile(join(home, 'config.json'), JSON.stringify({
+      aiGatewayApiKey: 'old-key',
+      aiProxy: true,
+      llmModel: 'custom/model',
+      decisionModel: DEFAULT_DECISION_MODEL,
+      mode: DEFAULT_AGENT_MODE,
+      contextWindow: DEFAULT_CONTEXT_WINDOW,
+      sync: true,
+    }));
+
+    await ensureFl0wHome(home);
+
+    const config = JSON.parse(await Bun.file(join(home, 'config.json')).text());
+    expect(config).toEqual({
+      llmModel: 'custom/model',
+      decisionModel: DEFAULT_DECISION_MODEL,
+      mode: DEFAULT_AGENT_MODE,
+      contextWindow: DEFAULT_CONTEXT_WINDOW,
+      sync: true,
+    });
   });
 });

@@ -16,8 +16,7 @@ mock.module('../../constants', () => ({
 const { APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH } = await import('../../constants');
 // these tests write config files; never let them reach the real ~/.fl0w
 if (![APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('config-sync test is not isolated');
-const { flushPendingPushes, syncConfigFiles, syncOnStartup, watchLocalConfigWrites } = await import('./config-sync');
-const { saveFl0wGatewayKey } = await import('../config/app-config');
+const { flushPendingPushes, notifyLocalWrite, syncConfigFiles, syncOnStartup, watchLocalConfigWrites } = await import('./config-sync');
 
 type Row = { version: number, updatedAt: string, content: unknown };
 let server: Map<string, Row>;
@@ -81,22 +80,20 @@ describe('syncConfigFiles', () => {
     expect(requests).toEqual([]);
   });
 
-  test('local mode: a bring-your-own key with no login never calls fl0w-work', async () => {
+  test('signed out: local config writes never call fl0w-work', async () => {
     await write('auth.json', {});
-    await write('config.json', { aiGatewayApiKey: 'own-key' });
-    const previousKey = process.env.AI_GATEWAY_API_KEY;
+    await write('config.json', { llmModel: 'local' });
     const stopWatching = watchLocalConfigWrites();
     try {
       expect(await syncOnStartup()).toBeNull();
       // a local config write schedules a push, which must no-op without a login
-      expect(await saveFl0wGatewayKey('own-key', join(home, 'config.json'))).toBe(true);
+      await write('config.json', { llmModel: 'local-2' });
+      notifyLocalWrite(join(home, 'config.json'));
       await flushPendingPushes();
       expect(requests).toEqual([]);
       expect(await Bun.file(join(home, 'sync-state.json')).exists()).toBe(false);
     } finally {
       stopWatching();
-      if (previousKey === undefined) delete process.env.AI_GATEWAY_API_KEY;
-      else process.env.AI_GATEWAY_API_KEY = previousKey;
     }
   });
 
@@ -136,12 +133,12 @@ describe('syncConfigFiles', () => {
   });
 
   test('first sync on a new device lets the server win conflicts and keeps local-only keys', async () => {
-    server.set('config.json', { version: 3, updatedAt: new Date(0).toISOString(), content: { llmModel: 'remote', aiGatewayApiKey: 'k' } });
+    server.set('config.json', { version: 3, updatedAt: new Date(0).toISOString(), content: { llmModel: 'remote', decisionModel: 'k' } });
     server.set('auth.json', { version: 1, updatedAt: new Date(0).toISOString(), content: { mcp: { linear: { tokens: { access_token: 't' } } } } });
 
     const results = await syncConfigFiles();
     expect(results?.['config.json']).toBe('pulled');
-    expect(await read('config.json')).toEqual({ llmModel: 'remote', aiGatewayApiKey: 'k' });
+    expect(await read('config.json')).toEqual({ llmModel: 'remote', decisionModel: 'k' });
     // auth.json gains the remote MCP tokens and keeps this device's login without pushing it
     expect(results?.['auth.json']).toBe('pulled');
     expect(await read('auth.json')).toEqual({ fl0w: fl0wLogin, mcp: { linear: { tokens: { access_token: 't' } } } });
@@ -188,14 +185,14 @@ describe('syncConfigFiles', () => {
   });
 
   test('retries once against the latest version when another device pushes first', async () => {
-    await write('config.json', { llmModel: 'base', aiGatewayApiKey: 'k' });
+    await write('config.json', { llmModel: 'base', decisionModel: 'k' });
     await syncConfigFiles();
-    await write('config.json', { llmModel: 'base', aiGatewayApiKey: 'k-local' });
+    await write('config.json', { llmModel: 'base', decisionModel: 'k-local' });
     await backdate('config.json');
     conflictOnce = 'config.json';
 
     expect((await syncConfigFiles())?.['config.json']).toBe('pulled');
-    const expected = { llmModel: 'raced', aiGatewayApiKey: 'k' };
+    const expected = { llmModel: 'raced', decisionModel: 'k' };
     expect(await read('config.json')).toEqual(expected);
     expect(server.get('config.json')?.content).toEqual(expected);
   });

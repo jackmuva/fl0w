@@ -1,3 +1,4 @@
+import { createGateway } from '@ai-sdk/gateway';
 import { FL0W_API_URL } from '../../constants';
 import type { Fl0wAuth } from '../../models/auth';
 import { readAuthFile, updateAuthFile } from './auth-store';
@@ -12,7 +13,7 @@ export class Fl0wAuthError extends Error {
 
 export class NotLoggedInError extends Error {
   constructor() {
-    super('Not signed in to fl0w. Run `fl0w login` (or set AI_GATEWAY_API_KEY).');
+    super('Not signed in to fl0w. Run `fl0w login`.');
   }
 }
 
@@ -21,15 +22,13 @@ type TokenResponse = {
   refresh_token: string;
   expires_in: number;
   user: { id: string; email: string };
-  /** Only returned for the authorization_code grant (`fl0w login`). */
-  ai_gateway_api_key?: string;
 };
 
 type TokenRequest =
   | { grant_type: 'authorization_code', code: string, code_verifier: string }
   | { grant_type: 'refresh_token', refresh_token: string };
 
-export async function requestTokens(request: TokenRequest): Promise<{ auth: Fl0wAuth, aiGatewayApiKey?: string }> {
+export async function requestTokens(request: TokenRequest): Promise<Fl0wAuth> {
   const res = await fetch(`${FL0W_API_URL}/api/cli/token`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -41,13 +40,10 @@ export async function requestTokens(request: TokenRequest): Promise<{ auth: Fl0w
     throw new Fl0wAuthError(code, body.error_description ?? `fl0w sign-in failed (${code})`);
   }
   return {
-    auth: {
-      accessToken: body.access_token,
-      refreshToken: body.refresh_token,
-      expiresAt: Date.now() + (body.expires_in ?? 0) * 1000,
-      user: body.user,
-    },
-    aiGatewayApiKey: body.ai_gateway_api_key,
+    accessToken: body.access_token,
+    refreshToken: body.refresh_token,
+    expiresAt: Date.now() + (body.expires_in ?? 0) * 1000,
+    user: body.user,
   };
 }
 
@@ -68,7 +64,7 @@ let refreshing: Promise<Fl0wAuth> | null = null;
 const refresh = (auth: Fl0wAuth): Promise<Fl0wAuth> => {
   refreshing ??= (async () => {
     try {
-      const { auth: next } = await requestTokens({ grant_type: 'refresh_token', refresh_token: auth.refreshToken });
+      const next = await requestTokens({ grant_type: 'refresh_token', refresh_token: auth.refreshToken });
       await saveFl0wAuth(next);
       return next;
     } catch (error) {
@@ -90,3 +86,18 @@ export async function getAccessToken({ force = false } = {}): Promise<string> {
   if (!force && auth.expiresAt - Date.now() > REFRESH_SKEW_MS) return auth.accessToken;
   return (await refresh(auth)).accessToken;
 }
+
+export const fl0wModelProvider = createGateway({
+  baseURL: `${FL0W_API_URL}/api/cli/ai`,
+  // Placeholder so the provider skips its env/OIDC key lookup; fetch sets the real bearer token.
+  apiKey: 'fl0w',
+  fetch: Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
+    const send = async (force: boolean) => {
+      const headers = new Headers(init?.headers);
+      headers.set('authorization', `Bearer ${await getAccessToken({ force })}`);
+      return fetch(input, { ...init, headers });
+    };
+    const res = await send(false);
+    return res.status === 401 ? send(true) : res;
+  }, { preconnect: fetch.preconnect }),
+});
