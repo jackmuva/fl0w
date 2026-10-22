@@ -102,7 +102,7 @@ async function syncFile(filename: SyncFilename, state: SyncState, meta: RemoteFi
   const changedLocally = !before || !jsonEqual(merged, before);
   const shared = shareable(filename, merged);
 
-  if (jsonEqual(shared, shareable(filename, remote.content))) {
+  if (jsonEqual(shared, remote.content)) {
     state.files[filename] = { version: remote.version, updatedAt: remote.updatedAt, base: shared };
     return changedLocally ? 'pulled' : 'unchanged';
   }

@@ -120,16 +120,18 @@ describe('syncConfigFiles', () => {
     await syncConfigFiles();
     expect(server.get('config.json')?.content).toEqual({ llmModel: 'local' });
 
-    // a remote copy carrying sync: false (e.g. from an older client) never turns this device off
+    // a remote copy carrying sync: false (e.g. from an older client) never turns this device off, and is scrubbed
     server.set('config.json', { version: 2, updatedAt: new Date().toISOString(), content: { llmModel: 'web', sync: false } });
-    expect((await syncConfigFiles())?.['config.json']).toBe('pulled');
+    expect((await syncConfigFiles())?.['config.json']).toBe('merged');
     expect(await read('config.json')).toEqual({ llmModel: 'web', sync: true });
+    expect(server.get('config.json')?.content).toEqual({ llmModel: 'web' });
   });
 
   test('first sync pushes local files that the server lacks', async () => {
     expect(await syncConfigFiles()).toEqual({ 'config.json': 'pushed', 'mcp.json': 'pushed', 'auth.json': 'pushed' });
     expect(server.get('config.json')?.content).toEqual({ llmModel: 'local' });
-    expect(server.get('auth.json')?.content).toEqual({ fl0w: fl0wLogin });
+    // the fl0w login stays on this device
+    expect(server.get('auth.json')?.content).toEqual({});
     expect((await stat(join(home, 'sync-state.json'))).mode & 0o777).toBe(0o600);
   });
 
@@ -140,10 +142,31 @@ describe('syncConfigFiles', () => {
     const results = await syncConfigFiles();
     expect(results?.['config.json']).toBe('pulled');
     expect(await read('config.json')).toEqual({ llmModel: 'remote', aiGatewayApiKey: 'k' });
-    // auth.json gains the remote MCP tokens and keeps (and pushes) this device's login
-    expect(results?.['auth.json']).toBe('merged');
+    // auth.json gains the remote MCP tokens and keeps this device's login without pushing it
+    expect(results?.['auth.json']).toBe('pulled');
     expect(await read('auth.json')).toEqual({ fl0w: fl0wLogin, mcp: { linear: { tokens: { access_token: 't' } } } });
-    expect(server.get('auth.json')?.version).toBe(2);
+    expect(server.get('auth.json')?.version).toBe(1);
+  });
+
+  test('a login refresh during sync does not outrank MCP tokens added on fl0w-work', async () => {
+    await syncConfigFiles();
+    const linear = { mcp: { linear: { tokens: { access_token: 't' } } } };
+    server.set('auth.json', { version: 2, updatedAt: new Date(Date.now() - 60_000).toISOString(), content: linear });
+    // what getAccessToken() writes when the token is near expiry
+    const refreshed = { ...fl0wLogin, accessToken: 'a2' };
+    await write('auth.json', { fl0w: refreshed });
+
+    expect((await syncConfigFiles())?.['auth.json']).toBe('pulled');
+    expect(await read('auth.json')).toEqual({ fl0w: refreshed, ...linear });
+    expect(server.get('auth.json')).toMatchObject({ version: 2, content: linear });
+  });
+
+  test('scrubs a fl0w login an older fl0w-cli pushed', async () => {
+    server.set('auth.json', { version: 1, updatedAt: new Date(0).toISOString(), content: { fl0w: { ...fl0wLogin, accessToken: 'old' } } });
+
+    expect((await syncConfigFiles())?.['auth.json']).toBe('pushed');
+    expect(await read('auth.json')).toEqual({ fl0w: fl0wLogin });
+    expect(server.get('auth.json')).toMatchObject({ version: 2, content: {} });
   });
 
   test('later syncs only download changed files and push local edits', async () => {

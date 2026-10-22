@@ -1,11 +1,9 @@
-import type { Fl0wAuth } from '../../models/auth';
 import type { JsonObject, SyncFilename } from '../../models/sync';
 
-/** Per-device settings: never pushed, and a pull never overwrites them. */
 const LOCAL_ONLY: Record<SyncFilename, readonly string[]> = {
   'config.json': ['sync'],
   'mcp.json': [],
-  'auth.json': [],
+  'auth.json': ['fl0w'],
 };
 
 const isObject = (value: unknown): value is JsonObject =>
@@ -28,9 +26,6 @@ const canonical = (value: unknown): unknown => {
 
 export const jsonEqual = (a: unknown, b: unknown) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 
-const pickFl0wAuth = (local: unknown, remote: unknown) =>
-  ((remote as Fl0wAuth | undefined)?.expiresAt ?? 0) > ((local as Fl0wAuth | undefined)?.expiresAt ?? 0) ? remote : local;
-
 export function mergeConfig(
   filename: SyncFilename,
   { base, local, remote, preferLocal }: { base?: JsonObject | null, local: JsonObject | null, remote: JsonObject | null, preferLocal: boolean },
@@ -38,7 +33,6 @@ export function mergeConfig(
   const [b, l, r] = [base, local, remote].map((value) => shareable(filename, asJsonObject(value)));
   const merged = { ...(jsonEqual(r, b) || (preferLocal && !jsonEqual(l, b)) ? l : r) };
   const localObj = asJsonObject(local);
-  if (filename === 'auth.json' && localObj.fl0w) merged.fl0w = pickFl0wAuth(localObj.fl0w, asJsonObject(remote).fl0w);
   for (const key of LOCAL_ONLY[filename]) {
     if (localObj[key] !== undefined) merged[key] = localObj[key];
   }
