@@ -349,7 +349,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
               label={
                 generating
                   ? "Generating workflow…"
-                  : "Working… (Ctrl+C to stop)"
+                  : "Generating next step… (Ctrl+C to stop)"
               }
             />
           ) : copiedVisible ? (
