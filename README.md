@@ -44,15 +44,15 @@ On first launch fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`, 
    ```json
    {
      "aiGatewayApiKey": "YOUR_VERCEL_AI_GATEWAY_API_KEY",
-     "llmModel": "zai/glm-5.3-flash",
-     "decisionModel": "openai/gpt-6-luna-decisions",
+     "llmModel": "zai/glm-5.3",
+     "decisionModel": "typesafe-ai/jev",
      "mode": "decision",
-     "contextWindow": 1000000,
+     "contextWindow": 232000,
      "sync": true
    }
    ```
 
-   `fl0w login` fills in `aiGatewayApiKey` (or set your own / `AI_GATEWAY_API_KEY`). Adjust `llmModel` and `decisionModel` (tool choices) as needed. Set `"mode": "llm"` to run a standard tool-calling loop on `llmModel` instead of the decision-model graph (`decisionModel` is unused in that mode). Model names in [Vercel's model list](https://vercel.com/ai-gateway/models). Set `contextWindow` (or `CONTEXT_WINDOW`) to match your model’s context size — it drives compaction and the usage meter (default `1000000`).
+   `fl0w login` fills in `aiGatewayApiKey` (or set your own / `AI_GATEWAY_API_KEY`). Adjust `llmModel` and `decisionModel` (tool choices) as needed. Set `"mode": "llm"` to run a standard tool-calling loop on `llmModel` instead of the decision-model graph (`decisionModel` is unused in that mode). Model names in [Vercel's model list](https://vercel.com/ai-gateway/models). Set `contextWindow` (or `CONTEXT_WINDOW`) to match your model’s context size — it drives compaction and the usage meter (default `232000`).
 2. Optional: local skills in `~/.fl0w/skills/`.
 3. Optional: MCPs in `~/.fl0w/mcp.json`, using [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers).
 4. Optional: `AGENTS.md` files alongside your skills.
@@ -70,6 +70,18 @@ When signed in, fl0w keeps `config.json`, `mcp.json`, and `auth.json` in sync wi
 ```bash
 fl0w
 ```
+
+### TUI slash commands
+
+Type `/` in the input for completions:
+
+| Command | Description |
+| --- | --- |
+| `/clear` | Clear the saved conversation for this workspace |
+| `/sessions` | Choose a saved session to resume |
+| `/configure` | Choose which MCPs, skills, tools, and `AGENTS.md` to enable |
+| `/generate` | Create a workflow from a saved session |
+| `/workflow` | Run a saved workflow with additional instructions |
 
 ### Headless CLI
 
@@ -112,7 +124,7 @@ fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions
 | `--messages` | `-m` | Prior messages JSON file, used instead of the local session store. |
 | `--remote` | — | Run without persisting messages or capabilities locally. |
 
-- The positional argument is a workflow JSON file on disk, or a workflow **id** stored in `~/.fl0w/fl0w-sqlite.db` (same records the TUI saves with `/generate-workflow`).
+- The positional argument is a workflow JSON file on disk, or a workflow **id** stored in `~/.fl0w/fl0w-sqlite.db` (same records the TUI saves with `/generate`).
 - Workflow runs inject a system instruction to avoid clarifying questions when possible; the agent should assume and continue.
 
 Example:
@@ -203,6 +215,7 @@ Clear areas split (details in `AGENTS.md`):
 src/
 ├── index.tsx             # Entry point – loads config and renders the TUI
 ├── constants.ts          # Shared constants (FL0W_HOME, LLM_MODEL, SYSTEM_ONE_MODEL, …)
+├── cli/                  # Headless CLI entry points (workflow, session, capabilities, help)
 ├── db/                   # Persistence (sessions, workflows)
 ├── models/               # Data models / types
 ├── services/             # Business logic (agent, auth, config, mcp, sync, workflow)
