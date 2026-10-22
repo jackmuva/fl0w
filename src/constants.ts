@@ -21,7 +21,7 @@ export const USER_TOOLS_DIR = join(FL0W_HOME, 'tools');
 
 export const FL0W_SKILLS_DIR = join(FL0W_HOME, 'skills');
 
-export const DEFAULT_CONTEXT_WINDOW = 1_000_000;
+export const DEFAULT_CONTEXT_WINDOW = 232_000;
 
 const parseContextWindow = (raw: string | undefined): number | undefined => {
   if (!raw) return undefined;
@@ -73,7 +73,6 @@ export const parseAgentMode = (raw: string | undefined): AgentMode | undefined =
 
 export let AGENT_MODE = parseAgentMode(process.env.AGENT_MODE) ?? DEFAULT_AGENT_MODE;
 
-/** Re-read `LLM_MODEL`, `DECISION_MODEL`, `AGENT_MODE`, and `CONTEXT_WINDOW` from `process.env` (after `loadAppConfig`). */
 export const applyModelConfig = (): void => {
   LLM_MODEL = parseConfigString(process.env.LLM_MODEL) ?? DEFAULT_LLM_MODEL;
   DECISION_MODEL = parseConfigString(process.env.DECISION_MODEL) ?? DEFAULT_DECISION_MODEL;

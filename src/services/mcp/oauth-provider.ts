@@ -5,6 +5,7 @@ import type {
   OAuthTokens,
 } from '@modelcontextprotocol/sdk/shared/auth.js';
 import type { OAuthDiscoveryState } from '@modelcontextprotocol/sdk/client/auth.js';
+import type { CliOutput } from '../../models/agent';
 import type { McpServerAuth } from '../../models/auth';
 import type { OAuthOptions } from '../../models/mcp';
 import { HEADLESS } from '../../constants';
@@ -13,6 +14,16 @@ import { callbackUrl, listenForAuthCode } from '../auth/callback-server';
 import { openBrowser } from '../utils';
 
 const DEFAULT_CALLBACK_PORT = 33418;
+
+const reportedAuthRequired = new Set<string>();
+
+/** Tells whoever runs headless fl0w (fl0w-work) which server to re-authorize; once per server per process. */
+const reportAuthRequired = (server: string, serverUrl: string) => {
+  if (reportedAuthRequired.has(server)) return;
+  reportedAuthRequired.add(server);
+  const line: CliOutput = { type: 'mcp_auth_required', server, serverUrl };
+  console.log(JSON.stringify(line));
+};
 
 export class FileOAuthProvider implements OAuthClientProvider {
   private readonly port: number;
@@ -67,7 +78,10 @@ export class FileOAuthProvider implements OAuthClientProvider {
   }
 
   async redirectToAuthorization(authorizationUrl: URL) {
-    if (HEADLESS) throw new Error(`MCP server "${this.serverName}" needs authorization; authorize it in interactive fl0w first`);
+    if (HEADLESS) {
+      reportAuthRequired(this.serverName, this.serverUrl);
+      throw new Error(`MCP server "${this.serverName}" needs authorization; authorize it in fl0w-work or interactive fl0w`);
+    }
     // listen before opening the browser so a fast redirect can't be missed
     this.pendingCode = listenForAuthCode(this.port, this.currentState).code;
     this.onAuthorize(this.serverName, authorizationUrl);

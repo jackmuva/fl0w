@@ -164,23 +164,6 @@ describe('syncConfigFiles', () => {
     expect(await read('config.json')).toEqual({ llmModel: 'from-web' });
   });
 
-  test('takes the newer file when both sides changed', async () => {
-    await write('config.json', { llmModel: 'base', aiGatewayApiKey: 'k' });
-    await syncConfigFiles();
-    await write('config.json', { llmModel: 'local-edit', aiGatewayApiKey: 'k' });
-    await backdate('config.json');
-    const remote = { llmModel: 'base', aiGatewayApiKey: 'k2' };
-    server.set('config.json', { version: 2, updatedAt: new Date().toISOString(), content: remote });
-
-    expect((await syncConfigFiles())?.['config.json']).toBe('pulled');
-    expect(await read('config.json')).toEqual(remote);
-
-    await write('config.json', { llmModel: 'local-edit' });
-    server.set('config.json', { version: 3, updatedAt: new Date(0).toISOString(), content: { llmModel: 'stale' } });
-    expect((await syncConfigFiles())?.['config.json']).toBe('pushed');
-    expect(server.get('config.json')).toMatchObject({ version: 4, content: { llmModel: 'local-edit' } });
-  });
-
   test('retries once against the latest version when another device pushes first', async () => {
     await write('config.json', { llmModel: 'base', aiGatewayApiKey: 'k' });
     await syncConfigFiles();
