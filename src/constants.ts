@@ -42,7 +42,8 @@ export const COMPACTION_TOKEN_THRESHOLD = 0.75;
 
 export const TOOL_TOKEN_THRESHOLD = 0.25;
 
-export const TOOL_REDUCE_MAX_ITERATIONS = 5;
+/** Max MCP tools passed to decision routing after LLM tool selection. */
+export const MAX_ROUTED_TOOL_OPTIONS = 10;
 
 /** TypeSafe Choice allows at most 255 options; action select adds a few meta actions. */
 export const MAX_EVALUATE_TOOL_OPTIONS = 250;

@@ -1,18 +1,20 @@
 import {
   CONTEXT_WINDOW,
-  MAX_EVALUATE_TOOL_OPTIONS,
-  DECISION_MODEL,
-  TOOL_REDUCE_MAX_ITERATIONS,
+  LLM_MODEL,
+  MAX_ROUTED_TOOL_OPTIONS,
   TOOL_TOKEN_THRESHOLD,
 } from '../../../constants';
 import type { AgentState } from '../../../models/agent';
 import { mcpToolKey, type McpTool } from '../../../models/mcp';
 import { retryModelCall } from '../../utils';
 import { toModelMessages } from '../utils/fl0w-message';
-import { buildToolCriteria } from '../utils/tools';
 import { estimateTextTokens } from './compaction';
 import { recordLlmUsage } from './session-usage';
-import { experimental_evaluate as evaluate, type JSONValue } from 'ai';
+import {
+  generateText,
+  jsonSchema,
+  Output,
+} from 'ai';
 
 const toolTokenLimit = (): number => Math.floor(CONTEXT_WINDOW * TOOL_TOKEN_THRESHOLD);
 
@@ -27,122 +29,160 @@ const toolToText = (tool: McpTool): string => {
 const estimateToolTokens = (tools: McpTool[]): number =>
   tools.reduce((total, tool) => total + estimateTextTokens(toolToText(tool)), 0);
 
-const chunkToolsByTokenLimit = (
-  tools: McpTool[],
-  maxToolsPerChunk = MAX_EVALUATE_TOOL_OPTIONS,
-): McpTool[][] => {
-  const chunks: McpTool[][] = [];
-  let cur: McpTool[] = [];
-  for (const tool of tools) {
-    if (estimateToolTokens([tool]) > toolTokenLimit()) {
-      if (cur.length > 0) {
-        chunks.push(cur);
-        cur = [];
-      }
-      chunks.push([tool]);
-      continue;
-    }
-    const next = [...cur, tool];
-    if (next.length > maxToolsPerChunk || estimateToolTokens(next) > toolTokenLimit()) {
-      if (cur.length > 0) chunks.push(cur);
-      cur = [tool];
-    } else {
-      cur = next;
-    }
-  }
-  if (cur.length > 0) chunks.push(cur);
-  return chunks;
-};
-
-const rankToolsInChunk = async (state: AgentState, chunk: McpTool[]): Promise<McpTool[]> => {
-  const chunkKeys = new Set(chunk.map(mcpToolKey));
-  const runEvaluate = () => retryModelCall(() => evaluate({
-    model: DECISION_MODEL,
-    state: [{
-      messages: toModelMessages(state.messages) as JSONValue,
-    }],
-    questions: {
-      selectedAction: {
-        type: 'choice',
-        instructions: 'Which action should we call next?',
-        criteria: buildToolCriteria(chunk, true),
-      },
-    },
-  }));
-
-  let actionEvaluation;
-  try {
-    actionEvaluation = await runEvaluate();
-  } catch {
-    try {
-      actionEvaluation = await runEvaluate();
-    } catch {
-      if (chunk.length <= 1) return chunk;
-      return chunk.slice(0, Math.max(1, Math.floor(chunk.length / 2)));
-    }
-  }
-  recordLlmUsage(actionEvaluation);
-
-  const { answers } = actionEvaluation;
-  const threshold = 1 / (chunk.length * 2);
-  const probabilities = answers.selectedAction.probabilities ?? { [answers.selectedAction.choice]: 1 };
-  let rankedKeys = Object.entries(probabilities)
-    .filter(([key]) => chunkKeys.has(key))
-    .filter(([, probability]) => probability > threshold)
-    .sort(([, a], [, b]) => b - a)
-    .map(([key]) => key);
-
-  if (rankedKeys.length === 0) {
-    rankedKeys = Object.entries(probabilities)
-      .filter(([key]) => chunkKeys.has(key))
-      .sort(([, a], [, b]) => b - a)
-      .map(([key]) => key);
-    if (rankedKeys.length === 0) return chunk;
-  }
-
-  const keep = new Set(rankedKeys);
-  let kept = chunk.filter((tool) => keep.has(mcpToolKey(tool)));
-  if (kept.length === chunk.length && chunk.length > 1) {
-    const halfKeys = new Set(
-      rankedKeys.slice(0, Math.max(1, Math.floor(chunk.length / 2))),
-    );
-    kept = chunk.filter((tool) => halfKeys.has(mcpToolKey(tool)));
-  }
-  return kept;
-};
-
 const toolsWithinLimits = (tools: McpTool[], maxToolCount: number): boolean =>
   estimateToolTokens(tools) <= toolTokenLimit() && tools.length <= maxToolCount;
+
+const fitToolsToLimits = (tools: McpTool[], maxToolCount: number): McpTool[] => {
+  const kept: McpTool[] = [];
+  for (const tool of tools) {
+    const next = [...kept, tool];
+    if (next.length > maxToolCount) break;
+    if (estimateToolTokens(next) > toolTokenLimit()) break;
+    kept.push(tool);
+  }
+  if (kept.length > 0) return kept;
+  return tools.slice(0, 1);
+};
+
+type ToolSelection = { toolNames: string[] };
+
+const toolSelectionSchema = (maxTools: number) => jsonSchema<ToolSelection>({
+  type: 'object',
+  properties: {
+    toolNames: {
+      type: 'array',
+      items: { type: 'string' },
+      minItems: 1,
+      maxItems: maxTools,
+      description: 'Exact MCP tool keys (server/name) needed for the next step, most relevant first',
+    },
+  },
+  required: ['toolNames'],
+});
+
+const jsonPromptSuffix = (maxTools: number) => `
+
+Return only a single JSON object (no markdown fences or surrounding prose) with:
+- toolNames: string[] (1–${maxTools} exact tool keys from the catalog, most relevant first)`;
+
+const normalizeSelectedToolNames = (
+  raw: unknown,
+  validKeys: Set<string>,
+  maxTools: number,
+): string[] => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
+  const record = raw as Record<string, unknown>;
+  if (!Array.isArray(record.toolNames)) return [];
+
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const entry of record.toolNames) {
+    if (typeof entry !== 'string') continue;
+    const key = entry.trim();
+    if (!key || !validKeys.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    names.push(key);
+    if (names.length >= maxTools) break;
+  }
+  return names;
+};
+
+const parseToolSelectionJson = (text: string, validKeys: Set<string>, maxTools: number): string[] => {
+  const unfenced = text
+    .trim()
+    .replace(/^```(?:json)?\s*\n?/, '')
+    .replace(/\n?```\s*$/, '')
+    .trim();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(unfenced);
+  } catch {
+    throw new Error('Could not parse tool selection JSON');
+  }
+
+  return normalizeSelectedToolNames(parsed, validKeys, maxTools);
+};
+
+const selectToolNamesWithLlm = async (
+  state: AgentState,
+  tools: McpTool[],
+  maxToolCount: number,
+): Promise<string[]> => {
+  const validKeys = new Set(tools.map(mcpToolKey));
+  const catalog = tools.map(toolToText).join('\n');
+  const messagesJson = JSON.stringify(toModelMessages(state.messages));
+
+  const instructions = `You route an agent by choosing which MCP tools should be available for the next decision step.
+
+Given the conversation and the full tool catalog below, return only the tool keys that are likely needed for the immediate next step. Prefer fewer tools when possible. Use exact keys from the catalog (server/name format).
+
+Select at most ${maxToolCount} tools.
+
+Conversation (JSON messages):
+${messagesJson}
+
+Tool catalog:
+${catalog}`;
+
+  const runStructured = () => retryModelCall(() => generateText({
+    model: LLM_MODEL,
+    prompt: instructions,
+    output: Output.object({
+      schema: toolSelectionSchema(maxToolCount),
+      name: 'ToolSelection',
+      description: 'MCP tool keys relevant for the next agent step',
+    }),
+  }));
+
+  try {
+    const generation = await runStructured();
+    recordLlmUsage(generation);
+    return normalizeSelectedToolNames(generation.output, validKeys, maxToolCount);
+  } catch { }
+
+  const generation = await retryModelCall(() => generateText({
+    model: LLM_MODEL,
+    prompt: instructions + jsonPromptSuffix(maxToolCount),
+  }));
+  recordLlmUsage(generation);
+  return parseToolSelectionJson(generation.text, validKeys, maxToolCount);
+};
+
+const orderToolsByKeys = (tools: McpTool[], keys: string[]): McpTool[] => {
+  const byKey = new Map(tools.map((tool) => [mcpToolKey(tool), tool]));
+  return keys.map((key) => byKey.get(key)).filter((tool): tool is McpTool => tool !== undefined);
+};
 
 export const reduceTools = async (
   state: AgentState,
   tools: McpTool[],
-  iteration = 0,
-  maxToolCount = MAX_EVALUATE_TOOL_OPTIONS,
+  maxToolCount = MAX_ROUTED_TOOL_OPTIONS,
 ): Promise<McpTool[]> => {
-  const tokens = estimateToolTokens(tools);
+  if (tools.length === 0) return tools;
   if (toolsWithinLimits(tools, maxToolCount)) return tools;
-  if (iteration >= TOOL_REDUCE_MAX_ITERATIONS) {
-    const parts = [
-      `estimated ${tokens} tokens (limit ${toolTokenLimit()})`,
-      tools.length > maxToolCount ? `${tools.length} tools (limit ${maxToolCount})` : null,
-    ].filter(Boolean).join(', ');
+
+  let selectedKeys: string[] = [];
+  try {
+    selectedKeys = await selectToolNamesWithLlm(state, tools, maxToolCount);
+  } catch {
+    selectedKeys = [];
+  }
+
+  let reduced = selectedKeys.length > 0
+    ? orderToolsByKeys(tools, selectedKeys)
+    : fitToolsToLimits(tools, maxToolCount);
+
+  if (!toolsWithinLimits(reduced, maxToolCount)) {
+    reduced = fitToolsToLimits(reduced, maxToolCount);
+  }
+
+  if (!toolsWithinLimits(reduced, maxToolCount)) {
+    const tokens = estimateToolTokens(reduced);
     throw new Error(
-      `Could not reduce enabled tools for System One routing (${parts}) after ${TOOL_REDUCE_MAX_ITERATIONS} filtering attempts. Try disabling some MCP servers or capabilities.`,
+      `Could not reduce enabled tools for routing (estimated ${tokens} tokens, limit ${toolTokenLimit()}). Try disabling some MCP servers or capabilities.`,
     );
   }
 
-  const toolChunks = chunkToolsByTokenLimit(tools);
-  const filteredChunks = await Promise.allSettled(
-    toolChunks.map((chunk) => rankToolsInChunk(state, chunk)),
-  );
-  let filteredTools = filteredChunks.flatMap((result, i) =>
-    result.status === 'fulfilled' ? result.value : toolChunks[i]!,
-  );
-
-  if (filteredTools.length === tools.length && tools.length > 1) {
-    filteredTools = tools.slice(0, Math.max(1, Math.floor(tools.length / 2)));
-  }
-
-  return reduceTools(state, filteredTools, iteration + 1, maxToolCount);
+  return reduced;
 };

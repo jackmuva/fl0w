@@ -4,9 +4,11 @@ export type MessageAnswerInput = {
   answer: string;
 };
 
-export const messageAnswerDescription = `Present an answer to the user's question.
+export const messageAnswerDescription = `Use this tool to present an answer to the user's question. 
 
-Use this tool when the user asks an informational question that you can answer from the conversation or general knowledge.
+**IMPORTANT**: Be extremely concise unless the user asks for an elaboration or extremely detailed answer.
+
+Example include: synthesizing results from tools calls, general answer to a question that doesn't require tools calls, an answer where the user requested a certain format.
 
 Do NOT use this tool for commands or action requests (reading files, running commands, editing code, searching the codebase, etc.). For those, use the appropriate action tool instead.`;
 
