@@ -48,7 +48,7 @@ export const buildWorkflowUserMessage = (
       formatWorkflowHeader(workflow.title),
       '',
       WORKFLOW_PROMPT_LEAD,
-      'Adapt {{placeholder}} values using the additional instructions below (instructions and values are optional).',
+      'If additional instructions or values are given, use them for {{placeholder}} values below (additional instructions and values are optional).',
       '',
       '## Goal',
       '',
