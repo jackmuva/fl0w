@@ -1,12 +1,13 @@
 {
   "name": "fl0w",
-  "version": "0.1.52",
+  "version": "0.1.53",
   "module": "src/index.tsx",
   "type": "module",
   "private": true,
   "scripts": {
     "dev": "bun run --watch src/index.tsx",
     "download": "curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | bash",
+    "poll": "bash poll.sh",
     "build": "bun build --compile --outfile fl0w src/index.tsx",
     "install:opentui-platforms": "bun add --os=\"*\" --cpu=\"*\" @opentui/core@$(node -pe \"require('./package.json').dependencies['@opentui/core']\")",
     "build:linux-x64": "bun build --compile --target=bun-linux-x64 --define process.env.OPENTUI_LIBC='\"glibc\"' --outfile dist/fl0w-linux-x64 src/index.tsx",
