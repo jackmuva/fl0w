@@ -116,9 +116,8 @@ const selectToolNamesWithLlm = async (
   const catalog = tools.map(toolToText).join('\n');
   const messagesJson = JSON.stringify(toModelMessages(state.messages));
 
-  const instructions = `You route an agent by choosing which MCP tools should be available for the next decision step.
-
-Given the conversation and the full tool catalog below, return only the tool keys that are likely needed for the immediate next step. Prefer fewer tools when possible. Use exact keys from the catalog (server/name format).
+  const instructions = `
+Given the conversation and the full tool catalog below, return only the tool keys that are likely needed for the user's last task. Prefer fewer tools when possible. Use exact keys from the catalog (server/name format).
 
 Select at most ${maxToolCount} tools.
 
@@ -157,12 +156,45 @@ const orderToolsByKeys = (tools: McpTool[], keys: string[]): McpTool[] => {
   return keys.map((key) => byKey.get(key)).filter((tool): tool is McpTool => tool !== undefined);
 };
 
+const catalogKey = (tools: McpTool[]): string => tools.map(mcpToolKey).join('\0');
+
+const lastUserMessageIndex = (messages: AgentState['messages']): number => {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.message.role === 'user') return i;
+  }
+  return -1;
+};
+
+type ToolRouteCache = {
+  catalogKey: string;
+  userTurnIndex: number;
+  toolKeys: string[];
+};
+
+let toolRouteCache: ToolRouteCache | undefined;
+
+export const clearToolRouteCache = (): void => {
+  toolRouteCache = undefined;
+};
+
 export const reduceTools = async (
   state: AgentState,
   tools: McpTool[],
 ): Promise<McpTool[]> => {
   if (tools.length === 0) return tools;
   if (withinToolTokenBudget(tools)) return tools;
+
+  const key = catalogKey(tools);
+  const userTurnIndex = lastUserMessageIndex(state.messages);
+  if (
+    toolRouteCache?.catalogKey === key
+    && toolRouteCache.userTurnIndex === userTurnIndex
+    && toolRouteCache.toolKeys.length > 0
+  ) {
+    let cached = orderToolsByKeys(tools, toolRouteCache.toolKeys);
+    if (!withinRoutedLimits(cached)) cached = fitToolsToLimits(cached, MAX_ROUTED_TOOL_OPTIONS);
+    if (withinRoutedLimits(cached)) return cached;
+  }
 
   let selectedKeys: string[] = [];
   try {
@@ -186,5 +218,6 @@ export const reduceTools = async (
     );
   }
 
+  toolRouteCache = { catalogKey: key, userTurnIndex, toolKeys: reduced.map(mcpToolKey) };
   return reduced;
 };

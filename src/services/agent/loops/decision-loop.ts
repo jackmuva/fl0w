@@ -14,7 +14,6 @@ import {
   prepareToolCallNode,
 } from './graph';
 import {
-  endRunWithError,
   stopIfAborted,
   sync,
   type fl0wLoopCallback,
@@ -33,14 +32,7 @@ const runNode = async (
 
   try {
     current = sync(await node(current), callback);
-  } catch {
-    try {
-      current = sync(await compactionHook(current, true), callback);
-      current = sync(await node(current), callback);
-    } catch (retryError) {
-      return { ok: false, state: endRunWithError(current, retryError, callback) };
-    }
-  }
+  } catch { }
 
   ended = stopIfAborted(current, callback, signal);
   if (ended) return { ok: false, state: ended };

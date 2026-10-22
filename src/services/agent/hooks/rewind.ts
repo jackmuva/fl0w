@@ -1,6 +1,8 @@
 import type { AgentState } from "../../../models/agent";
+import { clearToolRouteCache } from "./tool-filter";
 
 export const rewindState = (checkpoints: Array<{ state: AgentState, options: string[] }>, state: AgentState) => {
+  clearToolRouteCache();
   let newState = { ...state };
   let newCheckpoints = [...checkpoints];
   while (newCheckpoints.length > 0) {
