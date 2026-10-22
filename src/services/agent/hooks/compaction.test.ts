@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import { mapToolResultOutput } from 'ai/internal';
 import type { Fl0wMessage } from '../../../models/agent';
-import { COMPACTION_TOKEN_THRESHOLD, DEFAULT_CONTEXT_WINDOW } from '../../../constants';
+import { COMPACTION_TOKEN_THRESHOLD } from '../../../constants';
 import { estimateMessagesTokens, shrinkMessagesToTokenBudget } from './compaction';
+
+// Fixed window so payload sizes stay meaningful regardless of DEFAULT_CONTEXT_WINDOW.
+const TEST_CONTEXT_WINDOW = 32_000;
 
 const largeToolResult = (size: number): Fl0wMessage => ({ message: {
   role: 'tool',
@@ -36,7 +39,7 @@ describe('estimateMessagesTokens', () => {
     ];
 
     const estimate = estimateMessagesTokens(messages);
-    const tokenLimit = DEFAULT_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
+    const tokenLimit = TEST_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
 
     expect(estimate).toBeGreaterThan(tokenLimit);
   });
@@ -48,7 +51,7 @@ describe('shrinkMessagesToTokenBudget', () => {
       { message: { role: 'user', content: 'read the file' } },
       largeToolResult(80_000),
     ];
-    const tokenLimit = DEFAULT_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
+    const tokenLimit = TEST_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
 
     expect(estimateMessagesTokens(messages)).toBeGreaterThan(tokenLimit);
 
@@ -82,7 +85,7 @@ describe('shrinkMessagesToTokenBudget', () => {
       payload(80_000, 'old'),
       payload(80_000, 'new'),
     ];
-    const tokenLimit = DEFAULT_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
+    const tokenLimit = TEST_CONTEXT_WINDOW * COMPACTION_TOKEN_THRESHOLD;
 
     const shrunk = shrinkMessagesToTokenBudget(messages, tokenLimit);
     const oldValue = shrunk[1]?.message.role === 'tool' && Array.isArray(shrunk[1].message.content)

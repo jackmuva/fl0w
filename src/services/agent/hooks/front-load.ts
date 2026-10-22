@@ -15,7 +15,7 @@ export type SkillSummary = {
 };
 
 export const getSkillsDirs = (cwd = process.cwd()): string[] => [
-  join(resolve(cwd),'.agents', 'skills'),
+  join(resolve(cwd), '.agents', 'skills'),
   join(homedir(), '.cursor', 'skills-cursor'),
   join(homedir(), '.claude', 'skills'),
   join(FL0W_HOME, 'skills'),

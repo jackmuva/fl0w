@@ -50,7 +50,7 @@ describe('frontLoadMessages skills', () => {
   });
 
   test('getSkillsDirs includes the workspace skills directory first', () => {
-    expect(getSkillsDirs(tempRoot)[0]).toBe(join(tempRoot, 'skills'));
+    expect(getSkillsDirs(tempRoot)[0]).toBe(join(tempRoot, '.agents', 'skills'));
   });
 
   test('getSkillsDirs lists FL0W_HOME/skills last', () => {
@@ -78,7 +78,7 @@ describe('frontLoadMessages skills', () => {
   });
 
   test('frontLoadMessages discovers workspace skills without a custom skillsDirs override', async () => {
-    const skillsDir = join(tempRoot, 'skills', 'workspace-skill');
+    const skillsDir = join(tempRoot, '.agents', 'skills', 'workspace-skill');
     await mkdir(skillsDir, { recursive: true });
     await writeFile(
       join(skillsDir, 'SKILL.md'),
