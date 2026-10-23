@@ -66,7 +66,7 @@ export const TOOL_RESULT_MIN_KEEP = 120;
 
 export const DEFAULT_DECISION_MODEL = 'typesafe-ai/jev';
 
-export const DEFAULT_LLM_MODEL = 'zai/glm-5.3';
+export const DEFAULT_LLM_MODEL = 'deepseek/deepseek-v4.1-flash';
 
 export let LLM_MODEL = parseConfigString(process.env.LLM_MODEL) ?? DEFAULT_LLM_MODEL;
 
