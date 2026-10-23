@@ -5,7 +5,7 @@ import { SessionStore } from '../db/session-store';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/capabilities';
 import { fl0wLoop } from '../services/agent/main-loop';
 import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/ask-question-state';
-import { createTranscriptPrinter } from './cli-output';
+import { createStreamPrinter, createTranscriptPrinter } from './cli-output';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
@@ -178,7 +178,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   process.on('SIGINT', () => abort.abort());
   process.on('SIGTERM', () => abort.abort());
 
-  const outcome = await fl0wLoop(messages, onMessages, abort.signal);
+  const outcome = await fl0wLoop(messages, onMessages, abort.signal, { onStreamText: createStreamPrinter() });
   if (!remote) {
     store.saveMessages(session.id, latest);
     scheduleSessionPush(store);

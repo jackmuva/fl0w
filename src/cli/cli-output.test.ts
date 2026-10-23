@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import type { CliOutput } from '../models/agent';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
-import { createTranscriptPrinter } from './cli-output';
+import { createStreamPrinter, createTranscriptPrinter } from './cli-output';
 
 describe('createTranscriptPrinter', () => {
   let lines: CliOutput[];
@@ -42,5 +42,36 @@ describe('createTranscriptPrinter', () => {
 
     expect(lines.map((line) => line.type)).toEqual(['snapshot', 'snapshot', 'snapshot']);
     expect(lines[2]).toEqual({ type: 'snapshot', messages: [truncated, summary] });
+  });
+});
+
+describe('createStreamPrinter', () => {
+  let lines: CliOutput[];
+  let logSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    lines = [];
+    logSpy = spyOn(console, 'log').mockImplementation((line: string) => void lines.push(JSON.parse(line)));
+  });
+  afterEach(() => logSpy.mockRestore());
+
+  test('prints only new text, ends on commit, and restarts when the preview diverges', () => {
+    const print = createStreamPrinter();
+    print('Hel');
+    print('Hello');
+    print('Hello');
+    print(null);
+    print(null);
+    print('Retry');
+    print('Other');
+
+    expect(lines).toEqual([
+      { type: 'stream_delta', delta: 'Hel' },
+      { type: 'stream_delta', delta: 'lo' },
+      { type: 'stream_end' },
+      { type: 'stream_delta', delta: 'Retry' },
+      { type: 'stream_end' },
+      { type: 'stream_delta', delta: 'Other' },
+    ]);
   });
 });

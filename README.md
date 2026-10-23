@@ -92,6 +92,10 @@ fl0w help | -h | --help    # list commands and flags
   - `{"type":"snapshot","messages":[...]}` first (prior messages plus this turn's input), and again whenever compaction or a rewind rewrites earlier entries.
   - `{"type":"message","index":N,"message":{...}}` for each appended entry.
   - Replaying the lines in order rebuilds the transcript.
+- While the model writes assistant text (LLM-mode replies, decision-mode `message_answer` answers and `create_plan` plans), a live preview streams alongside:
+  - `{"type":"stream_delta","delta":"..."}` appends to the preview.
+  - `{"type":"stream_end"}` discards it (the finished text then arrives as a `message`, or a retried call starts a new preview).
+  - The preview isn't part of the transcript, so replays can ignore these lines.
 - The run ends with a single result line:
 
   ```json
