@@ -1,4 +1,4 @@
-import { generateText, type ModelMessage, type ToolSet } from 'ai';
+import { streamText, type ModelMessage, type ToolSet } from 'ai';
 import { HEADLESS, LLM_MODEL, MAX_ITERATIONS } from '../../../constants';
 import type { AgentState, Fl0wMessage } from '../../../models/agent';
 import { mcpClient } from '../../mcp/mcp-client';
@@ -18,20 +18,22 @@ import {
   toAiSdkTools,
 } from '../utils/tools';
 
-export type LlmGenerateText = typeof generateText;
+export type LlmStreamText = typeof streamText;
 
-let generateLlmText: LlmGenerateText = generateText;
+let streamLlmText: LlmStreamText = streamText;
 
 /** Test-only hook so unit tests can stub model calls without mocking the `ai` package. */
-export const setLlmGenerateText = (fn: LlmGenerateText): void => {
-  generateLlmText = fn;
+export const setLlmStreamText = (fn: LlmStreamText): void => {
+  streamLlmText = fn;
 };
 
-export const resetLlmGenerateText = (): void => {
-  generateLlmText = generateText;
+export const resetLlmStreamText = (): void => {
+  streamLlmText = streamText;
 };
 
 type LoopCallback = (messages: Fl0wMessage[]) => void;
+/** Receives the assistant text streamed so far in the current turn; `null` once the turn is committed. */
+export type StreamTextCallback = (text: string | null) => void;
 type LoopResult = 'ok' | 'error' | 'stopped';
 
 const LLM_INSTRUCTIONS = [
@@ -114,18 +116,37 @@ const executeLlmToolCall = async (call: {
 const runLlmTurn = async (
   state: AgentState,
   model: string,
+  callback: LoopCallback,
   signal?: AbortSignal,
+  onStreamText?: StreamTextCallback,
 ): Promise<AgentState> => {
   const availableTools = await listAllTools();
   const tools: ToolSet = toAiSdkTools(availableTools);
   const prompt = preparePrompt(LLM_INSTRUCTIONS, state.messages);
-  const result = await retryModelCall(() => generateLlmText({
-    model,
-    abortSignal: signal,
-    instructions: prompt.instructions,
-    messages: prompt.messages,
-    tools,
-  }));
+  const result = await retryModelCall(async () => {
+    const stream = streamLlmText({
+      model,
+      abortSignal: signal,
+      instructions: prompt.instructions,
+      messages: prompt.messages,
+      tools,
+      // Errors are rethrown from the stream below; skip the SDK's default console.error.
+      onError: () => {},
+    });
+    let text = '';
+    for await (const part of stream.fullStream) {
+      if (part.type === 'error') throw part.error;
+      if (part.type !== 'text-delta') continue;
+      text += part.text;
+      onStreamText?.(text);
+    }
+    return {
+      text: await stream.text,
+      toolCalls: await stream.toolCalls,
+      usage: await stream.usage,
+      providerMetadata: await stream.providerMetadata,
+    };
+  });
   recordLlmUsage(result);
 
   const toolCalls = result.toolCalls;
@@ -133,6 +154,9 @@ const runLlmTurn = async (
   let messages = assistant
     ? [...state.messages, fl0wMessage(assistant)]
     : [...state.messages];
+  // Commit the streamed text before running tools so it stays visible while they execute.
+  if (assistant) callback(messages);
+  onStreamText?.(null);
 
   for (const call of toolCalls) {
     const toolMessage = await executeLlmToolCall(call);
@@ -153,6 +177,7 @@ export const llmLoop = async (
   callback: LoopCallback,
   signal?: AbortSignal,
   model: string = LLM_MODEL,
+  onStreamText?: StreamTextCallback,
 ): Promise<LoopResult> => {
   let state: AgentState = { state: 'START', messages: [...messages] };
   if (findPendingAskQuestion(state.messages)) return 'ok';
@@ -170,12 +195,14 @@ export const llmLoop = async (
     if (ended) return 'stopped';
 
     try {
-      current = sync(await runLlmTurn(current, model, signal), callback);
+      current = sync(await runLlmTurn(current, model, callback, signal, onStreamText), callback);
     } catch {
+      onStreamText?.(null);
       try {
         current = sync(await compactionHook(current, true), callback);
-        current = sync(await runLlmTurn(current, model, signal), callback);
+        current = sync(await runLlmTurn(current, model, callback, signal, onStreamText), callback);
       } catch (retryError) {
+        onStreamText?.(null);
         endRunWithError(current, retryError, callback);
         return 'error';
       }

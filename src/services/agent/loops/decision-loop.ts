@@ -4,6 +4,7 @@ import { compactionHook } from '../hooks/compaction';
 import { rewindState } from '../hooks/rewind';
 import { findPendingAskQuestion } from '../utils/ask-question-state';
 import { fl0wMessage } from '../utils/fl0w-message';
+import type { StreamTextCallback } from './llm-loop';
 import {
   actionSelectNode,
   clarifyTaskNode,
@@ -25,6 +26,7 @@ const runNode = async (
   node: (state: AgentState) => Promise<AgentState>,
   callback: fl0wLoopCallback,
   signal?: AbortSignal,
+  onStreamText?: StreamTextCallback,
 ): Promise<{ ok: boolean; state: AgentState }> => {
   let current = sync(await compactionHook(state), callback);
   let ended = stopIfAborted(current, callback, signal);
@@ -33,6 +35,7 @@ const runNode = async (
   try {
     current = sync(await node(current), callback);
   } catch { }
+  onStreamText?.(null);
 
   ended = stopIfAborted(current, callback, signal);
   if (ended) return { ok: false, state: ended };
@@ -46,6 +49,7 @@ export const decisionLoop = async (
   messages: Fl0wMessage[],
   callback: fl0wLoopCallback,
   signal?: AbortSignal,
+  onStreamText?: StreamTextCallback,
 ): Promise<fl0wLoopResult> => {
   let state: AgentState = { state: 'START', messages: [...messages] };
 
@@ -57,7 +61,7 @@ export const decisionLoop = async (
   if (state.state === 'END') return 'ok';
 
   if (state.state === 'PLAN') {
-    result = await runNode(state, createPlanNode, callback, signal);
+    result = await runNode(state, (s) => createPlanNode(s, onStreamText), callback, signal, onStreamText);
     state = result.state;
     if (!result.ok) return 'error';
   } else if (state.state === 'DISCOVERY') {
@@ -92,7 +96,7 @@ export const decisionLoop = async (
 
     const runningTool = state.state === 'EXECUTE';
     if (runningTool) {
-      result = await runNode(state, prepareToolCallNode, callback, signal);
+      result = await runNode(state, (s) => prepareToolCallNode(s, onStreamText), callback, signal, onStreamText);
       state = result.state;
       if (!result.ok) return 'error';
       if (needsPreparedToolExecution(state)) {

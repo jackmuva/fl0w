@@ -2,18 +2,29 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { Fl0wMessage } from '../../../models/agent';
 import { fl0wMessage } from '../utils/fl0w-message';
 import { getSessionUsageState, resetSessionUsage } from '../hooks/session-usage';
-import { resetLlmGenerateText, setLlmGenerateText } from './llm-loop';
+import { resetLlmStreamText, setLlmStreamText } from './llm-loop';
 import { fl0wLoop, resolveAgentMode } from '../main-loop';
 import { ASK_QUESTION_ACTION, CREATE_PLAN_ACTION } from '../utils/tools';
 import { findPendingAskQuestion } from '../utils/ask-question-state';
 
 const usage = { inputTokens: 10, outputTokens: 4, totalTokens: 14 };
 
-const generateText = mock(async (): Promise<unknown> => {
-  throw new Error('generateText mock not configured');
+const streamText = mock((): unknown => {
+  throw new Error('streamText mock not configured');
 });
 
-const textTurn = (text: string) => ({
+/** Shapes a completed turn like a `streamText` result, emitting the text as two deltas. */
+const streamed = <T extends { text: string }>(turn: T) => ({
+  ...turn,
+  fullStream: (async function* () {
+    const mid = Math.ceil(turn.text.length / 2);
+    for (const text of [turn.text.slice(0, mid), turn.text.slice(mid)]) {
+      if (text) yield { type: 'text-delta', id: 't', text };
+    }
+  })(),
+});
+
+const textTurn = (text: string) => streamed({
   text,
   toolCalls: [] as const,
   usage,
@@ -25,7 +36,7 @@ const toolTurn = (
   input: unknown,
   toolCallId = 'call-1',
   extra: { invalid?: boolean; error?: Error; text?: string } = {},
-) => ({
+) => streamed({
   text: extra.text ?? '',
   toolCalls: [{
     toolCallId,
@@ -53,12 +64,12 @@ const collected = (): Run => {
 
 beforeEach(() => {
   resetSessionUsage();
-  generateText.mockReset();
-  setLlmGenerateText(generateText as never);
+  streamText.mockReset();
+  setLlmStreamText(streamText as never);
 });
 
 afterEach(() => {
-  resetLlmGenerateText();
+  resetLlmStreamText();
   resetSessionUsage();
 });
 
@@ -73,7 +84,7 @@ describe('fl0wLoop llm mode', () => {
   const seed = [fl0wMessage({ role: 'user', content: 'hello' })];
 
   test('ends on a final text response and records usage', async () => {
-    generateText.mockImplementation(async () => textTurn('Here is the answer.'));
+    streamText.mockImplementation(() => textTurn('Here is the answer.'));
     const run = collected();
 
     const outcome = await fl0wLoop(seed, run.callback, undefined, { mode: 'llm' });
@@ -85,10 +96,25 @@ describe('fl0wLoop llm mode', () => {
     expect(getSessionUsageState().sessionCostUsd).toBeGreaterThan(0);
   });
 
+  test('streams text deltas to onStreamText and clears them on commit', async () => {
+    streamText.mockImplementation(() => textTurn('Streaming answer'));
+    const run = collected();
+    const updates: Array<string | null> = [];
+
+    const outcome = await fl0wLoop(seed, run.callback, undefined, {
+      mode: 'llm',
+      onStreamText: (text) => updates.push(text),
+    });
+
+    expect(outcome).toBe('ok');
+    expect(updates).toEqual(['Streamin', 'Streaming answer', null]);
+    expect(run.messages.at(-1)?.message).toEqual({ role: 'assistant', content: 'Streaming answer' });
+  });
+
   test('executes a tool call then completes on text', async () => {
-    generateText
-      .mockImplementationOnce(async () => toolTurn('default/message_answer', { answer: 'from the tool' }))
-      .mockImplementationOnce(async () => textTurn('All done.'));
+    streamText
+      .mockImplementationOnce(() => toolTurn('default/message_answer', { answer: 'from the tool' }))
+      .mockImplementationOnce(() => textTurn('All done.'));
     const run = collected();
 
     const outcome = await fl0wLoop(seed, run.callback, undefined, { mode: 'llm' });
@@ -110,9 +136,9 @@ describe('fl0wLoop llm mode', () => {
   });
 
   test('records a CreatePlan tool result without a separate executor', async () => {
-    generateText
-      .mockImplementationOnce(async () => toolTurn(CREATE_PLAN_ACTION, { plan: '1. inspect\n2. edit' }))
-      .mockImplementationOnce(async () => textTurn('Plan captured.'));
+    streamText
+      .mockImplementationOnce(() => toolTurn(CREATE_PLAN_ACTION, { plan: '1. inspect\n2. edit' }))
+      .mockImplementationOnce(() => textTurn('Plan captured.'));
     const run = collected();
 
     const outcome = await fl0wLoop(seed, run.callback, undefined, { mode: 'llm' });
@@ -131,7 +157,7 @@ describe('fl0wLoop llm mode', () => {
   });
 
   test('pauses when the model calls AskQuestion', async () => {
-    generateText.mockImplementation(async () => toolTurn(ASK_QUESTION_ACTION, {
+    streamText.mockImplementation(() => toolTurn(ASK_QUESTION_ACTION, {
       questions: [{
         id: 'q1',
         question: 'Which file?',
@@ -149,7 +175,7 @@ describe('fl0wLoop llm mode', () => {
   });
 
   test('returns stopped when the abort signal is already aborted', async () => {
-    generateText.mockImplementation(async () => textTurn('should not run'));
+    streamText.mockImplementation(() => textTurn('should not run'));
     const run = collected();
     const abort = new AbortController();
     abort.abort();
@@ -158,11 +184,26 @@ describe('fl0wLoop llm mode', () => {
 
     expect(outcome).toBe('stopped');
     expect(run.messages.at(-1)?.message).toEqual({ role: 'assistant', content: 'Run stopped.' });
-    expect(generateText).not.toHaveBeenCalled();
+    expect(streamText).not.toHaveBeenCalled();
+  });
+
+  test('surfaces an error part from the stream', async () => {
+    streamText.mockImplementation(() => ({
+      fullStream: (async function* () {
+        yield { type: 'error', error: new Error('stream broke') };
+      })(),
+    }));
+    const run = collected();
+
+    const outcome = await fl0wLoop(seed, run.callback, undefined, { mode: 'llm' });
+
+    expect(outcome).toBe('error');
+    const last = run.messages.at(-1)?.message;
+    expect(typeof last?.content === 'string' && last.content.includes('stream broke')).toBe(true);
   });
 
   test('surfaces an error after a failed generate retry', async () => {
-    generateText.mockImplementation(async () => {
+    streamText.mockImplementation(() => {
       throw new Error('boom');
     });
     const run = collected();

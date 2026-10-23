@@ -11,6 +11,8 @@ export type Fl0wLoopOptions = {
   mode?: AgentMode;
   llmModel?: string;
   decisionModel?: string;
+  /** Live assistant text while a turn streams (LLM text, or decision-mode answers/plans); `null` once committed. */
+  onStreamText?: (text: string | null) => void;
 };
 
 

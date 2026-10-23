@@ -63,6 +63,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
   }, [getSessions, sessionListRevision])
   const workflowStore = useMemo(() => WorkflowStore.open(), [])
   const [status, setStatus] = useState<"ready" | "working" | "error">("ready")
+  const [streamingText, setStreamingText] = useState<string | null>(null)
   const [completion, setCompletion] = useState<CompletionState>({ open: false })
   const [sessionPickerOpen, setSessionPickerOpen] = useState(false)
   const [generateSessionPickerOpen, setGenerateSessionPickerOpen] = useState(false)
@@ -238,6 +239,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
   })
 
   const finishAgentRun = (outcome: fl0wLoopResult) => {
+    setStreamingText(null)
     setStatus(outcome === "error" ? "error" : "ready")
   }
 
@@ -262,7 +264,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
       const runAbort = new AbortController()
       runAbortRef.current = runAbort
       try {
-        finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal))
+        finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText }))
       } finally {
         runAbortRef.current = null
       }
@@ -279,7 +281,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal))
+      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText }))
     } finally {
       runAbortRef.current = null
     }
@@ -304,7 +306,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal))
+      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText }))
     } finally {
       runAbortRef.current = null
     }
@@ -335,6 +337,12 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
               decision={index > 0 ? parseDecisionMessage(visibleMessages[index - 1]!) : null}
             />
           ))}
+          {streamingText && (
+            <MessageContent
+              message={fl0wMessage({ role: "assistant", content: streamingText })}
+              toolCallInputs={toolCallInputs}
+            />
+          )}
         </scrollbox>
         {width >= 64 && (
           <box position="absolute" right={1} bottom={0} zIndex={1}>

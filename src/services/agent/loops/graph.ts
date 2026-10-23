@@ -1,17 +1,20 @@
 import {
   experimental_evaluate as evaluate,
-  generateText,
   jsonSchema,
+  parsePartialJson,
+  streamText,
   tool,
   ToolChoiceViolationError,
   type JSONValue,
   type ModelMessage,
   type ToolChoice,
+  type generateText,
 } from 'ai';
 import { compactMessages } from '../hooks/compaction';
 import { DECISION_MODEL, HEADLESS, LLM_MODEL } from '../../../constants';
 import { recordLlmUsage } from '../hooks/session-usage';
 import type { AgentState, Fl0wMessage } from '../../../models/agent';
+import type { StreamTextCallback } from './llm-loop';
 import { mcpToolKey } from '../../../models/mcp';
 import { mcpClient } from '../../mcp/mcp-client';
 import { askQuestionTool, type AskQuestionInput } from '../default-tools/ask-question';
@@ -40,6 +43,8 @@ const generateRequiredToolCall = async ({
   toolName,
   maxAttempts = 3,
   forceRequired = true,
+  streamField,
+  onStreamText,
 }: {
   instructions: string;
   messages: Fl0wMessage[];
@@ -47,6 +52,8 @@ const generateRequiredToolCall = async ({
   toolName: string;
   maxAttempts?: number;
   forceRequired?: boolean;
+  streamField?: string;
+  onStreamText?: StreamTextCallback;
 }): Promise<{ toolCall?: Awaited<ReturnType<typeof generateText>>['toolCalls'][number], failureReason?: string }> => {
   let failureReason: string | undefined;
 
@@ -61,13 +68,31 @@ const generateRequiredToolCall = async ({
 
     try {
       const prompt = preparePrompt(instructions, messages);
-      const result = await retryModelCall(() => generateText({
-        model: LLM_MODEL,
-        instructions: prompt.instructions,
-        messages: prompt.messages,
-        tools,
-        toolChoice,
-      }));
+      const result = await retryModelCall(async () => {
+        const stream = streamText({
+          model: LLM_MODEL,
+          instructions: prompt.instructions,
+          messages: prompt.messages,
+          tools,
+          toolChoice,
+          onError: () => {},
+        });
+        let input = '';
+        let preview = '';
+        for await (const part of stream.fullStream) {
+          if (part.type === 'error') throw part.error;
+          if (!streamField || !onStreamText || part.type !== 'tool-input-delta') continue;
+          input += part.delta;
+          const { value } = await parsePartialJson(input);
+          const text = value && typeof value === 'object' ? (value as Record<string, unknown>)[streamField] : undefined;
+          if (typeof text === 'string' && text !== preview) onStreamText(preview = text);
+        }
+        return {
+          toolCalls: await stream.toolCalls,
+          usage: await stream.usage,
+          providerMetadata: await stream.providerMetadata,
+        };
+      });
       recordLlmUsage(result);
 
       const toolCall = result.toolCalls.find((call) => !call.invalid && call.toolName === toolName);
@@ -241,7 +266,7 @@ export const actionSelectNode = async (
   };
 }
 
-export const createPlanNode = async (state: AgentState): Promise<AgentState> => {
+export const createPlanNode = async (state: AgentState, onStreamText?: StreamTextCallback): Promise<AgentState> => {
   const toolList = formatToolList(await listAllTools());
   const planInstructions = `You are a planner. Break the user's task into a short numbered list of steps.
 If a plan already exists, revise it to reflect new information.
@@ -258,6 +283,8 @@ Do not execute any steps or call any of the tools above yet; only call the ${CRE
     toolName: CREATE_PLAN_ACTION,
     maxAttempts: 1,
     forceRequired: true,
+    streamField: 'plan',
+    onStreamText,
   });
 
   if (!toolCall) {
@@ -266,6 +293,8 @@ Do not execute any steps or call any of the tools above yet; only call the ${CRE
       messages: state.messages,
       tools: { [CREATE_PLAN_ACTION]: createPlanTool },
       toolName: CREATE_PLAN_ACTION,
+      streamField: 'plan',
+      onStreamText,
     }));
   }
 
@@ -336,7 +365,7 @@ const pendingToolCallPart = (state: AgentState) => {
 export const needsPreparedToolExecution = (state: AgentState): boolean =>
   !!pendingToolCallPart(state);
 
-export const prepareToolCallNode = async (state: AgentState): Promise<AgentState> => {
+export const prepareToolCallNode = async (state: AgentState, onStreamText?: StreamTextCallback): Promise<AgentState> => {
   const selectedTool = state.selectedTool;
   if (!selectedTool) {
     const message: ModelMessage = {
@@ -346,7 +375,7 @@ export const prepareToolCallNode = async (state: AgentState): Promise<AgentState
     return { state: 'END', messages: [...state.messages, fl0wMessage(message)] };
   }
 
-  if (selectedTool === CREATE_PLAN_ACTION) return createPlanNode(state);
+  if (selectedTool === CREATE_PLAN_ACTION) return createPlanNode(state, onStreamText);
   if (selectedTool === ASK_QUESTION_ACTION) return clarifyTaskNode(state);
 
   const availableTools = await listAllTools();
@@ -374,6 +403,7 @@ export const prepareToolCallNode = async (state: AgentState): Promise<AgentState
     messages: state.messages,
     tools: { [selectedTool]: aiTool },
     toolName: selectedTool,
+    ...(name === MESSAGE_TOOL_NAME && { streamField: 'answer', onStreamText }),
   });
 
   if (!toolCall) {
