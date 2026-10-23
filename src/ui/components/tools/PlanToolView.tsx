@@ -9,7 +9,7 @@ import { ListToolView } from "../primitives/ListToolView"
 import { MarkdownToolView } from "../primitives/MarkdownToolView"
 import { MessageFrame } from "../primitives/MessageFrame"
 
-const renderPlanView = (props: ToolViewProps, planText: string, title = "Plan") => {
+const renderPlanView = (props: ToolViewProps, planText: string, title = "Workflow plan") => {
   const steps = parsePlanSteps(planText)
   const subtitle = concatenateSubtitle(steps) || planText.split("\n").find(Boolean)?.trim()
 
@@ -35,11 +35,10 @@ const renderPlanView = (props: ToolViewProps, planText: string, title = "Plan") 
   )
 }
 
-// The plan body is shown by the result view; the call only marks that a plan was made.
 export const PlanToolCallView = (props: ToolViewProps) => {
   return (
     <MessageFrame title={callTitle(props.toolName)}>
-      <text>Creating plan...</text>
+      <text>Creating workflow plan...</text>
     </MessageFrame>
   )
 }

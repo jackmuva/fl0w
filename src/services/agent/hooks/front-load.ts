@@ -2,7 +2,7 @@ import type { ModelMessage } from 'ai';
 import { readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'path';
-import { FL0W_HOME } from '../../../constants';
+import { CONTEXT_WINDOW, FL0W_HOME } from '../../../constants';
 import { isCapabilityEnabled } from '../capabilities';
 
 export const AGENTS_MD_FILENAME = 'AGENTS.md';
@@ -138,7 +138,10 @@ export const frontLoadMessages = async (
     content:
       `Workspace root: ${workspace}\n` +
       'For file tools (read, edit, write, list_dir, glob), use paths relative to this directory (e.g. "src/index.ts"). ' +
-      'Do not use root-relative paths like "/src/index.ts".',
+      'Do not use root-relative paths like "/src/index.ts".\n\n' +
+      `On managing context: you have a context window of ${CONTEXT_WINDOW} tokens.` +
+      'If tool call results take up too much of the window, write them to files for you to read them later. ' +
+      'ALWAYS clean up files before considering a task complete',
   }];
 
   const agentsPath = join(rootDir, AGENTS_MD_FILENAME);
