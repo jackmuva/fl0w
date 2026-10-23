@@ -230,7 +230,7 @@ export const llmLoop = async (
     state: 'END',
     messages: [...state.messages, fl0wMessage({
       role: 'assistant',
-      content: 'Unable to complete the task with given tools',
+      content: 'Ran into the tool call limit. Ask fl0w to keep going.',
     })],
   }, callback);
   return 'ok';

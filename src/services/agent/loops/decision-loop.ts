@@ -121,7 +121,7 @@ export const decisionLoop = async (
           state: 'END',
           messages: [...state.messages, fl0wMessage({
             role: 'assistant',
-            content: 'Unable to complete the task with given tools',
+            content: 'No more decisions to try.',
           })],
         }, callback);
         return 'ok';
@@ -134,7 +134,7 @@ export const decisionLoop = async (
     state: 'END',
     messages: [...state.messages, fl0wMessage({
       role: 'assistant',
-      content: 'Unable to complete the task with given tools',
+      content: 'Ran into the tool call limit. Ask fl0w to keep going.',
     })],
   }, callback);
   return 'ok';
