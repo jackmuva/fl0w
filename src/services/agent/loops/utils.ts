@@ -13,6 +13,8 @@ export type Fl0wLoopOptions = {
   decisionModel?: string;
   /** Live assistant text while a turn streams (LLM text, or decision-mode answers/plans); `null` once committed. */
   onStreamText?: (text: string | null) => void;
+  /** Session whose workspace (`FL0W_HOME/workspace/<id>`) receives oversized tool outputs. */
+  sessionId?: string;
 };
 
 

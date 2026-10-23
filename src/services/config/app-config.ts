@@ -8,6 +8,7 @@ import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_DECISION_MODEL,
   DEFAULT_LLM_MODEL,
+  DEFAULT_TOOL_OUTPUT_MAX_CHARS,
   FL0W_HOME,
   parseAgentMode,
   parseConfigString,
@@ -30,6 +31,7 @@ const defaultAppConfig = (): AppConfig => ({
   decisionModel: DEFAULT_DECISION_MODEL,
   mode: DEFAULT_AGENT_MODE,
   contextWindow: DEFAULT_CONTEXT_WINDOW,
+  toolOutputMaxChars: DEFAULT_TOOL_OUTPUT_MAX_CHARS,
   sync: true,
 });
 
@@ -44,6 +46,7 @@ const ensureConfigDefaults = async (path: string): Promise<void> => {
     decisionModel: config.decisionModel ?? defaults.decisionModel,
     mode: parseAgentMode(config.mode) ?? config.mode ?? defaults.mode,
     contextWindow: config.contextWindow ?? defaults.contextWindow,
+    toolOutputMaxChars: config.toolOutputMaxChars ?? defaults.toolOutputMaxChars,
     sync: config.sync ?? defaults.sync,
   };
   await writeJsonAtomic(path, merged);
@@ -61,6 +64,9 @@ export async function loadAppConfig(path = APP_CONFIG_PATH): Promise<AppConfig> 
   if (config.contextWindow != null && config.contextWindow > 0) {
     process.env.CONTEXT_WINDOW = String(Math.floor(config.contextWindow));
   }
+  if (config.toolOutputMaxChars != null && config.toolOutputMaxChars > 0) {
+    process.env.TOOL_OUTPUT_MAX_CHARS = String(Math.floor(config.toolOutputMaxChars));
+  }
   applyModelConfig();
   return config;
 }
@@ -77,6 +83,7 @@ export async function ensureFl0wHome(home = FL0W_HOME): Promise<void> {
   mkdirSync(home, { recursive: true });
   await mkdir(join(home, 'tools'), { recursive: true });
   await mkdir(join(home, 'skills'), { recursive: true });
+  await mkdir(join(home, 'workspace'), { recursive: true });
 
   const configPath = join(home, 'config.json');
   await writeDefaultJsonIfMissing(configPath, defaultAppConfig());

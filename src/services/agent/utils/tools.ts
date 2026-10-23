@@ -1,12 +1,15 @@
 import { jsonSchema, tool, type generateText, type JSONValue } from "ai";
 import { mcpToolKey, type McpTool, type McpToolResult } from "../../../models/mcp";
-import { HEADLESS } from "../../../constants";
+import { HEADLESS, sessionWorkspacePath, TOOL_OUTPUT_MAX_CHARS } from "../../../constants";
 import { mcpClient } from "../../mcp/mcp-client";
 import { isCapabilityEnabled, isMcpToolEnabled } from "../capabilities";
 import { executeDefaultTool, getDefaultTool, isDefaultToolKey, listDefaultTools } from "../default-tools";
-import { DEFAULT_ASK_QUESTION_TOOL, DEFAULT_CREATE_PLAN_TOOL } from "../default-tools/utils";
+import { DEFAULT_ASK_QUESTION_TOOL, DEFAULT_CREATE_PLAN_TOOL, defaultToolKey } from "../default-tools/utils";
 import { listSkills } from "../hooks/front-load";
 import { executeUserTool, isUserToolKey, listUserTools } from "../user-tools/loader";
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { toolOutputFileNotice } from "../default-tools/read-full-tool-output";
 
 export const CREATE_PLAN_ACTION = DEFAULT_CREATE_PLAN_TOOL;
 export const ASK_QUESTION_ACTION = DEFAULT_ASK_QUESTION_TOOL;
@@ -47,9 +50,7 @@ export const buildToolCriteria = (tools: McpTool[], onlyTools: boolean = false) 
     description: t.description ?? 'No description provided',
     inputSchema: t.inputSchema as JSONValue,
   }]));
-
   if (onlyTools) return criteria;
-
   criteria = {
     ...criteria,
     taskCompleted: {
@@ -78,7 +79,6 @@ export const formatToolList = (tools: McpTool[]) => tools
   .join('\n');
 
 export const listAllTools = async () => [
-  // load_skill is useless when every skill is disabled
   ...listDefaultTools().filter((entry) => {
     if (entry.name === 'load_skill' && listSkills().length === 0) return false;
     if (HEADLESS && entry.name === 'ask_question') return false;
@@ -99,14 +99,52 @@ export const toAiSdkTools = (tools: McpTool[]) =>
     })];
   }));
 
+export const READ_FULL_TOOL_OUTPUT_TOOL = defaultToolKey('read_full_tool_output');
+
+const UNCAPPED_TOOLS = new Set([READ_FULL_TOOL_OUTPUT_TOOL, defaultToolKey('message_answer'), CREATE_PLAN_ACTION]);
+
+export type ToolCallContext = {
+  toolCallId: string;
+  sessionId?: string;
+};
+
+export const capToolOutput = async (
+  result: McpToolResult,
+  toolCallId: string,
+  sessionId?: string,
+): Promise<McpToolResult> => {
+  const max = TOOL_OUTPUT_MAX_CHARS;
+  if (result.content.length <= max) return result;
+
+  const preview = result.content.slice(0, max);
+  const header = `[Output truncated: showing first ${max} of ${result.content.length} chars.`;
+  if (!sessionId) return { ...result, content: `${header} Full output was not saved (no session).]\n${preview}` };
+
+  const safeName = `${result.server}_${result.tool}-${toolCallId}`.replace(/[^\w.-]/g, '_');
+  const path = join(sessionWorkspacePath(sessionId), `${safeName}.txt`);
+  try {
+    await mkdir(sessionWorkspacePath(sessionId), { recursive: true });
+    await writeFile(path, result.content, 'utf-8');
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return { ...result, content: `${header} Full output could not be saved: ${reason}]\n${preview}` };
+  }
+  return { ...result, content: `${header} ${toolOutputFileNotice(path)}.]\n${preview}` };
+};
+
 export const executeNamedTool = async (
   toolName: string,
   input: Record<string, unknown>,
+  context?: ToolCallContext,
 ): Promise<McpToolResult> => {
   const { server, name } = parseToolKey(toolName);
-  if (isDefaultToolKey(toolName)) return executeDefaultTool(name, input);
-  if (isUserToolKey(toolName)) return executeUserTool(name, input);
-  return mcpClient.callTool(server, name, input);
+  const result = isDefaultToolKey(toolName)
+    ? await executeDefaultTool(name, input)
+    : isUserToolKey(toolName)
+      ? await executeUserTool(name, input)
+      : await mcpClient.callTool(server, name, input);
+  if (!context || UNCAPPED_TOOLS.has(toolName)) return result;
+  return capToolOutput(result, context.toolCallId, context.sessionId);
 };
 
 

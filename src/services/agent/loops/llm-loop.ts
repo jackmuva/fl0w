@@ -92,7 +92,7 @@ const executeLlmToolCall = async (call: {
   input: unknown;
   invalid?: boolean;
   error?: unknown;
-}): Promise<ModelMessage | undefined> => {
+}, sessionId?: string): Promise<ModelMessage | undefined> => {
   if (call.invalid) {
     const detail = call.error instanceof Error ? call.error.message : 'Invalid tool call.';
     return toolResultMessage(call.toolCallId, call.toolName, detail, true);
@@ -109,7 +109,11 @@ const executeLlmToolCall = async (call: {
     return toolResultMessage(call.toolCallId, call.toolName, plan);
   }
 
-  const result = await executeNamedTool(call.toolName, (call.input ?? {}) as Record<string, unknown>);
+  const result = await executeNamedTool(
+    call.toolName,
+    (call.input ?? {}) as Record<string, unknown>,
+    { toolCallId: call.toolCallId, sessionId },
+  );
   return mcpClient.toMessage(call.toolCallId, result);
 };
 
@@ -119,6 +123,7 @@ const runLlmTurn = async (
   callback: LoopCallback,
   signal?: AbortSignal,
   onStreamText?: StreamTextCallback,
+  sessionId?: string,
 ): Promise<AgentState> => {
   const availableTools = await listAllTools();
   const tools: ToolSet = toAiSdkTools(availableTools);
@@ -159,7 +164,7 @@ const runLlmTurn = async (
   onStreamText?.(null);
 
   for (const call of toolCalls) {
-    const toolMessage = await executeLlmToolCall(call);
+    const toolMessage = await executeLlmToolCall(call, sessionId);
     if (toolMessage) messages = [...messages, fl0wMessage(toolMessage)];
   }
 
@@ -178,6 +183,7 @@ export const llmLoop = async (
   signal?: AbortSignal,
   model: string = LLM_MODEL,
   onStreamText?: StreamTextCallback,
+  sessionId?: string,
 ): Promise<LoopResult> => {
   let state: AgentState = { state: 'START', messages: [...messages] };
   if (findPendingAskQuestion(state.messages)) return 'ok';
@@ -195,12 +201,12 @@ export const llmLoop = async (
     if (ended) return 'stopped';
 
     try {
-      current = sync(await runLlmTurn(current, model, callback, signal, onStreamText), callback);
+      current = sync(await runLlmTurn(current, model, callback, signal, onStreamText, sessionId), callback);
     } catch {
       onStreamText?.(null);
       try {
         current = sync(await compactionHook(current, true), callback);
-        current = sync(await runLlmTurn(current, model, callback, signal, onStreamText), callback);
+        current = sync(await runLlmTurn(current, model, callback, signal, onStreamText, sessionId), callback);
       } catch (retryError) {
         onStreamText?.(null);
         endRunWithError(current, retryError, callback);

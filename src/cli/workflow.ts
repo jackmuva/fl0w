@@ -112,7 +112,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   process.on('SIGINT', () => abort.abort());
   process.on('SIGTERM', () => abort.abort());
 
-  const outcome = await fl0wLoop(messages, onMessages, abort.signal, { onStreamText: createStreamPrinter() });
+  const outcome = await fl0wLoop(messages, onMessages, abort.signal, { onStreamText: createStreamPrinter(), sessionId: session.id });
   if (!remote) {
     store.saveMessages(session.id, latest);
     scheduleSessionPush(store);

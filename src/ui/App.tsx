@@ -264,7 +264,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
       const runAbort = new AbortController()
       runAbortRef.current = runAbort
       try {
-        finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText }))
+        finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText, sessionId: session.id }))
       } finally {
         runAbortRef.current = null
       }
@@ -281,7 +281,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText }))
+      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText, sessionId: session.id }))
     } finally {
       runAbortRef.current = null
     }
@@ -306,7 +306,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText }))
+      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText, sessionId: session.id }))
     } finally {
       runAbortRef.current = null
     }

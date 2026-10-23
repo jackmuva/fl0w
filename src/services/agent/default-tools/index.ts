@@ -17,6 +17,12 @@ import { executeGlob, globDescription, globTool, globToolSchema } from './glob';
 import { executeListDir, listDirDescription, listDirTool, listDirToolSchema } from './list-dir';
 import { executeGrep, grepDescription, grepTool, grepToolSchema } from './grep';
 import { executeReadFile, readFileDescription, readFileTool, readFileToolSchema } from './read-file';
+import {
+  executeReadFullToolOutput,
+  readFullToolOutputDescription,
+  readFullToolOutputTool,
+  readFullToolOutputToolSchema,
+} from './read-full-tool-output';
 import { executeWriteFile, writeFileDescription, writeFileTool, writeFileToolSchema } from './write-file';
 import { DEFAULT_TOOL_SERVER } from './utils';
 import { executeWebFetch, webFetchDescription, webFetchTool, webFetchToolSchema } from './web-fetch';
@@ -74,6 +80,13 @@ const defaultToolEntries: DefaultToolEntry[] = [
     inputSchema: readFileToolSchema,
     execute: (args) => executeReadFile(args as Parameters<typeof executeReadFile>[0]),
     tool: readFileTool,
+  },
+  {
+    name: 'read_full_tool_output',
+    description: readFullToolOutputDescription,
+    inputSchema: readFullToolOutputToolSchema,
+    execute: (args) => executeReadFullToolOutput(args as Parameters<typeof executeReadFullToolOutput>[0]),
+    tool: readFullToolOutputTool,
   },
   {
     name: 'grep',

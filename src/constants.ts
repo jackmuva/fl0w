@@ -21,9 +21,14 @@ export const USER_TOOLS_DIR = join(FL0W_HOME, 'tools');
 
 export const FL0W_SKILLS_DIR = join(FL0W_HOME, 'skills');
 
+/** Per-session scratch space; oversized tool outputs spill here. */
+export const WORKSPACE_DIR = join(FL0W_HOME, 'workspace');
+
+export const sessionWorkspacePath = (sessionId: string): string => join(WORKSPACE_DIR, sessionId);
+
 export const DEFAULT_CONTEXT_WINDOW = 232_000;
 
-const parseContextWindow = (raw: string | undefined): number | undefined => {
+const parsePositiveInt = (raw: string | undefined): number | undefined => {
   if (!raw) return undefined;
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return undefined;
@@ -36,7 +41,12 @@ export const parseConfigString = (raw: string | undefined): string | undefined =
   return trimmed;
 };
 
-export let CONTEXT_WINDOW = parseContextWindow(process.env.CONTEXT_WINDOW) ?? DEFAULT_CONTEXT_WINDOW;
+export let CONTEXT_WINDOW = parsePositiveInt(process.env.CONTEXT_WINDOW) ?? DEFAULT_CONTEXT_WINDOW;
+
+/** Tool results longer than this are truncated; the full text is written to the session workspace. */
+export const DEFAULT_TOOL_OUTPUT_MAX_CHARS = 20_000;
+
+export let TOOL_OUTPUT_MAX_CHARS = parsePositiveInt(process.env.TOOL_OUTPUT_MAX_CHARS) ?? DEFAULT_TOOL_OUTPUT_MAX_CHARS;
 
 export const COMPACTION_TOKEN_THRESHOLD = 0.75;
 
@@ -76,7 +86,8 @@ export const applyModelConfig = (): void => {
   LLM_MODEL = parseConfigString(process.env.LLM_MODEL) ?? DEFAULT_LLM_MODEL;
   DECISION_MODEL = parseConfigString(process.env.DECISION_MODEL) ?? DEFAULT_DECISION_MODEL;
   AGENT_MODE = parseAgentMode(process.env.AGENT_MODE) ?? DEFAULT_AGENT_MODE;
-  CONTEXT_WINDOW = parseContextWindow(process.env.CONTEXT_WINDOW) ?? DEFAULT_CONTEXT_WINDOW;
+  CONTEXT_WINDOW = parsePositiveInt(process.env.CONTEXT_WINDOW) ?? DEFAULT_CONTEXT_WINDOW;
+  TOOL_OUTPUT_MAX_CHARS = parsePositiveInt(process.env.TOOL_OUTPUT_MAX_CHARS) ?? DEFAULT_TOOL_OUTPUT_MAX_CHARS;
 };
 
 export const USER_TOOL_SERVER = 'user';

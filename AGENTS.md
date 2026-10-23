@@ -29,6 +29,9 @@ conversational agent that plans, executes, and distills tasks into reusable work
 - **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content, and the skills
   catalog seed the conversation before the UI boots.
 - **Capabilities** — skills, MCP servers, `AGENTS.md`, and user tools are discoverable/toggleable.
+- **Tool output cap** — `executeNamedTool` truncates results over `TOOL_OUTPUT_MAX_CHARS` (`toolOutputMaxChars`, default `20000`)
+  and writes the full text to `FL0W_HOME/workspace/<sessionId>/`; the model reads it back via `default/read_full_tool_output`.
+  Compaction lists every saved file in its summary; deleting a session removes its workspace folder.
 - **Persistence** — sessions in SQLite (`DB_PATH` → `FL0W_HOME/fl0w-sqlite.db`, resume via `/resume`).
 - **Workflows** — sessions distill into reusable workflows (`/generate-workflow`, `/run-workflow`).
 - **Skills** — found in `./skills`, `FL0W_HOME/skills`, `~/.cursor/skills-cursor`; loaded via `load_skill`.

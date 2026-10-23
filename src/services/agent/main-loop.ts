@@ -23,7 +23,8 @@ export const fl0wLoop = async (
       signal,
       parseConfigString(options?.llmModel) ?? LLM_MODEL,
       options?.onStreamText,
+      options?.sessionId,
     );
   }
-  return decisionLoop(messages, callback, signal, options?.onStreamText);
+  return decisionLoop(messages, callback, signal, options?.onStreamText, options?.sessionId);
 };

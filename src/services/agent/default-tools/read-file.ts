@@ -7,7 +7,6 @@ import {
   IMAGE_MIMES,
   mimeFromExtension,
   pathExists,
-  resolveWorkspacePath,
 } from './utils';
 
 export type ReadFileInput = {

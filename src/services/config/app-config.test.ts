@@ -10,7 +10,9 @@ import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_DECISION_MODEL,
   DEFAULT_LLM_MODEL,
+  DEFAULT_TOOL_OUTPUT_MAX_CHARS,
   LLM_MODEL,
+  TOOL_OUTPUT_MAX_CHARS,
 } from '../../constants';
 import { ensureFl0wHome, loadAppConfig } from './app-config';
 
@@ -27,7 +29,7 @@ afterEach(async () => {
 });
 
 beforeEach(() => {
-  for (const key of ['LLM_MODEL', 'DECISION_MODEL', 'AGENT_MODE', 'CONTEXT_WINDOW'] as const) {
+  for (const key of ['LLM_MODEL', 'DECISION_MODEL', 'AGENT_MODE', 'CONTEXT_WINDOW', 'TOOL_OUTPUT_MAX_CHARS'] as const) {
     previousEnv[key] = process.env[key];
     delete process.env[key];
   }
@@ -88,6 +90,16 @@ describe('loadAppConfig', () => {
     expect(process.env.CONTEXT_WINDOW).toBe('128000');
     expect(CONTEXT_WINDOW).toBe(128_000);
   });
+
+  test('loads toolOutputMaxChars into process.env and TOOL_OUTPUT_MAX_CHARS', async () => {
+    await mkdir(tempRoot, { recursive: true });
+    const configPath = join(tempRoot, 'config.json');
+    await writeFile(configPath, JSON.stringify({ toolOutputMaxChars: 5_000 }));
+
+    await loadAppConfig(configPath);
+    expect(process.env.TOOL_OUTPUT_MAX_CHARS).toBe('5000');
+    expect(TOOL_OUTPUT_MAX_CHARS).toBe(5_000);
+  });
 });
 
 describe('ensureFl0wHome', () => {
@@ -96,6 +108,7 @@ describe('ensureFl0wHome', () => {
     await ensureFl0wHome(home);
 
     await access(join(home, 'tools'));
+    await access(join(home, 'workspace'));
 
     const config = JSON.parse(await Bun.file(join(home, 'config.json')).text());
     expect(config).toEqual({
@@ -103,6 +116,7 @@ describe('ensureFl0wHome', () => {
       decisionModel: DEFAULT_DECISION_MODEL,
       mode: DEFAULT_AGENT_MODE,
       contextWindow: DEFAULT_CONTEXT_WINDOW,
+      toolOutputMaxChars: DEFAULT_TOOL_OUTPUT_MAX_CHARS,
       sync: true,
     });
 
@@ -124,6 +138,7 @@ describe('ensureFl0wHome', () => {
       decisionModel: DEFAULT_DECISION_MODEL,
       mode: DEFAULT_AGENT_MODE,
       contextWindow: DEFAULT_CONTEXT_WINDOW,
+      toolOutputMaxChars: DEFAULT_TOOL_OUTPUT_MAX_CHARS,
       sync: true,
     });
 
@@ -152,6 +167,7 @@ describe('ensureFl0wHome', () => {
       decisionModel: DEFAULT_DECISION_MODEL,
       mode: DEFAULT_AGENT_MODE,
       contextWindow: DEFAULT_CONTEXT_WINDOW,
+      toolOutputMaxChars: DEFAULT_TOOL_OUTPUT_MAX_CHARS,
       sync: true,
     });
   });

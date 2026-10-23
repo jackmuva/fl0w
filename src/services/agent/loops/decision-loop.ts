@@ -50,6 +50,7 @@ export const decisionLoop = async (
   callback: fl0wLoopCallback,
   signal?: AbortSignal,
   onStreamText?: StreamTextCallback,
+  sessionId?: string,
 ): Promise<fl0wLoopResult> => {
   let state: AgentState = { state: 'START', messages: [...messages] };
 
@@ -100,7 +101,7 @@ export const decisionLoop = async (
       state = result.state;
       if (!result.ok) return 'error';
       if (needsPreparedToolExecution(state)) {
-        result = await runNode(state, executePreparedToolNode, callback, signal);
+        result = await runNode(state, (s) => executePreparedToolNode(s, sessionId), callback, signal);
         state = result.state;
         if (!result.ok) return 'error';
       }

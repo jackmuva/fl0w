@@ -75,7 +75,7 @@ const generateRequiredToolCall = async ({
           messages: prompt.messages,
           tools,
           toolChoice,
-          onError: () => {},
+          onError: () => { },
         });
         let input = '';
         let preview = '';
@@ -388,7 +388,7 @@ export const prepareToolCallNode = async (state: AgentState, onStreamText?: Stre
     return { state: 'END', messages: [...state.messages, fl0wMessage(message)] };
   }
 
-  const { server, name } = parseToolKey(selectedTool);
+  const { name } = parseToolKey(selectedTool);
   const aiTool = tool({
     description: selected.description ?? `Call the ${selectedTool} tool`,
     inputSchema: jsonSchema<Record<string, unknown>>(selected.inputSchema as Record<string, unknown>),
@@ -433,12 +433,16 @@ export const prepareToolCallNode = async (state: AgentState, onStreamText?: Stre
   };
 };
 
-export const executePreparedToolNode = async (state: AgentState): Promise<AgentState> => {
+export const executePreparedToolNode = async (state: AgentState, sessionId?: string): Promise<AgentState> => {
   const toolCall = pendingToolCallPart(state);
   const selectedTool = state.selectedTool ?? toolCall?.toolName;
   if (!toolCall || !selectedTool) return state;
 
-  const toolResult = await executeNamedTool(selectedTool, toolCall.input as Record<string, unknown>);
+  const toolResult = await executeNamedTool(
+    selectedTool,
+    toolCall.input as Record<string, unknown>,
+    { toolCallId: toolCall.toolCallId, sessionId },
+  );
   const toolResultMessage = mcpClient.toMessage(toolCall.toolCallId, toolResult);
 
   let messages: Fl0wMessage[] = [

@@ -1,6 +1,7 @@
 import { asc, desc, eq, sql } from 'drizzle-orm';
+import { rmSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { DB_PATH } from '../constants';
+import { DB_PATH, sessionWorkspacePath } from '../constants';
 import type { CapabilitySelection, Fl0wMessage } from '../models/agent';
 import { messages, nowIso, openDatabase, sessions, type FlowDatabase } from './schema';
 
@@ -84,21 +85,11 @@ export class SessionStore {
       .get() != null;
   }
 
-  /** Most recently updated session that has saved conversation messages. */
   findLatestSessionWithMessages(workspacePath: string): SessionRecord | null {
     for (const session of this.listSessions(workspacePath)) {
       if (this.loadMessages(session.id).length > 0) return session;
     }
     return null;
-  }
-
-  /** Removes empty rows left over from older builds that created sessions at startup. */
-  deleteEmptySessions(workspacePath: string): void {
-    for (const session of this.listSessions(workspacePath)) {
-      if (this.loadMessages(session.id).length > 0) continue;
-      if (session.capabilities != null) continue;
-      this.deleteSession(session.id);
-    }
   }
 
   getOrCreateSession(workspacePath: string): SessionRecord {
@@ -153,14 +144,15 @@ export class SessionStore {
   }
 
   deleteSession(sessionId: string): boolean {
-    return this.db.transaction((tx) => {
+    const deleted = this.db.transaction((tx) => {
       tx.delete(messages).where(eq(messages.sessionId, sessionId)).run();
       const result = tx.delete(sessions).where(eq(sessions.id, sessionId)).run();
       return result.changes > 0;
     }, { behavior: 'immediate' });
+    if (/^[\w-]+$/.test(sessionId)) rmSync(sessionWorkspacePath(sessionId), { recursive: true, force: true });
+    return deleted;
   }
 
-  /** Writes a session synced from fl0w-work as-is, keeping its `updatedAt` so the next sync sees both sides as equal. */
   importSession({ messages: fl0wMessages, ...session }: SessionRecord & { messages: Fl0wMessage[] }): void {
     const { id, ...fields } = session;
     this.db.transaction((tx) => {

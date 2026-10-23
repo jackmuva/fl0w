@@ -32,7 +32,6 @@ export const useSessionPersistence = (
   const store = useMemo(() => SessionStore.open(), []);
   const workspace = useMemo(() => resolve(workspacePath), [workspacePath]);
   const [session, setSession] = useState<SessionRecord>(() => {
-    store.deleteEmptySessions(workspace);
     return store.findLatestSessionWithMessages(workspace) ?? store.createDraftSession(workspace);
   });
 

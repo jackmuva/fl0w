@@ -9,6 +9,7 @@ import {
 import { recordLlmUsage } from './session-usage';
 import type { AgentState, Fl0wMessage } from '../../../models/agent';
 import { fl0wMessage } from '../utils/fl0w-message';
+import { TOOL_OUTPUT_FILE_PATTERN, toolOutputFileNotice } from '../default-tools/read-full-tool-output';
 
 export type CompactionOptions = {
   keepAssistantMessages?: number;
@@ -217,7 +218,12 @@ export const compactMessages = async (
       prompt: transcript,
     });
     recordLlmUsage(summaryResult);
-    const { text: summary } = summaryResult;
+    // Listed verbatim (not left to the LLM) so spilled outputs stay reachable across repeated compactions.
+    const savedOutputs = [...new Set(messages.flatMap(({ message }) =>
+      [...messageToText(message).matchAll(TOOL_OUTPUT_FILE_PATTERN)].map((match) => match[1] as string)))];
+    const summary = savedOutputs.length > 0
+      ? `${summaryResult.text}\n\nTool outputs truncated this session:\n${savedOutputs.map((path) => `- ${toolOutputFileNotice(path)}`).join('\n')}`
+      : summaryResult.text;
 
     const summaryMessage = fl0wMessage(
       { role: 'assistant', content: summary },

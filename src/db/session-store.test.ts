@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { sessionWorkspacePath } from '../constants';
 import type { Fl0wMessage } from '../models/agent';
 import { emptyCapabilitySelection } from '../services/agent/capabilities';
 import type { FlowDatabase } from './schema';
@@ -98,6 +101,17 @@ describe('SessionStore', () => {
     expect(store.deleteSession(session.id)).toBe(false);
   });
 
+  test('deletes the session workspace folder', () => {
+    const store = SessionStore.openInMemory();
+    const session = store.createSession('/tmp/project-delete-workspace');
+    const dir = sessionWorkspacePath(session.id);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'default_bash-call-1.txt'), 'output');
+
+    expect(store.deleteSession(session.id)).toBe(true);
+    expect(existsSync(dir)).toBe(false);
+  });
+
   test('draft sessions are not persisted until createSession', () => {
     const store = SessionStore.openInMemory();
     const workspace = '/tmp/project-draft';
@@ -119,22 +133,6 @@ describe('SessionStore', () => {
     store.saveMessages(withMessages.id, [{ message: { role: 'user', content: 'hello' } }]);
 
     expect(store.findLatestSessionWithMessages(workspace)?.id).toBe(withMessages.id);
-  });
-
-  test('deleteEmptySessions removes orphan rows without messages or capabilities', () => {
-    const store = SessionStore.openInMemory();
-    const workspace = '/tmp/project-prune';
-    const empty = store.createSession(workspace);
-    const withCaps = store.createSession(workspace);
-    const withMessages = store.createSession(workspace);
-    store.saveCapabilities(withCaps.id, emptyCapabilitySelection());
-    store.saveMessages(withMessages.id, [{ message: { role: 'user', content: 'hi' } }]);
-
-    store.deleteEmptySessions(workspace);
-
-    expect(store.hasSession(empty.id)).toBe(false);
-    expect(store.hasSession(withCaps.id)).toBe(true);
-    expect(store.hasSession(withMessages.id)).toBe(true);
   });
 
   test('clears saved messages when only system messages remain', () => {
