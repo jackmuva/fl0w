@@ -19,6 +19,7 @@ import {
 } from "../../lib/decision-choice"
 import { ChoiceProbabilities } from "./ChoiceProbabilities"
 import { HighlightedCode } from "./HighlightedCode"
+import { syntaxStyle } from "../../syntax-style"
 import {
   AGENT_BORDER_COLOR,
   DecisionBackdropContext,
@@ -238,7 +239,9 @@ export const MessageContent = ({ message: entry, toolCallInputs, decision }: Mes
       marginBottom={1}
       width="100%"
     >
-      <text>{text}</text>
+      {message.role === "assistant"
+        ? <markdown content={text} syntaxStyle={syntaxStyle} />
+        : <text>{text}</text>}
     </box>
   )
 }
