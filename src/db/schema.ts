@@ -10,6 +10,15 @@ import type { WorkflowStep } from '../models/workflow';
 
 export const nowIso = (): string => new Date().toISOString();
 
+/** ISO timestamp strictly after `previous` when saves land in the same millisecond. */
+export const nextUpdatedAt = (previous?: string | null): string => {
+  const now = Date.now();
+  const previousMs = previous ? Date.parse(previous) : NaN;
+  // Unparseable or far-future (clock skew) previous values fall back to the real clock.
+  if (!Number.isFinite(previousMs) || previousMs < now || previousMs - now > 1_000) return new Date(now).toISOString();
+  return new Date(previousMs + 1).toISOString();
+};
+
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   workspacePath: text('workspace_path').notNull(),

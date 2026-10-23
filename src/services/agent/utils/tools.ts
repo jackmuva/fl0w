@@ -4,7 +4,7 @@ import { HEADLESS, sessionWorkspacePath, TOOL_OUTPUT_MAX_CHARS } from "../../../
 import { mcpClient } from "../../mcp/mcp-client";
 import { isCapabilityEnabled, isMcpToolEnabled } from "../capabilities";
 import { executeDefaultTool, getDefaultTool, isDefaultToolKey, listDefaultTools } from "../default-tools";
-import { DEFAULT_ASK_QUESTION_TOOL, DEFAULT_CREATE_PLAN_TOOL, defaultToolKey } from "../default-tools/utils";
+import { DEFAULT_ASK_QUESTION_TOOL, DEFAULT_CREATE_PLAN_TOOL, defaultToolKey, READ_FULL_TOOL_OUTPUT_TOOL } from "../default-tools/utils";
 import { listSkills } from "../hooks/front-load";
 import { executeUserTool, isUserToolKey, listUserTools } from "../user-tools/loader";
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -98,8 +98,6 @@ export const toAiSdkTools = (tools: McpTool[]) =>
       inputSchema: jsonSchema<Record<string, unknown>>(entry.inputSchema as Record<string, unknown>),
     })];
   }));
-
-export const READ_FULL_TOOL_OUTPUT_TOOL = defaultToolKey('read_full_tool_output');
 
 const UNCAPPED_TOOLS = new Set([READ_FULL_TOOL_OUTPUT_TOOL, defaultToolKey('message_answer'), CREATE_PLAN_ACTION]);
 

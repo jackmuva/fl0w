@@ -134,7 +134,7 @@ export const decisionLoop = async (
     state: 'END',
     messages: [...state.messages, fl0wMessage({
       role: 'assistant',
-      content: 'Ran into the tool call limit. Ask fl0w to keep going.',
+      content: 'Ran into the tool call limit. Able to keep going.',
     })],
   }, callback);
   return 'ok';

@@ -21,6 +21,7 @@ const { applyCapabilitySelection } = await import('./capabilities');
 const { flushPendingSkillMirrors } = await import('../skills/mirror-enabled-skills');
 
 afterEach(async () => {
+  await flushPendingSkillMirrors();
   await rm(tempRoot, { recursive: true, force: true });
 });
 

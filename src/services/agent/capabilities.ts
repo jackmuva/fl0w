@@ -1,7 +1,7 @@
 import type { CapabilityCatalog, CapabilityKind, CapabilitySelection, Fl0wMessage } from "../../models/agent";
 import type { McpTool } from "../../models/mcp";
 import { mcpToolKey } from "../../models/mcp";
-import { discoverSkills, frontLoadMessages } from "./hooks/front-load";
+import { frontLoadMessages, listSkills } from "./hooks/front-load";
 import { scheduleMirrorEnabledSkills } from "../skills/mirror-enabled-skills";
 import { fl0wMessage } from "./utils/fl0w-message";
 
@@ -46,8 +46,10 @@ export const applyCapabilitySelection = async (
   next: CapabilitySelection,
 ): Promise<Fl0wMessage[]> => {
   setCapabilitySelection(next);
-  void discoverSkills().then((catalog) => scheduleMirrorEnabledSkills(next, catalog));
-  return (await frontLoadMessages()).map((message) => fl0wMessage(message));
+  const messages = await frontLoadMessages();
+  // frontLoadMessages registers the enabled skills it discovered; mirror from that instead of rescanning.
+  scheduleMirrorEnabledSkills(next, listSkills());
+  return messages.map((message) => fl0wMessage(message));
 };
 
 export const isCatalogEmpty = (catalog: CapabilityCatalog) =>

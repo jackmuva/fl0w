@@ -3,15 +3,15 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   APP_CONFIG_PATH,
-  applyModelConfig,
+  applyAppConfig,
   DEFAULT_AGENT_MODE,
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_DECISION_MODEL,
   DEFAULT_LLM_MODEL,
+  DEFAULT_MAX_ITERATIONS,
   DEFAULT_TOOL_OUTPUT_MAX_CHARS,
   FL0W_HOME,
   parseAgentMode,
-  parseConfigString,
 } from '../../constants';
 import type { AppConfig } from '../../models/config';
 import type { McpConfig } from '../../models/mcp';
@@ -32,6 +32,7 @@ const defaultAppConfig = (): AppConfig => ({
   mode: DEFAULT_AGENT_MODE,
   contextWindow: DEFAULT_CONTEXT_WINDOW,
   toolOutputMaxChars: DEFAULT_TOOL_OUTPUT_MAX_CHARS,
+  maxIterations: DEFAULT_MAX_ITERATIONS,
   sync: true,
 });
 
@@ -47,6 +48,7 @@ const ensureConfigDefaults = async (path: string): Promise<void> => {
     mode: parseAgentMode(config.mode) ?? config.mode ?? defaults.mode,
     contextWindow: config.contextWindow ?? defaults.contextWindow,
     toolOutputMaxChars: config.toolOutputMaxChars ?? defaults.toolOutputMaxChars,
+    maxIterations: config.maxIterations ?? defaults.maxIterations,
     sync: config.sync ?? defaults.sync,
   };
   await writeJsonAtomic(path, merged);
@@ -55,19 +57,7 @@ const ensureConfigDefaults = async (path: string): Promise<void> => {
 export async function loadAppConfig(path = APP_CONFIG_PATH): Promise<AppConfig> {
   const file = Bun.file(path);
   const config = await file.exists() ? asJsonObject(await file.json()) as AppConfig : {};
-  const llmModel = parseConfigString(config.llmModel);
-  if (llmModel) process.env.LLM_MODEL = llmModel;
-  const decisionModel = parseConfigString(config.decisionModel);
-  if (decisionModel) process.env.DECISION_MODEL = decisionModel;
-  const mode = parseAgentMode(config.mode);
-  if (mode) process.env.AGENT_MODE = mode;
-  if (config.contextWindow != null && config.contextWindow > 0) {
-    process.env.CONTEXT_WINDOW = String(Math.floor(config.contextWindow));
-  }
-  if (config.toolOutputMaxChars != null && config.toolOutputMaxChars > 0) {
-    process.env.TOOL_OUTPUT_MAX_CHARS = String(Math.floor(config.toolOutputMaxChars));
-  }
-  applyModelConfig();
+  applyAppConfig(config);
   return config;
 }
 

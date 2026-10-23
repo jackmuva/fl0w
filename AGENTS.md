@@ -9,14 +9,14 @@ A terminal (TUI) app built on **OpenTUI** that connects to MCP servers and runs 
 conversational agent that plans, executes, and distills tasks into reusable workflows.
 
 - **Stack** — TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
-- **Config** — `config.json` in `FL0W_HOME` (`~/.fl0w`) loads into `process.env` at startup.
-- **Models** — `LLM_MODEL` env (from `llmModel`, default `zai/glm-5.3-flash`);
-  `DECISION_MODEL` env (from `decisionModel`, default `openai/gpt-6-luna-decisions`) drives agent planning/choices.
-  `AGENT_MODE` env (from `mode`, default `decision`) selects the runtime: `decision` is the
+- **Config** — `config.json` in `FL0W_HOME` (`~/.fl0w`); `loadAppConfig()` applies it via `applyAppConfig()` into runtime exports in `constants.ts`.
+- **Models** — `LLM_MODEL` (from `llmModel`, default `deepseek/deepseek-v4.1-flash`); `DECISION_MODEL` (from `decisionModel`, default `typesafe-ai/jev`) drives agent planning/choices.
+  `AGENT_MODE` (from `mode`, default `decision`) selects the runtime: `decision` is the
   evaluate/rewind graph; `llm` is a standard tool-calling loop on `LLM_MODEL`.
-  `CONTEXT_WINDOW` env (from `contextWindow`, default `1000000`) drives compaction thresholds and the UI usage meter.
-  All four load from `config.json` into env at startup, then `applyModelConfig()` refreshes the runtime exports in `constants.ts`.
-- **Auth** — `fl0w login`/`logout`/`whoami` sign in via fl0w-work (`FL0W_API_URL`, default
+  `CONTEXT_WINDOW` (from `contextWindow`, default `232000`) drives compaction thresholds and the UI usage meter.
+  `MAX_ITERATIONS` (from `maxIterations`, default `50`) caps agent loop iterations per turn.
+  `TOOL_OUTPUT_MAX_CHARS` (from `toolOutputMaxChars`, default `20000`) caps inline tool results.
+- **Auth** — `fl0w login`/`logout`/`whoami` sign in via fl0w-work (`FL0W_API_URL` →
   `https://www.fl0w.work`); tokens + MCP OAuth state live in `auth.json`. There is no AI Gateway key
   on the client: `index.tsx` sets `AI_SDK_DEFAULT_PROVIDER` to `fl0wModelProvider` (`services/auth/token.ts`),
   a gateway provider pointed at fl0w-work's `/api/cli/ai` proxy and authenticated with the fl0w access token,
@@ -88,8 +88,8 @@ src/
 
 - **Read before editing** — understand `src/index.tsx`, `src/services/config/app-config.ts`,
   and `src/services/mcp/mcp-client.ts` before touching startup, config, or connection logic.
-- **Config-driven env vars** — mirror `loadAppConfig()`: map a `config.json` field to
-  `process.env` with a sensible default in `src/constants.ts`.
+- **Config-driven runtime constants** — map a `config.json` field to a default in
+  `src/constants.ts` and refresh it from `applyAppConfig()` in `loadAppConfig()`.
 - **Failure-tolerant** — never crash on missing MCP config; surface UI warnings.
 - **Capability types** — import `CapabilityCatalog`/`CapabilityKind`/`CapabilitySelection`
   from `src/models/agent.ts`, not `src/services/agent/capabilities.ts`.

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { sessionWorkspacePath } from '../constants';
 import type { Fl0wMessage } from '../models/agent';
 import { emptyCapabilitySelection } from '../services/agent/capabilities';
-import type { FlowDatabase } from './schema';
+import { nextUpdatedAt, type FlowDatabase } from './schema';
 import { SessionStore } from './session-store';
 
 describe('SessionStore', () => {
@@ -147,5 +147,18 @@ describe('SessionStore', () => {
     store.saveMessages(session.id, seed);
 
     expect(store.loadMessages(session.id)).toEqual([]);
+  });
+});
+
+describe('nextUpdatedAt', () => {
+  test('bumps past a same-millisecond previous value', () => {
+    const previous = new Date(Date.now() + 50).toISOString();
+    expect(nextUpdatedAt(previous)).toBe(new Date(Date.parse(previous) + 1).toISOString());
+  });
+
+  test('falls back to the clock for unparseable or far-future values', () => {
+    const before = Date.now();
+    expect(Date.parse(nextUpdatedAt('abc'))).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(nextUpdatedAt('2999-01-01T00:00:00.000Z'))).toBeLessThan(before + 1_000);
   });
 });

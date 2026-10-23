@@ -3,7 +3,7 @@ import { rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DB_PATH, sessionWorkspacePath } from '../constants';
 import type { CapabilitySelection, Fl0wMessage } from '../models/agent';
-import { messages, nowIso, openDatabase, sessions, type FlowDatabase } from './schema';
+import { messages, nextUpdatedAt, nowIso, openDatabase, sessions, type FlowDatabase } from './schema';
 
 export type SessionRecord = typeof sessions.$inferSelect;
 
@@ -119,10 +119,15 @@ export class SessionStore {
   }
 
   saveCapabilities(sessionId: string, capabilities: CapabilitySelection): void {
-    this.db.update(sessions)
-      .set({ capabilities, updatedAt: nowIso() })
-      .where(eq(sessions.id, sessionId))
-      .run();
+    this.db.transaction((tx) => {
+      const previous = tx.select({ updatedAt: sessions.updatedAt }).from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .get()?.updatedAt;
+      tx.update(sessions)
+        .set({ capabilities, updatedAt: nextUpdatedAt(previous) })
+        .where(eq(sessions.id, sessionId))
+        .run();
+    }, { behavior: 'immediate' });
   }
 
   saveMessages(sessionId: string, fl0wMessages: Fl0wMessage[]): void {
@@ -130,6 +135,9 @@ export class SessionStore {
     const title = deriveTitle(conversation);
 
     this.db.transaction((tx) => {
+      const previous = tx.select({ updatedAt: sessions.updatedAt }).from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .get()?.updatedAt;
       tx.delete(messages).where(eq(messages.sessionId, sessionId)).run();
       if (conversation.length > 0) {
         tx.insert(messages)
@@ -137,7 +145,7 @@ export class SessionStore {
           .run();
       }
       tx.update(sessions)
-        .set({ updatedAt: nowIso(), title: sql`COALESCE(${title}, ${sessions.title})` })
+        .set({ updatedAt: nextUpdatedAt(previous), title: sql`COALESCE(${title}, ${sessions.title})` })
         .where(eq(sessions.id, sessionId))
         .run();
     }, { behavior: 'immediate' });

@@ -2,9 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { jsonSchema, tool } from 'ai';
 import { TOOL_OUTPUT_MAX_CHARS, WORKSPACE_DIR } from '../../../constants';
-import { isPathWithinWorkspace, pathExists } from './utils';
-import { READ_FULL_TOOL_OUTPUT_TOOL } from '../utils/tools';
-
+import { isPathWithinWorkspace, pathExists, READ_FULL_TOOL_OUTPUT_TOOL } from './utils';
 
 /** Matches the spill notice (and compaction's file list) so saved paths survive summaries. */
 export const TOOL_OUTPUT_FILE_PATTERN = /Full output saved to (\S+\.txt)/g;

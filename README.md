@@ -45,11 +45,12 @@ On first launch fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`, 
      "decisionModel": "typesafe-ai/jev",
      "mode": "decision",
      "contextWindow": 232000,
+     "maxIterations": 50,
      "sync": true
    }
    ```
 
-   Adjust `llmModel` and `decisionModel` (tool choices) as needed. Set `"mode": "llm"` to run a standard tool-calling loop on `llmModel` instead of the decision-model graph (`decisionModel` is unused in that mode). Model names in [Vercel's model list](https://vercel.com/ai-gateway/models). Set `contextWindow` (or `CONTEXT_WINDOW`) to match your model’s context size — it drives compaction and the usage meter (default `232000`).
+   Adjust `llmModel` and `decisionModel` (tool choices) as needed. Set `"mode": "llm"` to run a standard tool-calling loop on `llmModel` instead of the decision-model graph (`decisionModel` is unused in that mode). Model names in [Vercel's model list](https://vercel.com/ai-gateway/models). Set `contextWindow` to match your model’s context size — it drives compaction and the usage meter (default `232000`). Set `maxIterations` to cap agent loop iterations per turn (default `50`).
 2. Optional: local skills in `~/.fl0w/skills/`.
 3. Optional: MCPs in `~/.fl0w/mcp.json`, using [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers).
 4. Optional: `AGENTS.md` files alongside your skills.
