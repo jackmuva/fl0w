@@ -11,6 +11,7 @@ Usage:
   fl0w login                        Sign in to fl0w (model calls use your fl0w account)
   fl0w logout                       Sign out
   fl0w whoami                       Show signed-in account
+  fl0w sync                         Sync config, auth, workflows, sessions, skills, and tools with fl0w-work
 
 Headless commands (agent output as JSON lines on stdout; MCP progress on stderr):
 

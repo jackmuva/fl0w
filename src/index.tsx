@@ -23,12 +23,13 @@ if (isHelpInvocation()) {
   process.exit(await runHelpCommand(Bun.argv.slice(3)))
 }
 
+const isSyncCommand = Bun.argv[2] === "sync"
 const isAccountCommand = ACCOUNT_COMMANDS.includes(Bun.argv[2] ?? "")
 const isRemoteRun = HEADLESS && Bun.argv.includes("--remote")
 const log = HEADLESS ? console.error : console.log
 
 let syncWarning: string | null = null
-if (!isAccountCommand) {
+if (!isAccountCommand && !isSyncCommand) {
   const syncEnabled = await isConfigSyncEnabled()
   if (syncEnabled) {
     log("Syncing config files...");
@@ -45,6 +46,11 @@ await loadAppConfig()
 if (isAccountCommand) {
   const { runAccountCommand } = await import("./services/auth/commands")
   process.exit(await runAccountCommand(Bun.argv[2]!))
+}
+
+if (isSyncCommand) {
+  const { runSyncCommand } = await import("./cli/sync")
+  process.exit(await runSyncCommand(Bun.argv.slice(3)))
 }
 
 if (HEADLESS) {
