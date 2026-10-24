@@ -130,10 +130,7 @@ const formatSkillsCatalog = (skills: SkillSummary[]): string => {
   ].join('\n');
 };
 
-export const frontLoadMessages = async (
-  rootDir = process.cwd(),
-  options?: { skillsDirs?: string[] },
-): Promise<ModelMessage[]> => {
+export const frontLoadMessages = async (rootDir = process.cwd(), options?: { skillsDirs?: string[] }): Promise<ModelMessage[]> => {
   const workspace = resolve(rootDir);
   const messages: ModelMessage[] = [{
     role: 'system',
@@ -145,10 +142,7 @@ export const frontLoadMessages = async (
 
   const agentsPath = join(rootDir, AGENTS_MD_FILENAME);
   const agentsFile = Bun.file(agentsPath);
-  if (
-    await agentsFile.exists()
-    && isCapabilityEnabled('agentsMd', AGENTS_MD_FILENAME)
-  ) {
+  if (await agentsFile.exists() && isCapabilityEnabled('agentsMd', AGENTS_MD_FILENAME)) {
     const content = (await agentsFile.text()).trim();
     if (content) {
       messages.push({ role: 'system', content });

@@ -5,6 +5,7 @@ export type ModelMetadata = {
 }
 
 export type ModelSelection = {
+  "ROUTER": string,
   "DISCOVERY": string,
   "PLAN": string,
   "EXECUTE": string,

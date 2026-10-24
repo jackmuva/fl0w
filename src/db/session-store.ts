@@ -58,6 +58,7 @@ export class SessionStore {
       id: id ?? crypto.randomUUID(),
       workspacePath: resolve(workspacePath),
       models: {
+        "ROUTER": "",
         "DISCOVERY": "",
         "PLAN": "",
         "EXECUTE": "",
@@ -78,6 +79,7 @@ export class SessionStore {
     return {
       id: crypto.randomUUID(),
       models: {
+        "ROUTER": "",
         "DISCOVERY": "",
         "PLAN": "",
         "EXECUTE": "",

@@ -52,6 +52,7 @@ const TABS: Array<{ kind: TabKind, label: string }> = [
 ]
 
 const MODEL_PHASES: Array<{ phase: Phase, label: string, short: string }> = [
+  { phase: "ROUTER", label: "Router agent", short: "Router" },
   { phase: "DISCOVERY", label: "Discovery subagent", short: "Discovery" },
   { phase: "PLAN", label: "Workflow plan agent", short: "Plan" },
   { phase: "EXECUTE", label: "Execution agent", short: "Execute" },
@@ -119,6 +120,7 @@ const toAssignments = (
 ): ModelAssignments => {
   const fallback = models[0]?.model ?? null
   return {
+    ROUTER: initialModels?.ROUTER ?? fallback,
     DISCOVERY: initialModels?.DISCOVERY ?? fallback,
     PLAN: initialModels?.PLAN ?? fallback,
     EXECUTE: initialModels?.EXECUTE ?? fallback,
@@ -294,6 +296,7 @@ export const ConfigDialog = ({
   const buildModels = (): ModelSelection => {
     const fallback = models[0]?.model ?? ""
     return {
+      ROUTER: modelAssignments.ROUTER ?? fallback,
       DISCOVERY: modelAssignments.DISCOVERY ?? fallback,
       PLAN: modelAssignments.PLAN ?? fallback,
       EXECUTE: modelAssignments.EXECUTE ?? fallback,
