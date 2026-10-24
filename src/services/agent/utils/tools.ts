@@ -1,4 +1,4 @@
-import { jsonSchema, tool, type generateText, type JSONValue } from "ai";
+import { jsonSchema, tool, type generateText } from "ai";
 import { mcpToolKey, type McpTool, type McpToolResult } from "../../../models/mcp";
 import { HEADLESS, sessionWorkspacePath, TOOL_OUTPUT_MAX_CHARS } from "../../../constants";
 import { mcpClient } from "../../mcp/mcp-client";
@@ -39,44 +39,6 @@ export const describeToolCallGenerationFailure = (
   if (toolCalls.length === 0) return 'Model returned no tool call.';
   return undefined;
 };
-
-export const buildToolCriteria = (tools: McpTool[], onlyTools: boolean = false) => {
-  let criteria: {
-    [action: string]: {
-      description: string,
-      inputSchema?: JSONValue,
-    }
-  } = Object.fromEntries(tools.map((t) => [mcpToolKey(t), {
-    description: t.description ?? 'No description provided',
-    inputSchema: t.inputSchema as JSONValue,
-  }]));
-  if (onlyTools) return criteria;
-  criteria = {
-    ...criteria,
-    taskCompleted: {
-      description: "The user's task was completed"
-    },
-    wrongPath: {
-      description: "Based off the given tools, we took the wrong steps. Rewind to the last message"
-    },
-    notPossible: {
-      description: "Based off the given tools, the task is not possible"
-    },
-  }
-  return criteria;
-}
-
-export const toolsForEvaluateState = (tools: McpTool[]): EvaluateMcpTool[] =>
-  tools.map(({ server, name, description, inputSchema }) => ({
-    server,
-    name,
-    description,
-    inputSchema,
-  }));
-
-export const formatToolList = (tools: McpTool[]) => tools
-  .map((entry) => `- ${entry.server}/${entry.name}${entry.description ? `: ${entry.description}` : ''}`)
-  .join('\n');
 
 export const listAllTools = async () => [
   ...listDefaultTools().filter((entry) => {

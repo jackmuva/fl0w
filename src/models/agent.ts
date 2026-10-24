@@ -1,20 +1,16 @@
 import type { ModelMessage } from "ai";
 
-export type ChoiceProbabilities = { [choice: string]: number };
-
-export type Fl0wMessageFrame = 'summary' | 'decision';
+export type Fl0wMessageFrame = 'summary';
 
 export type Fl0wMessage = {
   message: ModelMessage,
   frame?: Fl0wMessageFrame,
 }
 
-export type STATE = "START" | "DISCOVERY" | "PLAN" | "EXECUTE" | "REWIND" | "END";
+export type STATE = "START" | "DISCOVERY" | "PLAN" | "EXECUTE" | "END";
 export type AgentState = {
   state: STATE,
   messages: Fl0wMessage[],
-  selectedTool?: string,
-  probabilities?: ChoiceProbabilities,
 }
 
 export type UserToolDefinition = {
@@ -23,6 +19,12 @@ export type UserToolDefinition = {
   inputSchema: Record<string, unknown>;
   execute: (args: Record<string, unknown>) => Promise<string>;
 };
+
+export type StateModel = {
+  "DISCOVERY": string,
+  "PLAN": string,
+  "EXECUTE": string,
+}
 
 export type CapabilityKind = 'skills' | 'mcpServers' | 'userTools' | 'agentsMd';
 
@@ -60,8 +62,8 @@ export type CliOutput =
   | { type: 'stream_end' }
   | { type: 'mcp_auth_required'; server: string; serverUrl: string }
   | {
-      type: 'result';
-      status: CliOuputStatus;
-      sessionId: string;
-      pendingQuestion?: CliOutputPendingQuestion;
-    };
+    type: 'result';
+    status: CliOuputStatus;
+    sessionId: string;
+    pendingQuestion?: CliOutputPendingQuestion;
+  };

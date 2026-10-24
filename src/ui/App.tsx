@@ -1,6 +1,6 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { fl0wLoop, type fl0wLoopResult } from "../services/agent/main-loop"
+import { llmLoop } from "../services/agent/llm-loop"
 import {
   getCapabilitySelection,
   emptyCapabilitySelection,
@@ -8,7 +8,7 @@ import {
   mergeCapabilitySelection,
 } from "../services/agent/capabilities"
 import { findPendingAskQuestion } from "../services/agent/utils/ask-question-state"
-import { fl0wMessage, parseDecisionMessage } from "../services/agent/utils/fl0w-message"
+import { fl0wMessage } from "../services/agent/utils/fl0w-message"
 import { buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { WorkflowStore } from "../db/workflow-store"
@@ -238,11 +238,6 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     setPendingWorkflow(null)
   })
 
-  const finishAgentRun = (outcome: fl0wLoopResult) => {
-    setStreamingText(null)
-    setStatus(outcome === "error" ? "error" : "ready")
-  }
-
   const handleSubmit = async (text: string) => {
     if (status === "working" || generating) return
 
@@ -264,7 +259,9 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
       const runAbort = new AbortController()
       runAbortRef.current = runAbort
       try {
-        finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText, sessionId: session.id }))
+        await llmLoop(nextMessages, setMessages, runAbort.signal, setStreamingText, session.id)
+        setStreamingText(null);
+        setStatus("ready");
       } finally {
         runAbortRef.current = null
       }
@@ -281,7 +278,9 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText, sessionId: session.id }))
+      await llmLoop(nextMessages, setMessages, runAbort.signal, setStreamingText, session.id)
+      setStreamingText(null);
+      setStatus("ready");
     } finally {
       runAbortRef.current = null
     }
@@ -306,7 +305,9 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      finishAgentRun(await fl0wLoop(nextMessages, setMessages, runAbort.signal, { onStreamText: setStreamingText, sessionId: session.id }))
+      await llmLoop(nextMessages, setMessages, runAbort.signal, setStreamingText, session.id)
+      setStreamingText(null);
+      setStatus("ready");
     } finally {
       runAbortRef.current = null
     }
@@ -334,7 +335,6 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
               key={index}
               message={message}
               toolCallInputs={toolCallInputs}
-              decision={index > 0 ? parseDecisionMessage(visibleMessages[index - 1]!) : null}
             />
           ))}
           {streamingText && (
@@ -384,14 +384,14 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
             onSubmit={handleAskQuestionSubmit}
           />
         ) : (
-            <ChatInput
-              disabled={inputDisabled}
-              placeholder={chatPlaceholder}
-              allowEmptySubmit={pendingWorkflow !== null}
-              slashCommandHandlers={slashCommandHandlers}
-              onCompletionChange={handleCompletionChange}
-              onSubmit={handleSubmit}
-            />
+          <ChatInput
+            disabled={inputDisabled}
+            placeholder={chatPlaceholder}
+            allowEmptySubmit={pendingWorkflow !== null}
+            slashCommandHandlers={slashCommandHandlers}
+            onCompletionChange={handleCompletionChange}
+            onSubmit={handleSubmit}
+          />
         )}
       </box>
       {completion.open && (

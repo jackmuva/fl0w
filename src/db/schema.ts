@@ -23,6 +23,7 @@ export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   workspacePath: text('workspace_path').notNull(),
   title: text('title'),
+  models: text('models', {mode: 'json' }).$type<StateModel>(),
   capabilities: text('capabilities', { mode: 'json' }).$type<CapabilitySelection>(),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

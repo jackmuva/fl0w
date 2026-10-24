@@ -74,20 +74,6 @@ export const MessageContent = ({ message: entry, toolCallInputs, decision }: Mes
   const { message, frame } = entry
   const isAgent = message.role === "assistant" || message.role === "tool"
 
-  if (frame === "decision") {
-    const decision = parseDecisionMessage(entry)
-    if (!decision) return null
-    if (TERMINAL_DECISION_CHOICES.has(decision.selectedTool)) return null
-    return (
-      <MessageFrameKindContext.Provider value="call">
-        <ChoiceProbabilities
-          probabilities={decision.probabilities}
-          selected={selectedDecisionChoice(decision.probabilities, decision.selectedTool)}
-        />
-      </MessageFrameKindContext.Provider>
-    )
-  }
-
   if (frame === "summary") {
     const text = formatMessageContent(message)
     if (!text) return null

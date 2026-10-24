@@ -4,21 +4,14 @@ import { join } from 'node:path';
 import {
   APP_CONFIG_PATH,
   applyAppConfig,
-  DEFAULT_AGENT_MODE,
-  DEFAULT_CONTEXT_WINDOW,
-  DEFAULT_DECISION_MODEL,
-  DEFAULT_LLM_MODEL,
   DEFAULT_MAX_ITERATIONS,
   DEFAULT_TOOL_OUTPUT_MAX_CHARS,
   FL0W_HOME,
-  parseAgentMode,
 } from '../../constants';
 import type { AppConfig } from '../../models/config';
 import type { McpConfig } from '../../models/mcp';
 import { asJsonObject } from '../../services/sync/merge';
 import { writeJsonAtomic } from '../../services/utils';
-
-export { APP_CONFIG_PATH };
 
 const writeDefaultJsonIfMissing = async (path: string, content: unknown): Promise<void> => {
   const file = Bun.file(path);
@@ -27,10 +20,6 @@ const writeDefaultJsonIfMissing = async (path: string, content: unknown): Promis
 };
 
 const defaultAppConfig = (): AppConfig => ({
-  llmModel: DEFAULT_LLM_MODEL,
-  decisionModel: DEFAULT_DECISION_MODEL,
-  mode: DEFAULT_AGENT_MODE,
-  contextWindow: DEFAULT_CONTEXT_WINDOW,
   toolOutputMaxChars: DEFAULT_TOOL_OUTPUT_MAX_CHARS,
   maxIterations: DEFAULT_MAX_ITERATIONS,
   sync: true,
@@ -45,7 +34,6 @@ const ensureConfigDefaults = async (path: string): Promise<void> => {
   const merged: AppConfig = {
     llmModel: config.llmModel ?? defaults.llmModel,
     decisionModel: config.decisionModel ?? defaults.decisionModel,
-    mode: parseAgentMode(config.mode) ?? config.mode ?? defaults.mode,
     contextWindow: config.contextWindow ?? defaults.contextWindow,
     toolOutputMaxChars: config.toolOutputMaxChars ?? defaults.toolOutputMaxChars,
     maxIterations: config.maxIterations ?? defaults.maxIterations,
