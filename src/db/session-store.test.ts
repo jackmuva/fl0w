@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sessionWorkspacePath } from '../constants';
 import type { Fl0wMessage } from '../models/agent';
-import { emptyCapabilitySelection } from '../services/agent/capabilities';
+import { emptyCapabilitySelection } from '../services/agent/config';
 import { nextUpdatedAt, type FlowDatabase } from './schema';
 import { SessionStore } from './session-store';
 

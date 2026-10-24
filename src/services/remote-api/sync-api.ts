@@ -1,12 +1,7 @@
-import { FL0W_API_URL } from '../../constants';
 import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSession, RemoteSessionMeta, RemoteSkillMeta, RemoteToolMeta, RemoteWorkflowMeta, SyncFilename } from '../../models/sync';
 import { type WorkflowRecord } from '../../models/workflow';
-import { getAccessToken } from '../auth/token';
 import { normalizeWorkflowSteps } from '../workflow/generate';
-
-const REQUEST_TIMEOUT_MS = 5_000;
-// skill/tool bundles and long sessions are up to a few MB, which a slow uplink won't send in 5s
-const UPLOAD_TIMEOUT_MS = 60_000;
+import { UPLOAD_TIMEOUT_MS, request, readResponseJson, asErrorBody, fail } from './utils';
 
 export class SyncConflictError extends Error {
   constructor(readonly filename: SyncFilename) {
@@ -14,45 +9,15 @@ export class SyncConflictError extends Error {
   }
 }
 
-async function request(path: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
-  const send = async (force: boolean) => fetch(`${FL0W_API_URL}/api/sync${path}`, {
-    ...init,
-    headers: { 'content-type': 'application/json', ...init.headers, authorization: `Bearer ${await getAccessToken({ force })}` },
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  const res = await send(false);
-  return res.status === 401 ? send(true) : res;
-}
-
-type ErrorBody = { error?: string, error_description?: string };
-
-const readResponseJson = async (res: Response): Promise<unknown> => {
-  const text = await res.text();
-  if (!text.trim()) return null;
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return null;
-  }
-};
-
-const asErrorBody = (value: unknown): ErrorBody =>
-  (value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as ErrorBody;
-
-async function fail(res: Response, action: string, kind = 'Config'): Promise<never> {
-  const body = asErrorBody(await readResponseJson(res));
-  throw new Error(`${kind} sync ${action} failed: ${body.error_description ?? body.error ?? `HTTP ${res.status}`}`);
-}
-
 export async function listRemote(): Promise<RemoteFileMeta[]> {
-  const res = await request('/config-files');
+  const res = await request('/sync/config-files');
   if (!res.ok) return fail(res, 'list');
   const body = asErrorBody(await readResponseJson(res)) as { files?: unknown };
   return Array.isArray(body.files) ? body.files as RemoteFileMeta[] : [];
 }
 
 export async function getRemote(filename: SyncFilename): Promise<RemoteFile | null> {
-  const res = await request(`/config-files/${encodeURIComponent(filename)}`);
+  const res = await request(`/sync/config-files/${encodeURIComponent(filename)}`);
   if (res.status === 404) return null;
   if (!res.ok) return fail(res, `pull of ${filename}`);
   const parsed = await readResponseJson(res);
@@ -64,7 +29,7 @@ export async function getRemote(filename: SyncFilename): Promise<RemoteFile | nu
 
 /** `baseVersion` 0 creates the file; otherwise it must match the server's version or this throws SyncConflictError. */
 export async function putRemote(filename: SyncFilename, content: JsonObject, baseVersion: number): Promise<RemoteFileMeta> {
-  const res = await request(`/config-files/${encodeURIComponent(filename)}`, {
+  const res = await request(`/sync/config-files/${encodeURIComponent(filename)}`, {
     method: 'PUT',
     body: JSON.stringify({ content, baseVersion }),
   });
@@ -78,14 +43,14 @@ export async function putRemote(filename: SyncFilename, content: JsonObject, bas
 }
 
 export async function listRemoteWorkflows(): Promise<RemoteWorkflowMeta[]> {
-  const res = await request('/workflows');
+  const res = await request('/sync/workflows');
   if (!res.ok) return fail(res, 'list', 'Workflow');
   const body = asErrorBody(await readResponseJson(res)) as { workflows?: unknown };
   return Array.isArray(body.workflows) ? body.workflows as RemoteWorkflowMeta[] : [];
 }
 
 export async function getRemoteWorkflow(id: string): Promise<WorkflowRecord | null> {
-  const res = await request(`/workflows/${encodeURIComponent(id)}`);
+  const res = await request(`/sync/workflows/${encodeURIComponent(id)}`);
   if (res.status === 404) return null;
   if (!res.ok) return fail(res, `pull of ${id}`, 'Workflow');
   const parsed = asErrorBody(await readResponseJson(res)) as { workflow?: WorkflowRecord };
@@ -95,7 +60,7 @@ export async function getRemoteWorkflow(id: string): Promise<WorkflowRecord | nu
 
 export async function pushWorkflow(workflow: WorkflowRecord): Promise<boolean> {
   const payload = { ...workflow, steps: normalizeWorkflowSteps(workflow.steps) };
-  const res = await request('/workflows', { method: 'POST', body: JSON.stringify(payload) });
+  const res = await request('/sync/workflows', { method: 'POST', body: JSON.stringify(payload) });
   if (res.status === 409) return false;
   if (!res.ok) return fail(res, `push of "${workflow.title}"`, 'Workflow');
   return true;
@@ -103,19 +68,19 @@ export async function pushWorkflow(workflow: WorkflowRecord): Promise<boolean> {
 
 /** Already gone on fl0w-work (404) counts as deleted. */
 export async function deleteRemoteWorkflow(id: string): Promise<void> {
-  const res = await request(`/workflows/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  const res = await request(`/sync/workflows/${encodeURIComponent(id)}`, { method: 'DELETE' });
   if (!res.ok && res.status !== 404) return fail(res, `delete of ${id}`, 'Workflow');
 }
 
 export async function listRemoteSessions(): Promise<RemoteSessionMeta[]> {
-  const res = await request('/sessions');
+  const res = await request('/sync/sessions');
   if (!res.ok) return fail(res, 'list', 'Session');
   const body = asErrorBody(await readResponseJson(res)) as { sessions?: unknown };
   return Array.isArray(body.sessions) ? body.sessions as RemoteSessionMeta[] : [];
 }
 
 export async function getRemoteSession(id: string): Promise<RemoteSession | null> {
-  const res = await request(`/sessions/${encodeURIComponent(id)}`, {}, UPLOAD_TIMEOUT_MS);
+  const res = await request(`/sync/sessions/${encodeURIComponent(id)}`, {}, UPLOAD_TIMEOUT_MS);
   if (res.status === 404) return null;
   if (!res.ok) return fail(res, `pull of ${id}`, 'Session');
   const parsed = asErrorBody(await readResponseJson(res)) as { session?: RemoteSession };
@@ -124,7 +89,7 @@ export async function getRemoteSession(id: string): Promise<RemoteSession | null
 }
 
 export async function pushSession({ id, ...session }: RemoteSession): Promise<boolean> {
-  const res = await request(`/sessions/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(session) }, UPLOAD_TIMEOUT_MS);
+  const res = await request(`/sync/sessions/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(session) }, UPLOAD_TIMEOUT_MS);
   if (res.status === 409 || res.status === 413) return false;
   if (!res.ok) return fail(res, `push of "${session.title ?? id}"`, 'Session');
   return true;
@@ -132,19 +97,19 @@ export async function pushSession({ id, ...session }: RemoteSession): Promise<bo
 
 /** Already gone on fl0w-work (404) counts as deleted. */
 export async function deleteRemoteSession(id: string): Promise<void> {
-  const res = await request(`/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  const res = await request(`/sync/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
   if (!res.ok && res.status !== 404) return fail(res, `delete of ${id}`, 'Session');
 }
 
 export async function listRemoteSkills(): Promise<RemoteSkillMeta[]> {
-  const res = await request('/skills');
+  const res = await request('/sync/skills');
   if (!res.ok) return fail(res, 'list', 'Skill');
   const body = asErrorBody(await readResponseJson(res)) as { skills?: unknown };
   return Array.isArray(body.skills) ? body.skills as RemoteSkillMeta[] : [];
 }
 
 export async function putSkillBundle(name: string, contentHash: string, bundle: Uint8Array<ArrayBuffer>): Promise<RemoteSkillMeta> {
-  const res = await request(`/skills/${encodeURIComponent(name)}`, {
+  const res = await request(`/sync/skills/${encodeURIComponent(name)}`, {
     method: 'PUT',
     headers: { 'content-type': 'application/gzip', 'x-skill-content-hash': contentHash },
     body: bundle,
@@ -156,14 +121,14 @@ export async function putSkillBundle(name: string, contentHash: string, bundle: 
 }
 
 export async function listRemoteTools(): Promise<RemoteToolMeta[]> {
-  const res = await request('/tools');
+  const res = await request('/sync/tools');
   if (!res.ok) return fail(res, 'list', 'Tool');
   const body = asErrorBody(await readResponseJson(res)) as { tools?: unknown };
   return Array.isArray(body.tools) ? body.tools as RemoteToolMeta[] : [];
 }
 
 export async function putToolBundle(name: string, contentHash: string, bundle: Uint8Array<ArrayBuffer>): Promise<RemoteToolMeta> {
-  const res = await request(`/tools/${encodeURIComponent(name)}`, {
+  const res = await request(`/sync/tools/${encodeURIComponent(name)}`, {
     method: 'PUT',
     headers: { 'content-type': 'application/gzip', 'x-tool-content-hash': contentHash },
     body: bundle,

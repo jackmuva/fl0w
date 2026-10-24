@@ -4,7 +4,7 @@ import type { CliOutput, Fl0wMessage } from '../models/agent';
 import type { WorkflowRecord } from '../models/workflow';
 import { WorkflowStore } from '../db/workflow-store';
 import { SessionStore } from '../db/session-store';
-import { applyCapabilitySelection } from '../services/agent/capabilities';
+import { applyCapabilitySelection } from '../services/agent/config';
 import { fl0wLoop } from '../services/agent/main-loop';
 import { findPendingAskQuestion } from '../services/agent/utils/ask-question-state';
 import { createStreamPrinter, createTranscriptPrinter } from './cli-output';
@@ -12,8 +12,8 @@ import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
 import { scheduleSessionPush } from '../services/sync/session-sync';
-import { finishHeadlessRun } from './utils';
-import { runStartupSync } from './utils';
+import { finishHeadlessRun } from '../services/setup';
+import { runStartupSync } from '../services/setup';
 import { buildWorkflowUserMessage } from '../services/workflow/build-message';
 
 const HEADLESS_INSTRUCTIONS = [

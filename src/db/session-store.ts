@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { DB_PATH, sessionWorkspacePath } from '../constants';
 import type { CapabilitySelection, Fl0wMessage } from '../models/agent';
 import { messages, nextUpdatedAt, nowIso, openDatabase, sessions, type FlowDatabase } from './schema';
+import type { ModelSelection } from '../models/ai-model';
 
 export type SessionRecord = typeof sessions.$inferSelect;
 
@@ -125,6 +126,18 @@ export class SessionStore {
         .get()?.updatedAt;
       tx.update(sessions)
         .set({ capabilities, updatedAt: nextUpdatedAt(previous) })
+        .where(eq(sessions.id, sessionId))
+        .run();
+    }, { behavior: 'immediate' });
+  }
+
+  saveModels(sessionId: string, models: ModelSelection): void {
+    this.db.transaction((tx) => {
+      const previous = tx.select({ updatedAt: sessions.updatedAt }).from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .get()?.updatedAt;
+      tx.update(sessions)
+        .set({ models, updatedAt: nextUpdatedAt(previous) })
         .where(eq(sessions.id, sessionId))
         .run();
     }, { behavior: 'immediate' });

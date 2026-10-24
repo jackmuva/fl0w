@@ -2,7 +2,7 @@ import { readdir } from 'node:fs/promises';
 import { USER_TOOLS_DIR } from '../../../constants';
 import type { CapabilitySelection } from '../../../models/agent';
 import { readFl0wAuth } from '../../auth/token';
-import { isConfigSyncEnabled } from '../../config/app-config';
+import { isConfigSyncEnabled } from '../../setup';
 import { listRemoteTools, putToolBundle } from '../../remote-api/sync-api';
 import { MAX_SKILL_BUNDLE_BYTES, packFiles, type PackedSkill } from '../../skills/sync-skills';
 import { getUserToolSourceFile } from './loader';

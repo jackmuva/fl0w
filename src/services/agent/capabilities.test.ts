@@ -4,7 +4,7 @@ import {
   isMcpToolEnabled,
   mergeCapabilitySelection,
   setCapabilitySelection,
-} from './capabilities';
+} from './config';
 
 describe('mergeCapabilitySelection', () => {
   test('merges capabilities additively', () => {

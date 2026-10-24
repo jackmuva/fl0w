@@ -4,7 +4,7 @@ import { FL0W_SKILLS_DIR } from '../../constants';
 import type { CapabilitySelection } from '../../models/agent';
 import type { SkillSummary } from '../agent/hooks/front-load';
 import { readFl0wAuth } from '../auth/token';
-import { isConfigSyncEnabled } from '../config/app-config';
+import { isConfigSyncEnabled } from '../setup';
 import { listRemoteSkills, putSkillBundle } from '../remote-api/sync-api';
 import { isUnderFl0wSkills } from './mirror-enabled-skills';
 

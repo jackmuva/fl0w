@@ -3,6 +3,7 @@ import { fl0wMessage } from './services/agent/utils/fl0w-message';
 import { loadUserTools } from './services/agent/user-tools/loader';
 import { mcpClient } from './services/mcp/mcp-client';
 import { buildCapabilityCatalog } from './cli/capabilities';
+import { listModels } from './services/remote-api/ai-api';
 
 export type RunTuiOptions = {
   syncWarning: string | null;
@@ -34,6 +35,7 @@ export async function runTui({ syncWarning }: RunTuiOptions): Promise<void> {
 
   await loadUserTools();
   const capabilityCatalog = await buildCapabilityCatalog();
+  const models = await listModels();
 
   process.on('exit', () => {
     void mcpClient.close();
@@ -55,9 +57,10 @@ export async function runTui({ syncWarning }: RunTuiOptions): Promise<void> {
   initAppClipboard(renderer);
   createRoot(renderer).render(
     <App
-      initialMessage={ initialMessage }
-      seedMessages = { seedMessages }
-      capabilityCatalog = { capabilityCatalog }
+      initialMessage={initialMessage}
+      seedMessages={seedMessages}
+      capabilityCatalog={capabilityCatalog}
+      models={models}
     />
   );
 }

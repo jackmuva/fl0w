@@ -3,7 +3,7 @@ import { APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH } from '../../constants';
 import type { AuthFile } from '../../models/auth';
 import { SYNC_FILENAMES, type JsonObject, type RemoteFile, type RemoteFileMeta, type SyncFilename, type SyncState } from '../../models/sync';
 import { updateAuthFile } from '../auth/auth-store';
-import { isConfigSyncEnabled } from '../config/app-config';
+import { isConfigSyncEnabled } from '../setup';
 import { readFl0wAuth } from '../auth/token';
 import { writeJsonAtomic } from '../utils';
 import { asJsonObject, jsonEqual, mergeConfig, shareable } from './merge';

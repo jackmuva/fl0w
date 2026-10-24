@@ -3,7 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'path';
 import { CONTEXT_WINDOW, FL0W_HOME } from '../../../constants';
-import { isCapabilityEnabled } from '../capabilities';
+import { isCapabilityEnabled } from '../config';
 
 export const AGENTS_MD_FILENAME = 'AGENTS.md';
 export const SKILL_FILENAME = 'SKILL.md';

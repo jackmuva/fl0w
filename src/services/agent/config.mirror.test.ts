@@ -17,7 +17,7 @@ mock.module('../../constants', () => ({
   APP_CONFIG_PATH: join(fl0wHome, 'config.json'),
 }));
 
-const { applyCapabilitySelection } = await import('./capabilities');
+const { applyCapabilitySelection } = await import('./config');
 const { flushPendingSkillMirrors } = await import('../skills/mirror-enabled-skills');
 
 afterEach(async () => {

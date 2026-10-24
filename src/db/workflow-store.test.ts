@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { emptyCapabilitySelection } from '../services/agent/capabilities';
+import { emptyCapabilitySelection } from '../services/agent/config';
 import { WorkflowStore } from './workflow-store';
 
 const sampleCapabilities = () => {

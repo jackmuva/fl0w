@@ -15,7 +15,7 @@ const { AUTH_PATH } = await import('../../constants');
 if (!AUTH_PATH.startsWith(home)) throw new Error('workflow-sync test is not isolated');
 const { syncWorkflows } = await import('./workflow-sync');
 const { WorkflowStore } = await import('../../db/workflow-store');
-const { emptyCapabilitySelection } = await import('../agent/capabilities');
+const { emptyCapabilitySelection } = await import('../agent/config');
 
 let server: Map<string, Record<string, unknown>>;
 let requests: string[];

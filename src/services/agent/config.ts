@@ -48,7 +48,6 @@ export const applyCapabilitySelection = async (
 ): Promise<Fl0wMessage[]> => {
   setCapabilitySelection(next);
   const messages = await frontLoadMessages();
-  // frontLoadMessages registers the enabled skills it discovered; mirror from that instead of rescanning.
   scheduleMirrorEnabledSkills(next, listSkills());
   void syncEnabledToolsInBackground(next);
   return messages.map((message) => fl0wMessage(message));

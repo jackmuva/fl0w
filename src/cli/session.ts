@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import type { CapabilityKind, CapabilitySelection, CliOutput, Fl0wMessage } from '../models/agent';
 import { SessionStore } from '../db/session-store';
-import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/capabilities';
+import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/config';
 import { fl0wLoop } from '../services/agent/main-loop';
 import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/ask-question-state';
 import { createStreamPrinter, createTranscriptPrinter } from './cli-output';
@@ -10,8 +10,8 @@ import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
 import { scheduleSessionPush } from '../services/sync/session-sync';
-import { finishHeadlessRun } from './utils';
-import { runStartupSync } from './utils';
+import { finishHeadlessRun } from '../services/setup';
+import { runStartupSync } from '../services/setup';
 
 const USAGE =
   'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--messages <path.json>] [--remote]';

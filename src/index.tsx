@@ -1,7 +1,7 @@
 globalThis.AI_SDK_LOG_WARNINGS = false
 import { fl0wModelProvider } from "./services/auth/token"
 globalThis.AI_SDK_DEFAULT_PROVIDER = fl0wModelProvider
-import { ensureFl0wHome, loadAppConfig } from "./services/config/app-config"
+import { ensureFl0wHome } from "./services/setup"
 
 await ensureFl0wHome()
 
@@ -18,34 +18,28 @@ switch (command) {
   case "login":
   case "logout":
   case "whoami": {
-    await loadAppConfig()
     const { runAccountCommand } = await import("./services/auth/commands")
     process.exit(await runAccountCommand(command))
   }
   case "sync": {
-    await loadAppConfig()
     const { runSyncCommand } = await import("./cli/sync")
     process.exit(await runSyncCommand(rest))
   }
   case "workflow": {
-    await loadAppConfig()
     const { runWorkflowCli } = await import("./cli/workflow")
     process.exit(await runWorkflowCli(rest))
   }
   case "session": {
-    await loadAppConfig()
     const { runSessionCli } = await import("./cli/session")
     process.exit(await runSessionCli(rest))
   }
   case "capabilities": {
-    await loadAppConfig()
     const { runCapabilitiesCli } = await import("./cli/capabilities")
     process.exit(await runCapabilitiesCli(rest))
   }
   default: {
-    const { runStartupSync } = await import("./cli/utils")
+    const { runStartupSync } = await import("./services/setup")
     const syncWarning = await runStartupSync()
-    await loadAppConfig()
     const { runTui } = await import("./tui")
     await runTui({ syncWarning })
   }

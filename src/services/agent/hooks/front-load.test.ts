@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { FL0W_HOME } from '../../../constants';
-import { setCapabilitySelection } from '../capabilities';
+import { setCapabilitySelection } from '../config';
 import {
   AGENTS_MD_FILENAME,
   discoverAgentsMd,

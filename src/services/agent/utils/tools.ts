@@ -2,7 +2,7 @@ import { jsonSchema, tool, type generateText } from "ai";
 import { mcpToolKey, type McpTool, type McpToolResult } from "../../../models/mcp";
 import { HEADLESS, sessionWorkspacePath, TOOL_OUTPUT_MAX_CHARS } from "../../../constants";
 import { mcpClient } from "../../mcp/mcp-client";
-import { isCapabilityEnabled, isMcpToolEnabled } from "../capabilities";
+import { isCapabilityEnabled, isMcpToolEnabled } from "../config";
 import { executeDefaultTool, getDefaultTool, isDefaultToolKey, listDefaultTools } from "../default-tools";
 import { DEFAULT_ASK_QUESTION_TOOL, DEFAULT_CREATE_PLAN_TOOL, defaultToolKey, READ_FULL_TOOL_OUTPUT_TOOL } from "../default-tools/utils";
 import { listSkills } from "../hooks/front-load";

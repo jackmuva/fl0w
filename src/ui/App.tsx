@@ -6,7 +6,7 @@ import {
   emptyCapabilitySelection,
   isCatalogEmpty,
   mergeCapabilitySelection,
-} from "../services/agent/capabilities"
+} from "../services/agent/config"
 import { findPendingAskQuestion } from "../services/agent/utils/ask-question-state"
 import { fl0wMessage } from "../services/agent/utils/fl0w-message"
 import { buildWorkflowUserMessage } from "../services/workflow/build-message"
@@ -33,11 +33,13 @@ import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
 import { resolveUserMessage } from "./lib/input-completion/at-files"
 import type { CapabilityCatalog, CapabilitySelection, Fl0wMessage } from "../models/agent"
+import type { ModelMetadata, ModelSelection } from "../models/ai-model"
 
 type AppProps = {
   initialMessage?: string | null
   seedMessages: Fl0wMessage[]
   capabilityCatalog: CapabilityCatalog
+  models: ModelMetadata
 }
 
 export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProps) {
@@ -51,6 +53,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     resumeSession,
     deleteStoredSession,
     applySessionCapabilities,
+    applySessionModels,
     session,
   } = useSessionPersistence(seedMessages)
   const [sessionListRevision, setSessionListRevision] = useState(0)
@@ -137,8 +140,9 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     [clearSession, openCapabilityPicker, refreshWorkflows],
   )
 
-  const handleCapabilityConfirm = useCallback(async (selection: CapabilitySelection) => {
-    await applySessionCapabilities(selection)
+  const handleCapabilityConfirm = useCallback(async (selection: {capabilities: CapabilitySelection, models: ModelSelection}) => {
+    await applySessionModels(selection.models)
+    await applySessionCapabilities(selection.capabilities)
     setCapabilityPickerOpen(false)
   }, [applySessionCapabilities])
 
@@ -438,6 +442,7 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
       )}
       {capabilityPickerOpen && (
         <CapabilitySelectionDialog
+          models={models}
           catalog={capabilityCatalog}
           initialSelection={getCapabilitySelection() ?? emptyCapabilitySelection()}
           onConfirm={handleCapabilityConfirm}

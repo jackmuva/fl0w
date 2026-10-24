@@ -1,7 +1,7 @@
 import { WorkflowStore } from '../../db/workflow-store';
 import type { WorkflowRecord } from '../../models/workflow';
 import { readFl0wAuth } from '../auth/token';
-import { isConfigSyncEnabled } from '../config/app-config';
+import { isConfigSyncEnabled } from '../setup';
 import { deleteRemoteWorkflow, getRemoteWorkflow, listRemoteWorkflows, pushWorkflow } from '../remote-api/sync-api';
 
 let queue: Promise<unknown> = Promise.resolve();

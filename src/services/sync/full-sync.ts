@@ -1,12 +1,12 @@
 import type { CapabilitySelection } from '../../models/agent';
 import { discoverSkills } from '../agent/hooks/front-load';
-import { emptyCapabilitySelection } from '../agent/capabilities';
+import { emptyCapabilitySelection } from '../agent/config';
 import { listUserTools, loadUserTools } from '../agent/user-tools/loader';
 import { syncEnabledTools, type ToolSyncResults } from '../agent/user-tools/sync-tools';
 import { mirrorEnabledSkills } from '../skills/mirror-enabled-skills';
 import { syncEnabledSkills, type SkillSyncResults } from '../skills/sync-skills';
 import { readFl0wAuth } from '../auth/token';
-import { isConfigSyncEnabled } from '../config/app-config';
+import { isConfigSyncEnabled } from '../setup';
 import { syncConfigFiles, type SyncResults } from './config-sync';
 import { syncSessions, type SessionSyncResult } from './session-sync';
 import { syncWorkflows, type WorkflowSyncResult } from './workflow-sync';

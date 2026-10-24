@@ -1,9 +1,10 @@
 import type { CapabilitySelection, Fl0wMessage } from '../../models/agent';
-import { applyCapabilitySelection } from '../../services/agent/capabilities';
+import { applyCapabilitySelection } from '../../services/agent/config';
 import { resolve } from 'node:path';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SessionStore, type SessionRecord } from '../../db/session-store';
 import { deleteRemoteSessionInBackground, scheduleSessionPush } from '../../services/sync/session-sync';
+import type { ModelSelection } from '../../models/ai-model';
 
 type SetMessagesAction = Fl0wMessage[] | ((previous: Fl0wMessage[]) => Fl0wMessage[]);
 
@@ -20,6 +21,7 @@ export type UseSessionPersistenceResult = {
   deleteStoredSession: (sessionId: string) => void;
   replaceSeedMessages: (seed: Fl0wMessage[]) => void;
   applySessionCapabilities: (selection: CapabilitySelection) => Promise<void>;
+  applySessionModels: (selection: ModelSelection) => Promise<void>;
   session: SessionRecord;
   workspacePath: string;
 };
@@ -124,6 +126,15 @@ export const useSessionPersistence = (
     replaceSeedMessages(seed);
   }, [ensurePersistedSession, replaceSeedMessages, store]);
 
+  const applySessionModels = useCallback(async (selection: ModelSelection) => {
+    const sessionId = sessionIdRef.current;
+    if (!store.hasSession(sessionId)) ensurePersistedSession();
+    store.saveModels(sessionId, selection);
+    scheduleSessionPush(store);
+    setSession((previous) => ({ ...previous, models: selection }));
+  }, [ensurePersistedSession, store]);
+
+
   const clearSession = useCallback(() => {
     flushSave();
     setSession(store.createDraftSession(workspace));
@@ -177,6 +188,7 @@ export const useSessionPersistence = (
     deleteStoredSession,
     replaceSeedMessages,
     applySessionCapabilities,
+    applySessionModels,
     session,
     workspacePath: workspace,
   };

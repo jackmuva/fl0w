@@ -1,6 +1,6 @@
 import { SessionStore } from '../../db/session-store';
 import { readFl0wAuth } from '../auth/token';
-import { isConfigSyncEnabled } from '../config/app-config';
+import { isConfigSyncEnabled } from '../setup';
 import { deleteRemoteSession, getRemoteSession, listRemoteSessions, pushSession } from '../remote-api/sync-api';
 
 const PUSH_DEBOUNCE_MS = 2_000;

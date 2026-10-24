@@ -7,6 +7,7 @@ import { mkdirSync } from 'node:fs';
 import { DB_PATH, FL0W_HOME } from '../constants';
 import type { CapabilitySelection, Fl0wMessage } from '../models/agent';
 import type { WorkflowStep } from '../models/workflow';
+import type { ModelSelection } from '../models/ai-model';
 
 export const nowIso = (): string => new Date().toISOString();
 
@@ -23,7 +24,7 @@ export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   workspacePath: text('workspace_path').notNull(),
   title: text('title'),
-  models: text('models', {mode: 'json' }).$type<StateModel>(),
+  models: text('models', {mode: 'json' }).$type<ModelSelection>(),
   capabilities: text('capabilities', { mode: 'json' }).$type<CapabilitySelection>(),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

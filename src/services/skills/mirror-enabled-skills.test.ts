@@ -2,7 +2,7 @@ import { afterEach, describe, expect, mock, test } from 'bun:test';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as constants from '../../constants';
-import { emptyCapabilitySelection } from '../agent/capabilities';
+import { emptyCapabilitySelection } from '../agent/config';
 import type { SkillSummary } from '../agent/hooks/front-load';
 
 const tempRoot = join(import.meta.dir, '__fixtures__', 'mirror-skills');
