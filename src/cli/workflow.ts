@@ -15,6 +15,7 @@ import { finishHeadlessRun } from '../services/setup';
 import { runStartupSync } from '../services/setup';
 import { buildWorkflowUserMessage } from '../services/workflow/build-message';
 import { llmLoop } from '../services/agent/llm-loop';
+import { loadModels } from '../services/model-registry';
 
 const HEADLESS_INSTRUCTIONS = [
   'You are running unattended: no human is available to answer questions.',
@@ -117,6 +118,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   process.on('SIGINT', () => abort.abort());
   process.on('SIGTERM', () => abort.abort());
 
+  await loadModels();
   const run = await llmLoop(messages, session.models, onMessages, abort.signal, createStreamPrinter(), session.id);
   const outcome = await Promise.resolve(run.finishReason).then(
     (reason) => (reason === 'error' ? 'error' : 'ok'),

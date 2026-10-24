@@ -1,18 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { AppConfig } from './models/config';
 import type { ModelSelection } from './models/ai-model';
-
-const positiveConfigInt = (value: unknown): number | undefined => {
-  const parsed = Math.floor(typeof value === 'string' && value.trim() ? Number(value) : value as number);
-  return Number.isFinite(parsed) && parsed >= 1 ? parsed : undefined;
-};
-
-export const parseConfigString = (raw: string | undefined): string | undefined => {
-  const trimmed = raw?.trim();
-  if (!trimmed) return undefined;
-  return trimmed;
-};
 
 export const FL0W_HOME = join(homedir(), '.fl0w');
 
@@ -50,6 +38,9 @@ export const DEFAULT_TOOL_OUTPUT_MAX_CHARS = 20_000;
 
 export let TOOL_OUTPUT_MAX_CHARS = DEFAULT_TOOL_OUTPUT_MAX_CHARS;
 
+/** Used when listModels doesn't report a model's context window. */
+export const DEFAULT_CONTEXT_WINDOW = 200_000;
+
 export const COMPACTION_TOKEN_THRESHOLD = 0.75;
 
 export const TOOL_TOKEN_THRESHOLD = 0.25;
@@ -73,8 +64,3 @@ export const FL0W_API_URL = 'https://www.fl0w.work';
 export const AUTH_PATH = join(FL0W_HOME, 'auth.json');
 
 export const SYNC_STATE_PATH = join(FL0W_HOME, 'sync-state.json');
-
-export const applyAppConfig = (config: AppConfig): void => {
-  TOOL_OUTPUT_MAX_CHARS = positiveConfigInt(config.toolOutputMaxChars) ?? DEFAULT_TOOL_OUTPUT_MAX_CHARS;
-  MAX_ITERATIONS = positiveConfigInt(config.maxIterations) ?? DEFAULT_MAX_ITERATIONS;
-};

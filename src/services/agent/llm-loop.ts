@@ -7,10 +7,11 @@ import { executeAgent } from "./subagents/execution-agent";
 import { fl0wMessage, type AgentResult } from "./utils/fl0w-message";
 import { routingAgent } from "./subagents/routing-agent";
 import { summaryAgent } from "./subagents/summarize-agent";
+import { compactionHook } from "./hooks/compaction";
+import { contextWindowFor } from "../model-registry";
 
 type Phase = (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void) => Promise<AgentResult>;
 
-// Phases the session hasn't picked a model for (null or "") fall back to DEFAULT_MODELS.
 export const resolveModels = (selection: Partial<ModelSelection> | null | undefined): ModelSelection => {
   const resolved = { ...DEFAULT_MODELS };
   for (const phase of Object.keys(resolved) as (keyof ModelSelection)[]) {
@@ -20,7 +21,40 @@ export const resolveModels = (selection: Partial<ModelSelection> | null | undefi
   return resolved;
 }
 
-// Routes to a starting phase, runs each phase to completion (appending its messages so the next phase sees them), then summarizes.
+// Compacts against the context window of the model about to read the transcript.
+const compact = async (
+  transcript: Fl0wMessage[],
+  model: string,
+  onMessages: (messages: Fl0wMessage[]) => void,
+): Promise<Fl0wMessage[]> => {
+  const compacted = await compactionHook(transcript, model, await contextWindowFor(model));
+  if (compacted !== transcript) onMessages(compacted);
+  return compacted;
+};
+
+const runPhase = async (
+  subagent: SubagentType,
+  agent: Phase,
+  model: string,
+  onMessages: (messages: Fl0wMessage[]) => void,
+  onStreamText: (text: string | null) => void,
+  transcript: Fl0wMessage[],
+  abort: AbortSignal,
+): Promise<{ result: AgentResult, transcript: Fl0wMessage[] }> => {
+  transcript = await compact(transcript, model, onMessages);
+  let streamed = "";
+  const result = await agent(transcript, model, abort, (delta) => {
+    streamed += delta;
+    onStreamText(streamed);
+  });
+  await result.consumeStream();
+  const { messages: produced } = await result.response;
+  onStreamText(null);
+  transcript = [...transcript, ...produced.map((message) => fl0wMessage(message, subagent))];
+  onMessages(transcript);
+  return { result, transcript };
+};
+
 export const llmLoop = async (
   messages: Fl0wMessage[],
   selection: ModelSelection | null,
@@ -30,26 +64,11 @@ export const llmLoop = async (
   sessionId: string,
 ): Promise<AgentResult> => {
   const models = resolveModels(selection);
-  let transcript = messages;
-
-  const runPhase = async (subagent: SubagentType, agent: Phase, model: string): Promise<AgentResult> => {
-    // Agents emit deltas; callers render the accumulated text of the current phase.
-    let streamed = "";
-    const result = await agent(transcript, model, abort, (delta) => {
-      streamed += delta;
-      onStreamText(streamed);
-    });
-    await result.consumeStream();
-    const { messages: produced } = await result.response;
-    onStreamText(null);
-    transcript = [...transcript, ...produced.map((message) => fl0wMessage(message, subagent))];
-    onMessages(transcript);
-    return result;
-  };
+  let transcript = await compact(messages, models.ROUTER, onMessages);
 
   const state = await routingAgent(transcript, models.ROUTER, abort, onStreamText);
-  if (state === "discovery") await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY);
-  if (state === "discovery" || state === "plan") await runPhase("PLAN", planAgent, models.PLAN);
-  await runPhase("EXECUTE", executeAgent, models.EXECUTE);
-  return await runPhase("SUMMARY", summaryAgent, models.SUMMARIZE);
+  if (state === "discovery") ({ transcript } = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort));
+  if (state === "discovery" || state === "plan") ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort));
+  ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort));
+  return (await runPhase("SUMMARY", summaryAgent, models.SUMMARIZE, onMessages, onStreamText, transcript, abort)).result;
 }

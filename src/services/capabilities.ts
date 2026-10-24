@@ -1,10 +1,10 @@
 import type { CapabilityCatalog, CapabilityKind } from '../models/agent';
 import { mcpToolKey } from '../models/mcp';
-import { discoverAgentsMd, discoverSkills } from '../services/agent/hooks/front-load';
-import { listUserTools, loadUserTools } from '../services/agent/user-tools/loader';
-import { mcpClient } from '../services/mcp/mcp-client';
-import { finishHeadlessRun } from '../services/setup';
-import { runStartupSync } from '../services/setup';
+import { discoverAgentsMd, discoverSkills } from './agent/hooks/front-load';
+import { listUserTools, loadUserTools } from './agent/user-tools/loader';
+import { mcpClient } from './mcp/mcp-client';
+import { finishHeadlessRun } from './setup';
+import { runStartupSync } from './setup';
 
 const CATALOG_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 

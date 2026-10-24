@@ -34,7 +34,7 @@ switch (command) {
     process.exit(await runSessionCli(rest))
   }
   case "capabilities": {
-    const { runCapabilitiesCli } = await import("./cli/capabilities")
+    const { runCapabilitiesCli } = await import("./services/capabilities")
     process.exit(await runCapabilitiesCli(rest))
   }
   default: {

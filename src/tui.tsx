@@ -1,7 +1,7 @@
 import { loadUserTools } from './services/agent/user-tools/loader';
 import { mcpClient } from './services/mcp/mcp-client';
-import { buildCapabilityCatalog } from './cli/capabilities';
-import { listModels } from './services/remote-api/ai-api';
+import { buildCapabilityCatalog } from './services/capabilities';
+import { loadModels } from './services/model-registry';
 
 export async function runTui({ syncWarning }: { syncWarning: string | null }): Promise<void> {
   const { createCliRenderer } = await import('@opentui/core');
@@ -27,7 +27,7 @@ export async function runTui({ syncWarning }: { syncWarning: string | null }): P
 
   await loadUserTools();
   const capabilityCatalog = await buildCapabilityCatalog();
-  const models = await listModels();
+  const models = [...(await loadModels()).values()];
 
   process.on('exit', () => {
     void mcpClient.close();
