@@ -43,10 +43,10 @@ switch (command) {
     process.exit(await runCapabilitiesCli(rest))
   }
   default: {
-    const { runStartupSync } = await import("./cli/startup-sync")
+    const { runStartupSync } = await import("./cli/utils")
     const syncWarning = await runStartupSync()
     await loadAppConfig()
-    const { runTui } = await import("./cli/tui")
+    const { runTui } = await import("./tui")
     await runTui({ syncWarning })
   }
 }

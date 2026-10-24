@@ -1,8 +1,8 @@
-import { frontLoadMessages } from '../services/agent/hooks/front-load';
-import { fl0wMessage } from '../services/agent/utils/fl0w-message';
-import { loadUserTools } from '../services/agent/user-tools/loader';
-import { mcpClient } from '../services/mcp/mcp-client';
-import { buildCapabilityCatalog } from './capabilities';
+import { frontLoadMessages } from './services/agent/hooks/front-load';
+import { fl0wMessage } from './services/agent/utils/fl0w-message';
+import { loadUserTools } from './services/agent/user-tools/loader';
+import { mcpClient } from './services/mcp/mcp-client';
+import { buildCapabilityCatalog } from './cli/capabilities';
 
 export type RunTuiOptions = {
   syncWarning: string | null;
@@ -12,8 +12,8 @@ export type RunTuiOptions = {
 export async function runTui({ syncWarning }: RunTuiOptions): Promise<void> {
   const { createCliRenderer } = await import('@opentui/core');
   const { createRoot } = await import('@opentui/react');
-  const { App } = await import('../ui/App');
-  const { disposeAppClipboard, initAppClipboard } = await import('../ui/lib/clipboard/app-clipboard');
+  const { App } = await import('./ui/App');
+  const { disposeAppClipboard, initAppClipboard } = await import('./ui/lib/clipboard/app-clipboard');
 
   let initialMessage: null | string = syncWarning;
   const seedMessages = (await frontLoadMessages()).map((message) => fl0wMessage(message));
@@ -53,11 +53,11 @@ export async function runTui({ syncWarning }: RunTuiOptions): Promise<void> {
     ],
   });
   initAppClipboard(renderer);
-  createRoot(renderer).render((
+  createRoot(renderer).render(
     <App
-      initialMessage={initialMessage}
-      seedMessages={seedMessages}
-      capabilityCatalog={capabilityCatalog}
+      initialMessage={ initialMessage }
+      seedMessages = { seedMessages }
+      capabilityCatalog = { capabilityCatalog }
     />
-  ));
+  );
 }

@@ -12,8 +12,8 @@ import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
 import { scheduleSessionPush } from '../services/sync/session-sync';
-import { finishHeadlessRun } from './headless';
-import { runStartupSync } from './startup-sync';
+import { finishHeadlessRun } from './utils';
+import { runStartupSync } from './utils';
 import { buildWorkflowUserMessage } from '../services/workflow/build-message';
 
 const HEADLESS_INSTRUCTIONS = [

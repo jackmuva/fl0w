@@ -79,10 +79,12 @@ export const discoverAgentsMd = async (
   }];
 };
 
-export const discoverSkills = async (dirs = getSkillsDirs()): Promise<SkillSummary[]> => {
+export const discoverSkills = async (dirs = getSkillsDirs(), fl0wOnly: boolean = false): Promise<SkillSummary[]> => {
   const byName = new Map<string, SkillSummary>();
 
   for (const dir of dirs) {
+    if(fl0wOnly && dir !== join(FL0W_HOME, 'skills')) continue;
+
     let entries: string[];
     try {
       entries = await readdir(dir);

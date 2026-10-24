@@ -3,8 +3,8 @@ import { mcpToolKey } from '../models/mcp';
 import { discoverAgentsMd, discoverSkills } from '../services/agent/hooks/front-load';
 import { listUserTools, loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
-import { finishHeadlessRun } from './headless';
-import { runStartupSync } from './startup-sync';
+import { finishHeadlessRun } from './utils';
+import { runStartupSync } from './utils';
 
 const CATALOG_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 
