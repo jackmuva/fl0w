@@ -1,6 +1,7 @@
 import type { CapabilitySelection, Fl0wMessage } from './agent';
+import type { ModelSelection } from './ai-model';
 
-export const SYNC_FILENAMES = ['config.json', 'mcp.json', 'auth.json'] as const;
+export const SYNC_FILENAMES = ['mcp.json', 'auth.json'] as const;
 
 export type SyncFilename = (typeof SYNC_FILENAMES)[number];
 
@@ -31,6 +32,7 @@ export type RemoteSessionMeta = {
 export type RemoteSession = RemoteSessionMeta & {
   workspacePath: string;
   title: string | null;
+  models: ModelSelection | null;
   capabilities: CapabilitySelection | null;
   createdAt: string;
   messages: Fl0wMessage[];

@@ -1,7 +1,6 @@
 import type { JsonObject, SyncFilename } from '../../models/sync';
 
 const LOCAL_ONLY: Record<SyncFilename, readonly string[]> = {
-  'config.json': ['sync'],
   'mcp.json': [],
   'auth.json': ['fl0w'],
 };

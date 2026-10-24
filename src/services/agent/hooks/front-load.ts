@@ -2,7 +2,7 @@ import type { ModelMessage } from 'ai';
 import { readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'path';
-import { CONTEXT_WINDOW, FL0W_HOME } from '../../../constants';
+import { FL0W_HOME } from '../../../constants';
 import { isCapabilityEnabled } from '../config';
 
 export const AGENTS_MD_FILENAME = 'AGENTS.md';
@@ -83,7 +83,7 @@ export const discoverSkills = async (dirs = getSkillsDirs(), fl0wOnly: boolean =
   const byName = new Map<string, SkillSummary>();
 
   for (const dir of dirs) {
-    if(fl0wOnly && dir !== join(FL0W_HOME, 'skills')) continue;
+    if (fl0wOnly && dir !== join(FL0W_HOME, 'skills')) continue;
 
     let entries: string[];
     try {
@@ -140,10 +140,7 @@ export const frontLoadMessages = async (
     content:
       `Workspace root: ${workspace}\n` +
       'For file tools (read, edit, write, list_dir, glob), use paths relative to this directory (e.g. "src/index.ts"). ' +
-      'Do not use root-relative paths like "/src/index.ts".\n\n' +
-      `On managing context: you have a context window of ${CONTEXT_WINDOW} tokens.` +
-      'If tool call results take up too much of the window, write them to files for you to read them later. ' +
-      'ALWAYS clean up files before considering a task complete',
+      'Do not use root-relative paths like "/src/index.ts'
   }];
 
   const agentsPath = join(rootDir, AGENTS_MD_FILENAME);

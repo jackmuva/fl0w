@@ -19,7 +19,6 @@ import type { WorkflowRecord } from "../models/workflow"
 import { useSessionPersistence } from "./hooks/useSessionPersistence"
 import { buildToolCallInputMap } from "./lib/format/message"
 import { CompletionOverlayDialog } from "./components/input/CompletionOverlayDialog"
-import { CapabilitySelectionDialog } from "./components/session/CapabilitySelectionDialog"
 import { SessionSelectionDialog } from "./components/session/SessionSelectionDialog"
 import { WorkflowSelectionDialog } from "./components/workflow/WorkflowSelectionDialog"
 import { ChatInput } from "./components/input/ChatInput"
@@ -32,17 +31,17 @@ import { useCopyOnSelection } from "./hooks/useCopyOnSelection"
 import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
 import { resolveUserMessage } from "./lib/input-completion/at-files"
-import type { CapabilityCatalog, CapabilitySelection, Fl0wMessage } from "../models/agent"
+import type { CapabilityCatalog, CapabilitySelection } from "../models/agent"
 import type { ModelMetadata, ModelSelection } from "../models/ai-model"
+import { ConfigDialog } from "./components/session/ConfigDialog"
 
 type AppProps = {
   initialMessage?: string | null
-  seedMessages: Fl0wMessage[]
   capabilityCatalog: CapabilityCatalog
-  models: ModelMetadata
+  models: ModelMetadata[]
 }
 
-export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProps) {
+export function App({ initialMessage, capabilityCatalog, models }: AppProps) {
   const {
     messages,
     setMessages,
@@ -50,12 +49,13 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     getSessions,
     loadSessionMessages,
     getSessionCapabilities,
+    loadSessionModels,
     resumeSession,
     deleteStoredSession,
     applySessionCapabilities,
     applySessionModels,
     session,
-  } = useSessionPersistence(seedMessages)
+  } = useSessionPersistence()
   const [sessionListRevision, setSessionListRevision] = useState(0)
   useEffect(() => {
     setSessionListRevision((revision) => revision + 1)
@@ -76,8 +76,8 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
   const [workflows, setWorkflows] = useState<WorkflowRecord[]>(() =>
     workflowStore.listWorkflows(),
   )
-  const [capabilityPickerOpen, setCapabilityPickerOpen] = useState(
-    () => !isCatalogEmpty(capabilityCatalog) && session.capabilities === null,
+  const [capabilityPickerOpen, setConfigPickerOpen] = useState(
+    () => (!isCatalogEmpty(capabilityCatalog) || models.length > 0) && session.capabilities === null,
   )
   const runAbortRef = useRef<AbortController | null>(null)
   const renderer = useRenderer()
@@ -90,10 +90,10 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
 
     if (session.capabilities) {
       void applySessionCapabilities(session.capabilities).then(() => {
-        if (!cancelled) setCapabilityPickerOpen(false)
+        if (!cancelled) setConfigPickerOpen(false)
       })
     } else {
-      setCapabilityPickerOpen(true)
+      setConfigPickerOpen(true)
     }
 
     return () => {
@@ -119,32 +119,32 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
     setWorkflows(workflowStore.listWorkflows())
   }, [workflowStore])
 
-  const openCapabilityPicker = useCallback(() => {
-    setCapabilityPickerOpen(!isCatalogEmpty(capabilityCatalog))
-  }, [capabilityCatalog])
+  const openConfigPicker = useCallback(() => {
+    setConfigPickerOpen(!isCatalogEmpty(capabilityCatalog) || models.length > 0)
+  }, [capabilityCatalog, models])
 
   const slashCommandHandlers = useMemo(
     () => ({
       clearSession: () => {
         clearSession()
-        openCapabilityPicker()
+        openConfigPicker()
       },
       resumeSession: () => setSessionPickerOpen(true),
-      configureCapabilities: openCapabilityPicker,
+      configureCapabilities: openConfigPicker,
       generateWorkflow: () => setGenerateSessionPickerOpen(true),
       runWorkflow: () => {
         refreshWorkflows()
         setWorkflowPickerOpen(true)
       },
     }),
-    [clearSession, openCapabilityPicker, refreshWorkflows],
+    [clearSession, openConfigPicker, refreshWorkflows],
   )
 
-  const handleCapabilityConfirm = useCallback(async (selection: {capabilities: CapabilitySelection, models: ModelSelection}) => {
+  const handleConfigConfirm = useCallback(async (selection: { capabilities: CapabilitySelection, models: ModelSelection }) => {
     await applySessionModels(selection.models)
     await applySessionCapabilities(selection.capabilities)
-    setCapabilityPickerOpen(false)
-  }, [applySessionCapabilities])
+    setConfigPickerOpen(false)
+  }, [applySessionCapabilities, applySessionModels])
 
   const handleSessionSelect = useCallback((sessionId: string) => {
     resumeSession(sessionId)
@@ -173,7 +173,8 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
 
     try {
       const sessionMessages = loadSessionMessages(sessionId)
-      const generated = await generateWorkflowFromSession(sessionMessages)
+      //TODO: Fix
+      const generated = await generateWorkflowFromSession(sessionMessages, loadSessionModels(session.id)?.EXECUTE ?? "")
       const requiredCapabilities = getSessionCapabilities(sessionId) ?? emptyCapabilitySelection()
       const saved = workflowStore.saveWorkflow({
         sourceSessionId: sessionId,
@@ -441,12 +442,13 @@ export function App({ initialMessage, seedMessages, capabilityCatalog }: AppProp
         />
       )}
       {capabilityPickerOpen && (
-        <CapabilitySelectionDialog
+        <ConfigDialog
           models={models}
           catalog={capabilityCatalog}
           initialSelection={getCapabilitySelection() ?? emptyCapabilitySelection()}
-          onConfirm={handleCapabilityConfirm}
-          onDismiss={() => setCapabilityPickerOpen(false)}
+          initialModels={session.models ?? null}
+          onConfirm={handleConfigConfirm}
+          onDismiss={() => setConfigPickerOpen(false)}
           terminalWidth={width}
           terminalHeight={height}
         />

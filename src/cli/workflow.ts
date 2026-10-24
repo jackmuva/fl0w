@@ -5,7 +5,6 @@ import type { WorkflowRecord } from '../models/workflow';
 import { WorkflowStore } from '../db/workflow-store';
 import { SessionStore } from '../db/session-store';
 import { applyCapabilitySelection } from '../services/agent/config';
-import { fl0wLoop } from '../services/agent/main-loop';
 import { findPendingAskQuestion } from '../services/agent/utils/ask-question-state';
 import { createStreamPrinter, createTranscriptPrinter } from './cli-output';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
@@ -15,6 +14,7 @@ import { scheduleSessionPush } from '../services/sync/session-sync';
 import { finishHeadlessRun } from '../services/setup';
 import { runStartupSync } from '../services/setup';
 import { buildWorkflowUserMessage } from '../services/workflow/build-message';
+import { llmLoop } from '../services/agent/llm-loop';
 
 const HEADLESS_INSTRUCTIONS = [
   'You are running unattended: no human is available to answer questions.',
@@ -117,7 +117,11 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   process.on('SIGINT', () => abort.abort());
   process.on('SIGTERM', () => abort.abort());
 
-  const outcome = await fl0wLoop(messages, onMessages, abort.signal, { onStreamText: createStreamPrinter(), sessionId: session.id });
+  const run = await llmLoop(messages, onMessages, abort.signal, createStreamPrinter(), session.id);
+  const outcome = await Promise.resolve(run.finishReason).then(
+    (reason) => (reason === 'error' ? 'error' : 'ok'),
+    () => 'error' as const,
+  );
   if (!remote) {
     store.saveMessages(session.id, latest);
     scheduleSessionPush(store);

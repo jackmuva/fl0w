@@ -2,7 +2,6 @@ import { readdir } from 'node:fs/promises';
 import { USER_TOOLS_DIR } from '../../../constants';
 import type { CapabilitySelection } from '../../../models/agent';
 import { readFl0wAuth } from '../../auth/token';
-import { isConfigSyncEnabled } from '../../setup';
 import { listRemoteTools, putToolBundle } from '../../remote-api/sync-api';
 import { MAX_SKILL_BUNDLE_BYTES, packFiles, type PackedSkill } from '../../skills/sync-skills';
 import { getUserToolSourceFile } from './loader';
@@ -43,7 +42,7 @@ export async function syncEnabledTools(selection: CapabilitySelection): Promise<
       return file ? [{ name, file }] : [];
     });
     if (local.length === 0) return {};
-    if (!(await readFl0wAuth()) || !(await isConfigSyncEnabled())) return null;
+    if (!(await readFl0wAuth()) ) return null;
 
     const remote = new Map((await listRemoteTools()).map((tool) => [tool.name, tool.contentHash]));
     const results: ToolSyncResults = {};

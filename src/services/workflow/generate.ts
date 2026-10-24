@@ -7,7 +7,6 @@ import {
   UnsupportedFunctionalityError,
 } from 'ai';
 import { recordLlmUsage } from '../agent/hooks/session-usage';
-import { LLM_MODEL } from '../../constants';
 import type { Fl0wMessage } from '../../models/agent';
 import { extractToolCalls, hasConversationContent } from './extract-tool-calls';
 import type { GeneratedWorkflow, WorkflowStep } from '../../models/workflow';
@@ -179,6 +178,7 @@ export class WorkflowGenerationError extends Error {
 
 export const generateWorkflowFromSession = async (
   messages: Fl0wMessage[],
+  model: string,
 ): Promise<GeneratedWorkflow> => {
   const conversation = messages.filter(({ message }) => message.role !== 'system');
   if (!hasConversationContent(conversation)) {
@@ -210,7 +210,7 @@ ${stringifyToolCalls(toolCalls)}`;
 
   try {
     const generation = await generateText({
-      model: LLM_MODEL,
+      model,
       prompt: instructions,
       output: Output.object({
         schema: workflowSchema,
@@ -224,7 +224,7 @@ ${stringifyToolCalls(toolCalls)}`;
 
   try {
     const generation = await generateText({
-      model: LLM_MODEL,
+      model,
       prompt: instructions + JSON_PROMPT_SUFFIX,
     });
     recordLlmUsage(generation);

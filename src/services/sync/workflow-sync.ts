@@ -1,7 +1,6 @@
 import { WorkflowStore } from '../../db/workflow-store';
 import type { WorkflowRecord } from '../../models/workflow';
 import { readFl0wAuth } from '../auth/token';
-import { isConfigSyncEnabled } from '../setup';
 import { deleteRemoteWorkflow, getRemoteWorkflow, listRemoteWorkflows, pushWorkflow } from '../remote-api/sync-api';
 
 let queue: Promise<unknown> = Promise.resolve();
@@ -27,7 +26,7 @@ async function shouldPushLocalWorkflow(workflow: WorkflowRecord, remoteUpdatedAt
  */
 export async function syncWorkflows(store?: WorkflowStore): Promise<WorkflowSyncResult | null> {
   const run = queue.then(async () => {
-    if (!(await readFl0wAuth()) || !(await isConfigSyncEnabled())) return null;
+    if (!(await readFl0wAuth())) return null;
 
     const local = store ?? WorkflowStore.open();
     const toPull = new Map((await listRemoteWorkflows()).map((w) => [w.id, w.updatedAt]));
@@ -74,7 +73,7 @@ export function syncWorkflowsInBackground(store?: WorkflowStore): void {
 /** Queued behind in-flight syncs so a later sync can't pull the workflow back before it's gone remotely. */
 export function deleteRemoteWorkflowInBackground(id: string): void {
   const run = queue.then(async () => {
-    if (!(await readFl0wAuth()) || !(await isConfigSyncEnabled())) return;
+    if (!(await readFl0wAuth())) return;
     await deleteRemoteWorkflow(id);
   });
   queue = run.catch(() => { });

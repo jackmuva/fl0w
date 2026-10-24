@@ -3,7 +3,6 @@ import { APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH } from '../../constants';
 import type { AuthFile } from '../../models/auth';
 import { SYNC_FILENAMES, type JsonObject, type RemoteFile, type RemoteFileMeta, type SyncFilename, type SyncState } from '../../models/sync';
 import { updateAuthFile } from '../auth/auth-store';
-import { isConfigSyncEnabled } from '../setup';
 import { readFl0wAuth } from '../auth/token';
 import { writeJsonAtomic } from '../utils';
 import { asJsonObject, jsonEqual, mergeConfig, shareable } from './merge';
@@ -15,7 +14,6 @@ const PUSH_DEBOUNCE_MS = 1_000;
 
 // getters read the live bindings, so paths stay correct even if constants are patched after this module loads
 const PATHS: Record<SyncFilename, string> = {
-  get 'config.json'() { return APP_CONFIG_PATH; },
   get 'mcp.json'() { return MCP_CONFIG_PATH; },
   get 'auth.json'() { return AUTH_PATH; },
 };
@@ -130,7 +128,7 @@ let queue: Promise<unknown> = Promise.resolve();
 export async function syncConfigFiles(filenames: readonly SyncFilename[] = SYNC_FILENAMES): Promise<SyncResults | null> {
   const run = queue.then(async () => {
     const auth = await readFl0wAuth();
-    if (!auth || !(await isConfigSyncEnabled())) return null;
+    if (!auth ) return null;
 
     const stored = await readSyncState();
     const state: SyncState = stored.userId === auth.user.id ? stored : { userId: auth.user.id, files: {} };
@@ -152,7 +150,6 @@ export async function syncConfigFiles(filenames: readonly SyncFilename[] = SYNC_
 }
 
 export async function syncOnStartup(): Promise<string | null> {
-  if (!(await isConfigSyncEnabled())) return null;
   try {
     const results = await Promise.race([
       syncConfigFiles(),

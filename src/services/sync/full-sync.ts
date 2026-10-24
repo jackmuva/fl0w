@@ -6,7 +6,6 @@ import { syncEnabledTools, type ToolSyncResults } from '../agent/user-tools/sync
 import { mirrorEnabledSkills } from '../skills/mirror-enabled-skills';
 import { syncEnabledSkills, type SkillSyncResults } from '../skills/sync-skills';
 import { readFl0wAuth } from '../auth/token';
-import { isConfigSyncEnabled } from '../setup';
 import { syncConfigFiles, type SyncResults } from './config-sync';
 import { syncSessions, type SessionSyncResult } from './session-sync';
 import { syncWorkflows, type WorkflowSyncResult } from './workflow-sync';
@@ -34,7 +33,6 @@ export async function runFullSync(): Promise<FullSyncResult> {
   };
 
   if (!(await readFl0wAuth())) return { ...empty, skipped: 'not-signed-in' };
-  if (!(await isConfigSyncEnabled())) return { ...empty, skipped: 'sync-disabled' };
 
   const config = await syncConfigFiles();
   const workflows = await syncWorkflows();

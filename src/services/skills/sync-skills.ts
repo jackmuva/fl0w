@@ -4,7 +4,6 @@ import { FL0W_SKILLS_DIR } from '../../constants';
 import type { CapabilitySelection } from '../../models/agent';
 import type { SkillSummary } from '../agent/hooks/front-load';
 import { readFl0wAuth } from '../auth/token';
-import { isConfigSyncEnabled } from '../setup';
 import { listRemoteSkills, putSkillBundle } from '../remote-api/sync-api';
 import { isUnderFl0wSkills } from './mirror-enabled-skills';
 
@@ -74,7 +73,7 @@ export async function syncEnabledSkills(
 ): Promise<SkillSyncResults | null> {
   const run = queue.then(async () => {
     if (selection.skills.length === 0) return {};
-    if (!(await readFl0wAuth()) || !(await isConfigSyncEnabled())) return null;
+    if (!(await readFl0wAuth())) return null;
 
     const byName = new Map(catalog.map((skill) => [skill.name, skill]));
     const remote = new Map((await listRemoteSkills()).map((skill) => [skill.name, skill.contentHash]));

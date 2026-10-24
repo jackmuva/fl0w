@@ -1,23 +1,15 @@
-import { frontLoadMessages } from './services/agent/hooks/front-load';
-import { fl0wMessage } from './services/agent/utils/fl0w-message';
 import { loadUserTools } from './services/agent/user-tools/loader';
 import { mcpClient } from './services/mcp/mcp-client';
 import { buildCapabilityCatalog } from './cli/capabilities';
 import { listModels } from './services/remote-api/ai-api';
 
-export type RunTuiOptions = {
-  syncWarning: string | null;
-};
-
-/** Connect MCPs, load tools, and boot the interactive OpenTUI app. */
-export async function runTui({ syncWarning }: RunTuiOptions): Promise<void> {
+export async function runTui({ syncWarning }: { syncWarning: string | null }): Promise<void> {
   const { createCliRenderer } = await import('@opentui/core');
   const { createRoot } = await import('@opentui/react');
   const { App } = await import('./ui/App');
   const { disposeAppClipboard, initAppClipboard } = await import('./ui/lib/clipboard/app-clipboard');
 
   let initialMessage: null | string = syncWarning;
-  const seedMessages = (await frontLoadMessages()).map((message) => fl0wMessage(message));
 
   console.log('Connecting MCPs...');
   try {
@@ -58,7 +50,6 @@ export async function runTui({ syncWarning }: RunTuiOptions): Promise<void> {
   createRoot(renderer).render(
     <App
       initialMessage={initialMessage}
-      seedMessages={seedMessages}
       capabilityCatalog={capabilityCatalog}
       models={models}
     />

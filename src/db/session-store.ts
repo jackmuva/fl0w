@@ -57,6 +57,11 @@ export class SessionStore {
     const session: SessionRecord = {
       id: id ?? crypto.randomUUID(),
       workspacePath: resolve(workspacePath),
+      models: {
+        "DISCOVERY": "",
+        "PLAN": "",
+        "EXECUTE": "",
+      },
       title: null,
       capabilities: null,
       createdAt: now,
@@ -72,6 +77,11 @@ export class SessionStore {
     const now = nowIso();
     return {
       id: crypto.randomUUID(),
+      models: {
+        "DISCOVERY": "",
+        "PLAN": "",
+        "EXECUTE": "",
+      },
       workspacePath: resolve(workspacePath),
       title: null,
       capabilities: null,
@@ -110,6 +120,16 @@ export class SessionStore {
       .all()
       .map(({ payload }) => ('message' in payload ? payload : { message: payload }));
   }
+
+  loadModels(sessionId: string): ModelSelection | null {
+    const row = this.db.select({ models: sessions.models }).from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .get();
+
+    return row?.models ?? null;
+  }
+
+
 
   getCapabilities(sessionId: string): CapabilitySelection | null {
     const row = this.db.select({ capabilities: sessions.capabilities }).from(sessions)

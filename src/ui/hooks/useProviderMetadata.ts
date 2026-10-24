@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { CONTEXT_WINDOW } from '../../constants';
 import {
   getSessionUsageState,
   resetSessionUsage,
@@ -17,9 +16,10 @@ export const useProviderMetadata = (sessionId: string) => {
     setState(getSessionUsageState());
   }), []);
 
-  const contextPercent = state.lastInputTokens <= 0
-    ? 0
-    : Math.min(100, Math.round((state.lastInputTokens / CONTEXT_WINDOW) * 100));
-
-  return { ...state, contextPercent };
+  // TODO: fix this
+  // const contextPercent = state.lastInputTokens <= 0
+  //   ? 0
+  //   : Math.min(100, Math.round((state.lastInputTokens / CONTEXT_WINDOW) * 100));
+  //
+  return { ...state, contextPercent: 0 };
 };

@@ -1,6 +1,4 @@
 import {
-  CONTEXT_WINDOW,
-  LLM_MODEL,
   MAX_ROUTED_TOOL_OPTIONS,
   TOOL_TOKEN_THRESHOLD,
 } from '../../../constants';
@@ -16,7 +14,7 @@ import {
   Output,
 } from 'ai';
 
-const toolTokenLimit = (): number => Math.floor(CONTEXT_WINDOW * TOOL_TOKEN_THRESHOLD);
+const toolTokenLimit = (contextWindow: number): number => Math.floor(contextWindow * TOOL_TOKEN_THRESHOLD);
 
 const toolToText = (tool: McpTool): string => {
   const payload = {
@@ -29,18 +27,18 @@ const toolToText = (tool: McpTool): string => {
 const estimateToolTokens = (tools: McpTool[]): number =>
   tools.reduce((total, tool) => total + estimateTextTokens(toolToText(tool)), 0);
 
-const withinToolTokenBudget = (tools: McpTool[]): boolean =>
-  estimateToolTokens(tools) <= toolTokenLimit();
+const withinToolTokenBudget = (tools: McpTool[], contextWindow: number): boolean =>
+  estimateToolTokens(tools) <= toolTokenLimit(contextWindow);
 
-const withinRoutedLimits = (tools: McpTool[]): boolean =>
-  withinToolTokenBudget(tools) && tools.length <= MAX_ROUTED_TOOL_OPTIONS;
+const withinRoutedLimits = (tools: McpTool[], contextWindow: number): boolean =>
+  withinToolTokenBudget(tools, contextWindow) && tools.length <= MAX_ROUTED_TOOL_OPTIONS;
 
-const fitToolsToLimits = (tools: McpTool[], maxToolCount: number): McpTool[] => {
+const fitToolsToLimits = (tools: McpTool[], maxToolCount: number, contextWindow: number): McpTool[] => {
   const kept: McpTool[] = [];
   for (const tool of tools) {
     const next = [...kept, tool];
     if (next.length > maxToolCount) break;
-    if (estimateToolTokens(next) > toolTokenLimit()) break;
+    if (estimateToolTokens(next) > toolTokenLimit(contextWindow)) break;
     kept.push(tool);
   }
   if (kept.length > 0) return kept;
@@ -111,6 +109,8 @@ const selectToolNamesWithLlm = async (
   state: AgentState,
   tools: McpTool[],
   maxToolCount: number,
+  contextWindow: number,
+  model: string
 ): Promise<string[]> => {
   const validKeys = new Set(tools.map(mcpToolKey));
   const catalog = tools.map(toolToText).join('\n');
@@ -128,7 +128,7 @@ Tool catalog:
 ${catalog}`;
 
   const runStructured = () => retryModelCall(() => generateText({
-    model: LLM_MODEL,
+    model: model,
     prompt: instructions,
     output: Output.object({
       schema: toolSelectionSchema(maxToolCount),
@@ -144,7 +144,7 @@ ${catalog}`;
   } catch { }
 
   const generation = await retryModelCall(() => generateText({
-    model: LLM_MODEL,
+    model: model,
     prompt: instructions + jsonPromptSuffix(maxToolCount),
   }));
   recordLlmUsage(generation);
@@ -180,9 +180,11 @@ export const clearToolRouteCache = (): void => {
 export const reduceTools = async (
   state: AgentState,
   tools: McpTool[],
+  contextWindow: number,
+  model: string
 ): Promise<McpTool[]> => {
   if (tools.length === 0) return tools;
-  if (withinToolTokenBudget(tools)) return tools;
+  if (withinToolTokenBudget(tools, contextWindow)) return tools;
 
   const key = catalogKey(tools);
   const userTurnIndex = lastUserMessageIndex(state.messages);
@@ -192,29 +194,29 @@ export const reduceTools = async (
     && toolRouteCache.toolKeys.length > 0
   ) {
     let cached = orderToolsByKeys(tools, toolRouteCache.toolKeys);
-    if (!withinRoutedLimits(cached)) cached = fitToolsToLimits(cached, MAX_ROUTED_TOOL_OPTIONS);
-    if (withinRoutedLimits(cached)) return cached;
+    if (!withinRoutedLimits(cached, contextWindow)) cached = fitToolsToLimits(cached, MAX_ROUTED_TOOL_OPTIONS, contextWindow);
+    if (withinRoutedLimits(cached, contextWindow)) return cached;
   }
 
   let selectedKeys: string[] = [];
   try {
-    selectedKeys = await selectToolNamesWithLlm(state, tools, MAX_ROUTED_TOOL_OPTIONS);
+    selectedKeys = await selectToolNamesWithLlm(state, tools, MAX_ROUTED_TOOL_OPTIONS, contextWindow, model);
   } catch {
     selectedKeys = [];
   }
 
   let reduced = selectedKeys.length > 0
     ? orderToolsByKeys(tools, selectedKeys)
-    : fitToolsToLimits(tools, MAX_ROUTED_TOOL_OPTIONS);
+    : fitToolsToLimits(tools, MAX_ROUTED_TOOL_OPTIONS, contextWindow);
 
-  if (!withinRoutedLimits(reduced)) {
-    reduced = fitToolsToLimits(reduced, MAX_ROUTED_TOOL_OPTIONS);
+  if (!withinRoutedLimits(reduced, contextWindow)) {
+    reduced = fitToolsToLimits(reduced, MAX_ROUTED_TOOL_OPTIONS, contextWindow);
   }
 
-  if (!withinRoutedLimits(reduced)) {
+  if (!withinRoutedLimits(reduced, contextWindow)) {
     const tokens = estimateToolTokens(reduced);
     throw new Error(
-      `Could not reduce enabled tools for routing (estimated ${tokens} tokens, limit ${toolTokenLimit()}). Try disabling some MCP servers or capabilities.`,
+      `Could not reduce enabled tools for routing (estimated ${tokens} tokens, limit ${toolTokenLimit(contextWindow)}). Try disabling some MCP servers or capabilities.`,
     );
   }
 

@@ -1,5 +1,4 @@
 import type { CapabilitySelection, Fl0wMessage } from '../../models/agent';
-import { applyCapabilitySelection } from '../../services/agent/config';
 import { resolve } from 'node:path';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SessionStore, type SessionRecord } from '../../db/session-store';
@@ -16,10 +15,10 @@ export type UseSessionPersistenceResult = {
   clearSession: () => void;
   getSessions: () => SessionRecord[];
   loadSessionMessages: (sessionId: string) => Fl0wMessage[];
+  loadSessionModels: (sessionId: string) => ModelSelection | null;
   getSessionCapabilities: (sessionId: string) => CapabilitySelection | null;
   resumeSession: (sessionId: string) => void;
   deleteStoredSession: (sessionId: string) => void;
-  replaceSeedMessages: (seed: Fl0wMessage[]) => void;
   applySessionCapabilities: (selection: CapabilitySelection) => Promise<void>;
   applySessionModels: (selection: ModelSelection) => Promise<void>;
   session: SessionRecord;
@@ -27,10 +26,8 @@ export type UseSessionPersistenceResult = {
 };
 
 export const useSessionPersistence = (
-  initialSeedMessages: Fl0wMessage[],
   workspacePath = process.cwd(),
 ): UseSessionPersistenceResult => {
-  const [seedMessages, setSeedMessages] = useState(initialSeedMessages);
   const store = useMemo(() => SessionStore.open(), []);
   const workspace = useMemo(() => resolve(workspacePath), [workspacePath]);
   const [session, setSession] = useState<SessionRecord>(() => {
@@ -38,9 +35,7 @@ export const useSessionPersistence = (
   });
 
   const [messages, setMessagesState] = useState<Fl0wMessage[]>(() => {
-    if (!store.hasSession(session.id)) return [...seedMessages];
-    const saved = store.loadMessages(session.id);
-    return [...seedMessages, ...saved];
+    return store.loadMessages(session.id);
   });
 
   const sessionIdRef = useRef(session.id);
@@ -108,23 +103,13 @@ export const useSessionPersistence = (
     });
   }, [ensurePersistedSession, hasConversation, scheduleSave, store]);
 
-  const replaceSeedMessages = useCallback((seed: Fl0wMessage[]) => {
-    setSeedMessages(seed);
-    setMessagesState((previous) => [
-      ...seed,
-      ...previous.filter(({ message }) => message.role !== 'system'),
-    ]);
-  }, []);
-
   const applySessionCapabilities = useCallback(async (selection: CapabilitySelection) => {
-    const seed = await applyCapabilitySelection(selection);
     const sessionId = sessionIdRef.current;
     if (!store.hasSession(sessionId)) ensurePersistedSession();
     store.saveCapabilities(sessionId, selection);
     scheduleSessionPush(store);
     setSession((previous) => ({ ...previous, capabilities: selection }));
-    replaceSeedMessages(seed);
-  }, [ensurePersistedSession, replaceSeedMessages, store]);
+  }, [ensurePersistedSession, store]);
 
   const applySessionModels = useCallback(async (selection: ModelSelection) => {
     const sessionId = sessionIdRef.current;
@@ -138,13 +123,17 @@ export const useSessionPersistence = (
   const clearSession = useCallback(() => {
     flushSave();
     setSession(store.createDraftSession(workspace));
-    setMessagesState([...seedMessages]);
-  }, [flushSave, seedMessages, store, workspace]);
+  }, [flushSave, store, workspace]);
 
   const getSessions = useCallback(() => store.listSessions(workspace), [store, workspace]);
 
   const loadSessionMessages = useCallback(
     (sessionId: string) => store.loadMessages(sessionId),
+    [store],
+  );
+
+  const loadSessionModels= useCallback(
+    (sessionId: string) => store.loadModels(sessionId),
     [store],
   );
 
@@ -160,8 +149,8 @@ export const useSessionPersistence = (
     flushSave();
     setSession(target);
     const saved = store.loadMessages(sessionId);
-    setMessagesState([...seedMessages, ...saved]);
-  }, [flushSave, seedMessages, store, workspace]);
+    setMessagesState([...saved]);
+  }, [flushSave, store, workspace]);
 
   const deleteStoredSession = useCallback((sessionId: string) => {
     if (sessionId === session.id) flushSave();
@@ -174,8 +163,8 @@ export const useSessionPersistence = (
     const replacement = remaining[0] ?? store.createDraftSession(workspace);
     setSession(replacement);
     const saved = store.hasSession(replacement.id) ? store.loadMessages(replacement.id) : [];
-    setMessagesState([...seedMessages, ...saved]);
-  }, [flushSave, seedMessages, session.id, store, workspace]);
+    setMessagesState([...saved]);
+  }, [flushSave, session.id, store, workspace]);
 
   return {
     messages,
@@ -183,10 +172,10 @@ export const useSessionPersistence = (
     clearSession,
     getSessions,
     loadSessionMessages,
+    loadSessionModels,
     getSessionCapabilities,
     resumeSession,
     deleteStoredSession,
-    replaceSeedMessages,
     applySessionCapabilities,
     applySessionModels,
     session,

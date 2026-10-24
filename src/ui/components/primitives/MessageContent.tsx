@@ -2,7 +2,6 @@ import type { ModelMessage } from "ai"
 import type { Fl0wMessage } from "../../../models/agent"
 import { parseUserAttachments } from "../../lib/input-completion/at-files"
 import { parseWorkflowPrompt } from "../../../services/workflow/build-message"
-import { parseDecisionMessage, type DecisionMessagePayload } from "../../../services/agent/utils/fl0w-message"
 import { ASK_QUESTION_ACTION } from "../../../services/agent/utils/tools"
 import { renderToolCall, renderToolResult } from "../../tool-renderers"
 import {
@@ -12,17 +11,10 @@ import {
   type ToolResultPart,
 } from "../../lib/format/message"
 import { filetypeFromPath } from "../../lib/format/message"
-import {
-  selectedDecisionChoice,
-  TERMINAL_DECISION_CHOICES,
-  terminalDecisionLabel,
-} from "../../lib/decision-choice"
-import { ChoiceProbabilities } from "./ChoiceProbabilities"
 import { HighlightedCode } from "./HighlightedCode"
 import { syntaxStyle } from "../../syntax-style"
 import {
   AGENT_BORDER_COLOR,
-  DecisionBackdropContext,
   MessageFrame,
   MessageFrameKindContext,
 } from "./MessageFrame"
@@ -65,12 +57,9 @@ const hasOnlyToolCalls = (message: ModelMessage): boolean => {
 type MessageContentProps = {
   message: Fl0wMessage
   toolCallInputs: Map<string, { toolName: string; input: unknown }>
-  decision?: DecisionMessagePayload | null
 }
 
-const MAX_GHOSTS = 3
-
-export const MessageContent = ({ message: entry, toolCallInputs, decision }: MessageContentProps) => {
+export const MessageContent = ({ message: entry, toolCallInputs }: MessageContentProps) => {
   const { message, frame } = entry
   const isAgent = message.role === "assistant" || message.role === "tool"
 
@@ -115,17 +104,6 @@ export const MessageContent = ({ message: entry, toolCallInputs, decision }: Mes
   }
 
   if (hasOnlyToolCalls(message) && Array.isArray(message.content)) {
-    const selectedChoice = decision
-      ? selectedDecisionChoice(decision.probabilities, decision.selectedTool)
-      : undefined
-    const ghosts = decision
-      ? Object.entries(decision.probabilities)
-          .filter(([choice]) => choice !== selectedChoice)
-          .sort(([, a], [, b]) => b - a)
-          .slice(0, MAX_GHOSTS)
-          .map(([choice, probability]) => ({ choice, probability }))
-      : []
-
     return (
       <MessageFrameKindContext.Provider value="call">
         {message.content.map((part, index) => {
@@ -136,16 +114,12 @@ export const MessageContent = ({ message: entry, toolCallInputs, decision }: Mes
 
           return (
             <box key={toolCall.toolCallId ?? index}>
-              <DecisionBackdropContext.Provider
-                value={toolCall.toolName === decision?.selectedTool ? ghosts : []}
-              >
-                {renderToolCall({
-                  toolName: toolCall.toolName,
-                  toolCallId: toolCall.toolCallId,
-                  input: toolCall.input,
-                  text: "",
-                })}
-              </DecisionBackdropContext.Provider>
+              {renderToolCall({
+                toolName: toolCall.toolName,
+                toolCallId: toolCall.toolCallId,
+                input: toolCall.input,
+                text: "",
+              })}
             </box>
           )
         })}
@@ -155,33 +129,6 @@ export const MessageContent = ({ message: entry, toolCallInputs, decision }: Mes
 
   const text = formatMessageContent(message)
   if (!text) return null
-
-  if (
-    message.role === "assistant"
-    && decision
-    && TERMINAL_DECISION_CHOICES.has(decision.selectedTool)
-    && terminalDecisionLabel(decision.selectedTool) === text
-  ) {
-    return (
-      <box width="100%" marginBottom={1}>
-        <MessageFrameKindContext.Provider value="call">
-          <ChoiceProbabilities
-            probabilities={decision.probabilities}
-            selected={selectedDecisionChoice(decision.probabilities, decision.selectedTool)}
-          />
-          <box
-            border={["left"]}
-            borderColor={AGENT_BORDER_COLOR}
-            paddingLeft={1}
-            marginTop={1}
-            width="100%"
-          >
-            <text>{text}</text>
-          </box>
-        </MessageFrameKindContext.Provider>
-      </box>
-    )
-  }
 
   if (message.role === "user") {
     const workflow = parseWorkflowPrompt(text)

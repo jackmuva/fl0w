@@ -1,8 +1,6 @@
 import { generateText, type ModelMessage } from 'ai';
 import {
   COMPACTION_TOKEN_THRESHOLD,
-  CONTEXT_WINDOW,
-  LLM_MODEL,
   TOOL_RESULT_MIN_KEEP,
   TOOL_TRUNCATE_STEPS,
 } from '../../../constants';
@@ -11,16 +9,7 @@ import type { AgentState, Fl0wMessage } from '../../../models/agent';
 import { fl0wMessage } from '../utils/fl0w-message';
 import { TOOL_OUTPUT_FILE_PATTERN, toolOutputFileNotice } from '../default-tools/read-full-tool-output';
 
-export type CompactionOptions = {
-  keepAssistantMessages?: number;
-  contextWindow?: number;
-  tokenThreshold?: number;
-};
-
-const DEFAULT_OPTIONS = {
-  keepAssistantMessages: 4,
-  tokenThreshold: COMPACTION_TOKEN_THRESHOLD,
-} satisfies Omit<Required<CompactionOptions>, 'contextWindow'>;
+const KEEP_ASSISTANT_MESSAGE = 4;
 
 const truncate = (text: string, max: number): string =>
   text.length <= max ? text : `${text.slice(0, max)}…`;
@@ -194,15 +183,14 @@ const getRetainedIndices = (
 export const compactMessages = async (
   messages: Fl0wMessage[],
   force: boolean = false,
-  options: CompactionOptions = {},
+  contextWindow: number,
+  llm: string,
 ): Promise<Fl0wMessage[]> => {
-  const { keepAssistantMessages, tokenThreshold } = { ...DEFAULT_OPTIONS, ...options };
-  const contextWindow = options.contextWindow ?? CONTEXT_WINDOW;
-  const tokenLimit = contextWindow * tokenThreshold;
+  const tokenLimit = contextWindow * COMPACTION_TOKEN_THRESHOLD;
 
   if (estimateMessagesTokens(messages) < tokenLimit && !force) return messages;
 
-  const retained = getRetainedIndices(messages, keepAssistantMessages);
+  const retained = getRetainedIndices(messages, KEEP_ASSISTANT_MESSAGE);
   const toSummarize = messages.filter((_, index) => !retained.has(index));
 
   let result = messages;
@@ -211,10 +199,10 @@ export const compactMessages = async (
     const transcript = toSummarize.map(({ message }) => messageToText(message, { truncateToolResults: 2_000 }))
       .join('\n\n');
     const summaryResult = await generateText({
-      model: LLM_MODEL,
+      model: llm,
       instructions:
         `Summarize the following conversation history concisely. Preserve the user's goal, key decisions, important tool results, and progress made. Omit redundant details.\n\n` +
-        `Important: Keep the summary compact — it must be significantly shorter than the compaction context window of ${contextWindow} tokens. That window is used at a threshold of ${Math.round(tokenThreshold * 100)}% (i.e. a budget of ${tokenLimit} tokens), and the summary is re-fed into the model alongside other retained messages. So it must comfortably fit within that limit. Optimize for a tight, information-dense summary — favor the user's goal, key decisions, important tool results, and progress over verbatim detail.`,
+        `Important: Keep the summary compact — it must be significantly shorter than the compaction context window of ${contextWindow} tokens. That window is used at a threshold of ${Math.round(COMPACTION_TOKEN_THRESHOLD * 100)}% (i.e. a budget of ${tokenLimit} tokens), and the summary is re-fed into the model alongside other retained messages. So it must comfortably fit within that limit. Optimize for a tight, information-dense summary — favor the user's goal, key decisions, important tool results, and progress over verbatim detail.`,
       prompt: transcript,
     });
     recordLlmUsage(summaryResult);
@@ -243,7 +231,7 @@ export const compactMessages = async (
   return shrunk === result && result === messages ? messages : shrunk;
 };
 
-export const compactionHook = async (state: AgentState, force: boolean = false): Promise<AgentState> => {
-  const messages = await compactMessages(state.messages, force);
+export const compactionHook = async (state: AgentState, model: string, window: number, force: boolean = false): Promise<AgentState> => {
+  const messages = await compactMessages(state.messages, force, window, model);
   return messages === state.messages ? state : { ...state, messages };
 };
