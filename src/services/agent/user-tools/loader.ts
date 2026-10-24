@@ -8,6 +8,8 @@ export { USER_TOOLS_DIR };
 
 let loaded = false;
 let entries: UserToolDefinition[] = [];
+/** Tool name -> the file in USER_TOOLS_DIR that defines it, for syncing tools to fl0w-work. */
+let sourceFiles = new Map<string, string>();
 let loadErrors: string[] = [];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -47,6 +49,7 @@ export const loadUserTools = async (dir = USER_TOOLS_DIR) => {
 
   loaded = true;
   entries = [];
+  sourceFiles = new Map();
   loadErrors = [];
 
   let files: string[];
@@ -73,6 +76,7 @@ export const loadUserTools = async (dir = USER_TOOLS_DIR) => {
       }
 
       entries.push(definition);
+      sourceFiles.set(definition.name, file);
     } catch (error) {
       loadErrors.push(`${file}: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -101,6 +105,9 @@ export const listUserTools = (): McpTool[] =>
 export const isUserToolKey = (key: string) => key.startsWith(`${USER_TOOL_SERVER}/`);
 
 export const getUserToolLoadErrors = () => [...loadErrors];
+
+/** File name (relative to USER_TOOLS_DIR) of a loaded tool, or undefined if no loaded tool has that name. */
+export const getUserToolSourceFile = (name: string) => sourceFiles.get(name);
 
 export const executeUserTool = async (
   name: string,

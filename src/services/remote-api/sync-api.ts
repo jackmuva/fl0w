@@ -1,11 +1,11 @@
 import { FL0W_API_URL } from '../../constants';
-import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSession, RemoteSessionMeta, RemoteSkillMeta, RemoteWorkflowMeta, SyncFilename } from '../../models/sync';
+import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSession, RemoteSessionMeta, RemoteSkillMeta, RemoteToolMeta, RemoteWorkflowMeta, SyncFilename } from '../../models/sync';
 import { type WorkflowRecord } from '../../models/workflow';
 import { getAccessToken } from '../auth/token';
 import { normalizeWorkflowSteps } from '../workflow/generate';
 
 const REQUEST_TIMEOUT_MS = 5_000;
-// skill bundles and long sessions are up to a few MB, which a slow uplink won't send in 5s
+// skill/tool bundles and long sessions are up to a few MB, which a slow uplink won't send in 5s
 const UPLOAD_TIMEOUT_MS = 60_000;
 
 export class SyncConflictError extends Error {
@@ -153,4 +153,23 @@ export async function putSkillBundle(name: string, contentHash: string, bundle: 
   const parsed = asErrorBody(await readResponseJson(res)) as { skill?: RemoteSkillMeta };
   if (!parsed.skill) throw new Error(`Skill sync push of "${name}" failed: invalid response body`);
   return parsed.skill;
+}
+
+export async function listRemoteTools(): Promise<RemoteToolMeta[]> {
+  const res = await request('/tools');
+  if (!res.ok) return fail(res, 'list', 'Tool');
+  const body = asErrorBody(await readResponseJson(res)) as { tools?: unknown };
+  return Array.isArray(body.tools) ? body.tools as RemoteToolMeta[] : [];
+}
+
+export async function putToolBundle(name: string, contentHash: string, bundle: Uint8Array<ArrayBuffer>): Promise<RemoteToolMeta> {
+  const res = await request(`/tools/${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/gzip', 'x-tool-content-hash': contentHash },
+    body: bundle,
+  }, UPLOAD_TIMEOUT_MS);
+  if (!res.ok) return fail(res, `push of "${name}"`, 'Tool');
+  const parsed = asErrorBody(await readResponseJson(res)) as { tool?: RemoteToolMeta };
+  if (!parsed.tool) throw new Error(`Tool sync push of "${name}" failed: invalid response body`);
+  return parsed.tool;
 }

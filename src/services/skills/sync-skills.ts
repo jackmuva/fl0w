@@ -36,7 +36,11 @@ async function listSkillFiles(dir: string, prefix = ''): Promise<string[]> {
 }
 
 export async function packSkill(dir: string): Promise<PackedSkill> {
-  const files = await listSkillFiles(dir);
+  return packFiles(dir, await listSkillFiles(dir));
+}
+
+/** Packs `files` (paths relative to `dir`) into a .tar.gz with a content hash; shared with user tool sync. */
+export async function packFiles(dir: string, files: string[]): Promise<PackedSkill> {
   const contents: Record<string, Uint8Array> = {};
   const hasher = new Bun.CryptoHasher('sha256');
   for (const file of files) {

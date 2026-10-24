@@ -4,6 +4,7 @@ import { mcpToolKey } from "../../models/mcp";
 import { frontLoadMessages, listSkills } from "./hooks/front-load";
 import { scheduleMirrorEnabledSkills } from "../skills/mirror-enabled-skills";
 import { fl0wMessage } from "./utils/fl0w-message";
+import { syncEnabledToolsInBackground } from "./user-tools/sync-tools";
 
 let selection: CapabilitySelection | null = null;
 
@@ -49,6 +50,7 @@ export const applyCapabilitySelection = async (
   const messages = await frontLoadMessages();
   // frontLoadMessages registers the enabled skills it discovered; mirror from that instead of rescanning.
   scheduleMirrorEnabledSkills(next, listSkills());
+  void syncEnabledToolsInBackground(next);
   return messages.map((message) => fl0wMessage(message));
 };
 
