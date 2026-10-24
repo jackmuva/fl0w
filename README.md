@@ -33,7 +33,7 @@ The installer downloads a standalone binary and installs it as `fl0w` (default `
 
 ## Setup
 
-**Sign in**: run `fl0w login` and approve the code in your browser. Model calls go through your fl0w account (fl0w-work's AI proxy), so there's no API key to manage. `fl0w whoami` shows the account; `fl0w logout` signs out.
+**Sign in**: run `fl0w login` and approve the code in your browser. Model calls go through your fl0w account (fl0w-work's AI proxy), so there's no API key to manage. `fl0w whoami` shows the account; `fl0w logout` signs out. Run `fl0w sync` anytime to pull and push config, workflows, sessions, skills, and user tools with fl0w-work (requires sign-in).
 
 On first launch fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`, and `tools/`. Sign-in tokens and MCP OAuth credentials are stored in `~/.fl0w/auth.json` (mode 0600).
 
@@ -59,7 +59,13 @@ Skills, MCPs, and templates can be toggled per session to keep the context windo
 
 ### Keeping your setup in sync
 
-When signed in, fl0w keeps `config.json`, `mcp.json`, and `auth.json` in sync with your fl0w-work account — encrypted at rest and versioned on the server, so you can move between machines. Changes push ~1 second after you make them; at startup fl0w pulls the latest. If a file changed on both sides since the last sync, the newer copy wins. Disable with `FL0W_SYNC=0`.
+When signed in, fl0w syncs with your fl0w-work account so you can move between machines:
+
+- **Config files** — `config.json`, `mcp.json`, and `auth.json` (encrypted at rest, versioned on the server). Changes push ~1 second after you edit them; the TUI and headless commands pull the latest at startup. If a file changed on both sides since the last sync, the newer copy wins.
+- **Workflows and sessions** — two-way sync in the background (skipped for `--remote` headless runs, which do not touch the local session store).
+- **Skills and user tools** — uploaded when enabled in a session (mirrored under `~/.fl0w/skills` first for skills outside that tree).
+
+Disable automatic sync on this device with `"sync": false` in `config.json` or `FL0W_SYNC=0`. Use **`fl0w sync`** for a full manual sync (config, workflows, sessions, every discovered skill, and every user tool in `~/.fl0w/tools`).
 
 ## Usage
 
@@ -85,7 +91,11 @@ Run the agent from scripts, cron, or sandboxes without the TUI. Headless command
 
 ```bash
 fl0w help | -h | --help    # list commands and flags
+fl0w login | logout | whoami
+fl0w sync                  # manual full sync with fl0w-work
 ```
+
+Headless commands run startup config sync (and workflow/session background sync unless `--remote`) before the agent runs, then flush pending sync work on exit.
 
 **Shared behavior (`workflow` and `session`)**
 
@@ -213,9 +223,9 @@ Clear areas split (details in `AGENTS.md`):
 
 ```
 src/
-├── index.tsx             # Entry point – loads config and renders the TUI
+├── index.tsx             # Entry point – dispatches TUI vs CLI commands
 ├── constants.ts          # Shared constants (FL0W_HOME, LLM_MODEL, SYSTEM_ONE_MODEL, …)
-├── cli/                  # Headless CLI entry points (workflow, session, capabilities, help)
+├── cli/                  # CLI commands (sync, workflow, session, capabilities, TUI boot, help)
 ├── db/                   # Persistence (sessions, workflows)
 ├── models/               # Data models / types
 ├── services/             # Business logic (agent, auth, config, mcp, sync, workflow)
@@ -246,5 +256,6 @@ src/
 `fl0w login` signs you into fl0w-work via browser and stores sign-in tokens + MCP OAuth credentials in
 `~/.fl0w/auth.json` (mode 0600). Every model call goes through fl0w-work's AI proxy with that sign-in. `fl0w whoami` prints the account; `fl0w logout` signs out.
 
-When signed in, `config.json`, `mcp.json`, and `auth.json` sync with fl0w-work so your setup
-follows you across machines (see **Keeping your setup in sync**).
+When signed in, config files, workflows, sessions, skills, and user tools can sync with fl0w-work
+(see **Keeping your setup in sync**). `fl0w sync` runs a full manual sync; the TUI and headless
+commands reconcile config automatically at startup.

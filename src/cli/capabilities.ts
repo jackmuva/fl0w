@@ -3,6 +3,8 @@ import { mcpToolKey } from '../models/mcp';
 import { discoverAgentsMd, discoverSkills } from '../services/agent/hooks/front-load';
 import { listUserTools, loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
+import { finishHeadlessRun } from './headless';
+import { runStartupSync } from './startup-sync';
 
 const CATALOG_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 
@@ -29,6 +31,9 @@ const printCatalogLines = (catalog: CapabilityCatalog): void => {
 };
 
 export const runCapabilitiesCommand = async (_argv: string[]): Promise<number> => {
+  const syncWarning = await runStartupSync({ log: console.error });
+  if (syncWarning) console.error(syncWarning);
+
   console.error('Connecting MCPs...');
   try {
     await mcpClient.loadConfig();
@@ -44,3 +49,6 @@ export const runCapabilitiesCommand = async (_argv: string[]): Promise<number> =
   await mcpClient.close();
   return 0;
 };
+
+export const runCapabilitiesCli = async (argv: string[]): Promise<number> =>
+  finishHeadlessRun(await runCapabilitiesCommand(argv));

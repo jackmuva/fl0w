@@ -10,6 +10,8 @@ import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
 import { scheduleSessionPush } from '../services/sync/session-sync';
+import { finishHeadlessRun } from './headless';
+import { runStartupSync } from './startup-sync';
 
 const USAGE =
   'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--messages <path.json>] [--remote]';
@@ -102,6 +104,9 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   }
 
   const remote = values.remote === true;
+  const syncWarning = await runStartupSync({ log: console.error, syncSessions: !remote });
+  if (syncWarning) console.error(syncWarning);
+
   const store = SessionStore.open();
   const workspace = resolve(process.cwd());
 
@@ -198,3 +203,6 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   if (status === 'ok') return 0;
   return status === 'needs_input' ? 2 : 1;
 };
+
+export const runSessionCli = async (argv: string[]): Promise<number> =>
+  finishHeadlessRun(await runSessionCommand(argv));
