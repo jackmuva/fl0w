@@ -9,4 +9,5 @@ export type ModelSelection = {
   "DISCOVERY": string,
   "PLAN": string,
   "EXECUTE": string,
+  "SUMMARIZE": string,
 }

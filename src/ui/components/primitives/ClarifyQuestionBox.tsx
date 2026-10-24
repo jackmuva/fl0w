@@ -9,7 +9,7 @@ import {
   formatAskQuestionAnswers,
   getQuestionPrompt,
   type QuestionAnswer,
-} from "../../../services/agent/utils/ask-question-state"
+} from "../../../services/agent/utils/ask-question"
 import { AGENT_BORDER_COLOR } from "./MessageFrame"
 
 const OTHER_OPTION_ID = "other"

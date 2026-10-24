@@ -1,61 +1,55 @@
-import { isStepCount, streamText, type ModelMessage, type ToolSet } from "ai";
-import { MAX_ITERATIONS } from "../../constants";
-import type { AgentState, Fl0wMessage } from "../../models/agent";
-import { toModelMessages } from "./utils/fl0w-message";
-import { frontLoadMessages } from "./hooks/front-load";
+import type { Fl0wMessage, SubagentType } from "../../models/agent";
+import type { ModelSelection } from "../../models/ai-model";
+import { DEFAULT_MODELS } from "../../constants";
+import { discoveryAgent } from "./subagents/discovery-agent";
+import { planAgent } from "./subagents/plan-agent";
+import { executeAgent } from "./subagents/execution-agent";
+import { fl0wMessage, type AgentResult } from "./utils/fl0w-message";
+import { routingAgent } from "./subagents/routing-agent";
+import { summaryAgent } from "./subagents/summarize-agent";
 
-type AgentResult = ReturnType<typeof streamText<ToolSet>>;
+type Phase = (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void) => Promise<AgentResult>;
 
-// Runs discovery and plan to completion, then hands back the execute phase's stream unconsumed.
-export const llmLoop = async (agentState: AgentState, abort: AbortSignal, onStreamText: (text: string) => void, sessionId: string): Promise<AgentResult> => {
-  await (await discoveryAgent(agentState.messages, abort, onStreamText)).consumeStream();
-  await (await planAgent(agentState.messages, abort, onStreamText)).consumeStream();
-  return await executeAgent(agentState.messages, abort, onStreamText);
+// Phases the session hasn't picked a model for (null or "") fall back to DEFAULT_MODELS.
+export const resolveModels = (selection: Partial<ModelSelection> | null | undefined): ModelSelection => {
+  const resolved = { ...DEFAULT_MODELS };
+  for (const phase of Object.keys(resolved) as (keyof ModelSelection)[]) {
+    const picked = selection?.[phase]?.trim();
+    if (picked) resolved[phase] = picked;
+  }
+  return resolved;
 }
 
-const discoveryAgent = async (messages: Fl0wMessage[], abort: AbortSignal, onStreamText: (text: string) => void): Promise<AgentResult> => {
-  const systemPrompt = `You are a subagent tasked with fully scoping the problem and the current state of the project.
+// Routes to a starting phase, runs each phase to completion (appending its messages so the next phase sees them), then summarizes.
+export const llmLoop = async (
+  messages: Fl0wMessage[],
+  selection: ModelSelection | null,
+  onMessages: (messages: Fl0wMessage[]) => void,
+  abort: AbortSignal,
+  onStreamText: (text: string | null) => void,
+  sessionId: string,
+): Promise<AgentResult> => {
+  const models = resolveModels(selection);
+  let transcript = messages;
 
-For coding projects, please find the AGENTS.md and README.md if present.
+  const runPhase = async (subagent: SubagentType, agent: Phase, model: string): Promise<AgentResult> => {
+    // Agents emit deltas; callers render the accumulated text of the current phase.
+    let streamed = "";
+    const result = await agent(transcript, model, abort, (delta) => {
+      streamed += delta;
+      onStreamText(streamed);
+    });
+    await result.consumeStream();
+    const { messages: produced } = await result.response;
+    onStreamText(null);
+    transcript = [...transcript, ...produced.map((message) => fl0wMessage(message, subagent))];
+    onMessages(transcript);
+    return result;
+  };
 
-Use the default/ask_question tool to ask users any clarifying questions. Do not ask questions if the task is clear.
-
-Depending on the task and project you are in, perform any sort of background research so that a planning agent will be able to take your research and develop a solid plan for an agent to execute.
-
-Be thorough AND concise. Only your last message will be delivered to the planning agent so deliver your report there.`;
-  return streamText({
-    model: "anthropic/claude-opus-5.5",
-    messages: [...(await frontLoadMessages()), { role: "system", content: systemPrompt } as ModelMessage, ...toModelMessages(messages)],
-    stopWhen: isStepCount(MAX_ITERATIONS),
-    abortSignal: abort,
-    onChunk: ({ chunk }) => {
-      if (chunk.type === "text-delta") onStreamText(chunk.text);
-    },
-  });
-}
-
-const planAgent = async (messages: Fl0wMessage[], abort: AbortSignal, onStreamText: (text: string) => void): Promise<AgentResult> => {
-  const systemPrompt = `You are a planning agent. Based on the as-needed background research and problem clarification, use the default/plan_tool to map a plan for an execution-focused agent to complete step-by-step`;
-  return streamText({
-    model: "anthropic/claude-opus-5.5",
-    messages: [...(await frontLoadMessages()), { role: "system", content: systemPrompt } as ModelMessage, ...toModelMessages(messages)],
-    stopWhen: isStepCount(MAX_ITERATIONS),
-    abortSignal: abort,
-    onChunk: ({ chunk }) => {
-      if (chunk.type === "text-delta") onStreamText(chunk.text);
-    },
-  });
-}
-
-const executeAgent = async (messages: Fl0wMessage[], abort: AbortSignal, onStreamText: (text: string) => void): Promise<AgentResult> => {
-  const systemPrompt = ``;
-  return streamText({
-    model: "anthropic/claude-opus-5.5",
-    messages: toModelMessages(messages),
-    stopWhen: isStepCount(MAX_ITERATIONS),
-    abortSignal: abort,
-    onChunk: ({ chunk }) => {
-      if (chunk.type === "text-delta") onStreamText(chunk.text);
-    },
-  });
+  const state = await routingAgent(transcript, models.ROUTER, abort, onStreamText);
+  if (state === "discovery") await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY);
+  if (state === "discovery" || state === "plan") await runPhase("PLAN", planAgent, models.PLAN);
+  await runPhase("EXECUTE", executeAgent, models.EXECUTE);
+  return await runPhase("SUMMARY", summaryAgent, models.SUMMARIZE);
 }

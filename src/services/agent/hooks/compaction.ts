@@ -5,7 +5,7 @@ import {
   TOOL_TRUNCATE_STEPS,
 } from '../../../constants';
 import { recordLlmUsage } from './session-usage';
-import type { AgentState, Fl0wMessage } from '../../../models/agent';
+import type { Fl0wMessage } from '../../../models/agent';
 import { fl0wMessage } from '../utils/fl0w-message';
 import { TOOL_OUTPUT_FILE_PATTERN, toolOutputFileNotice } from '../default-tools/read-full-tool-output';
 
@@ -215,15 +215,15 @@ export const compactMessages = async (
 
     const summaryMessage = fl0wMessage(
       { role: 'assistant', content: summary },
-      'summary',
+      'SUMMARY',
     );
 
     const kept = messages.filter((_, index) => retained.has(index));
     const systemMessages = kept.filter(({ message }) => message.role === 'system');
     const otherKept = kept.filter(
-      ({ message, frame }) => message.role !== 'system' && frame !== 'summary',
+      ({ message, subagent }) => message.role !== 'system' && subagent !== 'SUMMARY',
     );
-    // Append summary last so sticky bottom scroll shows it; LLM order is restored in toModelMessages.
+    // Append summary last so sticky bottom scroll shows it.
     result = [...systemMessages, ...otherKept, summaryMessage];
   }
 
@@ -231,7 +231,5 @@ export const compactMessages = async (
   return shrunk === result && result === messages ? messages : shrunk;
 };
 
-export const compactionHook = async (state: AgentState, model: string, window: number, force: boolean = false): Promise<AgentState> => {
-  const messages = await compactMessages(state.messages, force, window, model);
-  return messages === state.messages ? state : { ...state, messages };
-};
+export const compactionHook = async (messages: Fl0wMessage[], model: string, window: number, force: boolean = false): Promise<Fl0wMessage[]> =>
+  compactMessages(messages, force, window, model);

@@ -60,10 +60,10 @@ type MessageContentProps = {
 }
 
 export const MessageContent = ({ message: entry, toolCallInputs }: MessageContentProps) => {
-  const { message, frame } = entry
+  const { message, subagent } = entry
   const isAgent = message.role === "assistant" || message.role === "tool"
 
-  if (frame === "summary") {
+  if (subagent === "SUMMARY") {
     const text = formatMessageContent(message)
     if (!text) return null
 

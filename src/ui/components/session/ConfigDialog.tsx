@@ -56,6 +56,7 @@ const MODEL_PHASES: Array<{ phase: Phase, label: string, short: string }> = [
   { phase: "DISCOVERY", label: "Discovery subagent", short: "Discovery" },
   { phase: "PLAN", label: "Workflow plan agent", short: "Plan" },
   { phase: "EXECUTE", label: "Execution agent", short: "Execute" },
+  { phase: "SUMMARIZE", label: "Compaction summary", short: "Summarize" },
 ]
 
 const EMPTY_MESSAGES: Record<TabKind, string> = {
@@ -124,6 +125,7 @@ const toAssignments = (
     DISCOVERY: initialModels?.DISCOVERY ?? fallback,
     PLAN: initialModels?.PLAN ?? fallback,
     EXECUTE: initialModels?.EXECUTE ?? fallback,
+    SUMMARIZE: initialModels?.SUMMARIZE ?? fallback,
   }
 }
 
@@ -292,7 +294,6 @@ export const ConfigDialog = ({
     agentsMd: catalog.agentsMd.map((entry) => entry.name).filter((name) => enabled.agentsMd.has(name)),
   })
 
-  // Unassigned phases fall back to the first available model.
   const buildModels = (): ModelSelection => {
     const fallback = models[0]?.model ?? ""
     return {
@@ -300,6 +301,7 @@ export const ConfigDialog = ({
       DISCOVERY: modelAssignments.DISCOVERY ?? fallback,
       PLAN: modelAssignments.PLAN ?? fallback,
       EXECUTE: modelAssignments.EXECUTE ?? fallback,
+      SUMMARIZE: modelAssignments.SUMMARIZE ?? fallback,
     }
   }
 

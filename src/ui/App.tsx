@@ -7,7 +7,7 @@ import {
   isCatalogEmpty,
   mergeCapabilitySelection,
 } from "../services/agent/config"
-import { findPendingAskQuestion } from "../services/agent/utils/ask-question-state"
+import { findPendingAskQuestion } from "../services/agent/utils/ask-question"
 import { fl0wMessage } from "../services/agent/utils/fl0w-message"
 import { buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
@@ -264,7 +264,7 @@ export function App({ initialMessage, capabilityCatalog, models }: AppProps) {
       const runAbort = new AbortController()
       runAbortRef.current = runAbort
       try {
-        await llmLoop(nextMessages, setMessages, runAbort.signal, setStreamingText, session.id)
+        await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, session.id)
         setStreamingText(null);
         setStatus("ready");
       } finally {
@@ -283,7 +283,7 @@ export function App({ initialMessage, capabilityCatalog, models }: AppProps) {
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      await llmLoop(nextMessages, setMessages, runAbort.signal, setStreamingText, session.id)
+      await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, session.id)
       setStreamingText(null);
       setStatus("ready");
     } finally {
@@ -310,7 +310,7 @@ export function App({ initialMessage, capabilityCatalog, models }: AppProps) {
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      await llmLoop(nextMessages, setMessages, runAbort.signal, setStreamingText, session.id)
+      await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, session.id)
       setStreamingText(null);
       setStatus("ready");
     } finally {

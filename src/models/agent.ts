@@ -1,16 +1,10 @@
 import type { ModelMessage } from "ai";
 
-export type Fl0wMessageFrame = 'summary';
+export type SubagentType = 'SUMMARY' | "ROUTING" | "EXECUTE" | "PLAN" | "DISCOVERY";
 
 export type Fl0wMessage = {
   message: ModelMessage,
-  frame?: Fl0wMessageFrame,
-}
-
-export type STATE = "START" | "DISCOVERY" | "PLAN" | "EXECUTE" | "END";
-export type AgentState = {
-  state: STATE,
-  messages: Fl0wMessage[],
+  subagent?: SubagentType,
 }
 
 export type UserToolDefinition = {

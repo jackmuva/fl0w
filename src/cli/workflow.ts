@@ -5,7 +5,7 @@ import type { WorkflowRecord } from '../models/workflow';
 import { WorkflowStore } from '../db/workflow-store';
 import { SessionStore } from '../db/session-store';
 import { applyCapabilitySelection } from '../services/agent/config';
-import { findPendingAskQuestion } from '../services/agent/utils/ask-question-state';
+import { findPendingAskQuestion } from '../services/agent/utils/ask-question';
 import { createStreamPrinter, createTranscriptPrinter } from './cli-output';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
@@ -117,7 +117,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   process.on('SIGINT', () => abort.abort());
   process.on('SIGTERM', () => abort.abort());
 
-  const run = await llmLoop(messages, onMessages, abort.signal, createStreamPrinter(), session.id);
+  const run = await llmLoop(messages, session.models, onMessages, abort.signal, createStreamPrinter(), session.id);
   const outcome = await Promise.resolve(run.finishReason).then(
     (reason) => (reason === 'error' ? 'error' : 'ok'),
     () => 'error' as const,

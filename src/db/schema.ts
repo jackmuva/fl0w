@@ -67,11 +67,17 @@ export const openDatabase = (path = DB_PATH) => {
       id TEXT PRIMARY KEY,
       workspace_path TEXT NOT NULL,
       title TEXT,
+      models TEXT,
       capabilities TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
   `);
+  // Databases created before per-phase model selection lack the column.
+  const sessionColumns = db.all<{ name: string }>(sql`PRAGMA table_info(sessions)`);
+  if (!sessionColumns.some(({ name }) => name === 'models')) {
+    db.run(sql`ALTER TABLE sessions ADD COLUMN models TEXT`);
+  }
   db.run(sql`
     CREATE INDEX IF NOT EXISTS idx_sessions_workspace_updated
     ON sessions (workspace_path, updated_at DESC)

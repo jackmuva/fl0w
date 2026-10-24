@@ -2,7 +2,7 @@ import {
   MAX_ROUTED_TOOL_OPTIONS,
   TOOL_TOKEN_THRESHOLD,
 } from '../../../constants';
-import type { AgentState } from '../../../models/agent';
+import type { Fl0wMessage } from '../../../models/agent';
 import { mcpToolKey, type McpTool } from '../../../models/mcp';
 import { retryModelCall } from '../../utils';
 import { toModelMessages } from '../utils/fl0w-message';
@@ -106,7 +106,7 @@ const parseToolSelectionJson = (text: string, validKeys: Set<string>, maxTools: 
 };
 
 const selectToolNamesWithLlm = async (
-  state: AgentState,
+  messages: Fl0wMessage[],
   tools: McpTool[],
   maxToolCount: number,
   contextWindow: number,
@@ -114,7 +114,7 @@ const selectToolNamesWithLlm = async (
 ): Promise<string[]> => {
   const validKeys = new Set(tools.map(mcpToolKey));
   const catalog = tools.map(toolToText).join('\n');
-  const messagesJson = JSON.stringify(toModelMessages(state.messages));
+  const messagesJson = JSON.stringify(toModelMessages(messages));
 
   const instructions = `
 Given the conversation and the full tool catalog below, return only the tool keys that are likely needed for the user's last task. Prefer fewer tools when possible. Use exact keys from the catalog (server/name format).
@@ -158,7 +158,7 @@ const orderToolsByKeys = (tools: McpTool[], keys: string[]): McpTool[] => {
 
 const catalogKey = (tools: McpTool[]): string => tools.map(mcpToolKey).join('\0');
 
-const lastUserMessageIndex = (messages: AgentState['messages']): number => {
+const lastUserMessageIndex = (messages: Fl0wMessage[]): number => {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i]?.message.role === 'user') return i;
   }
@@ -178,7 +178,7 @@ export const clearToolRouteCache = (): void => {
 };
 
 export const reduceTools = async (
-  state: AgentState,
+  messages: Fl0wMessage[],
   tools: McpTool[],
   contextWindow: number,
   model: string
@@ -187,7 +187,7 @@ export const reduceTools = async (
   if (withinToolTokenBudget(tools, contextWindow)) return tools;
 
   const key = catalogKey(tools);
-  const userTurnIndex = lastUserMessageIndex(state.messages);
+  const userTurnIndex = lastUserMessageIndex(messages);
   if (
     toolRouteCache?.catalogKey === key
     && toolRouteCache.userTurnIndex === userTurnIndex
@@ -200,7 +200,7 @@ export const reduceTools = async (
 
   let selectedKeys: string[] = [];
   try {
-    selectedKeys = await selectToolNamesWithLlm(state, tools, MAX_ROUTED_TOOL_OPTIONS, contextWindow, model);
+    selectedKeys = await selectToolNamesWithLlm(messages, tools, MAX_ROUTED_TOOL_OPTIONS, contextWindow, model);
   } catch {
     selectedKeys = [];
   }
