@@ -41,7 +41,8 @@ conversational agent that plans, executes, and distills tasks into reusable work
   `src/services/agent/loops/graph.ts`, or LLM tool-calling loop in `src/services/agent/loops/llm-loop.ts`.
 - **Streaming** — `fl0wLoop` options take `onStreamText`, a live preview of assistant text as it generates
   (LLM-mode text; decision-mode `message_answer`/`create_plan` tool inputs); `null` once committed. The TUI renders it
-  below the transcript; headless `session`/`workflow` print it as `stream_delta`/`stream_end` JSON lines.
+  below the transcript; headless `session`/`workflow` print it as `stream_delta`/`stream_end` JSON lines, and the running subagent
+  (the TUI's active phase, from `onPhase`) as `phase` lines (`cli/cli-output.ts` `runHeadlessTurn`).
 - **Shutdown** — MCP connections close cleanly on exit.
 
 ## Structure

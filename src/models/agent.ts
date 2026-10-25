@@ -47,6 +47,8 @@ export type CliOutputPendingQuestion = {
  * transcript; `message` sets the entry at `index` (always the next position after the latest snapshot/appends).
  * `stream_delta` appends to a live preview of the assistant text being generated, and `stream_end` discards it; the
  * preview is never part of the transcript (the finished text arrives as a `message`), so replays can skip both.
+ * `phase` reports the subagent now running (`null` once the loop ends), the TUI's active phase; like the stream lines
+ * it's live-only and not part of the transcript.
  * `mcp_auth_required` reports an MCP server whose OAuth credentials need the user to authorize again (in fl0w-work).
  */
 export type CliOutput =
@@ -54,6 +56,7 @@ export type CliOutput =
   | { type: 'message'; index: number; message: Fl0wMessage }
   | { type: 'stream_delta'; delta: string }
   | { type: 'stream_end' }
+  | { type: 'phase'; subagent: SubagentType | null }
   | { type: 'mcp_auth_required'; server: string; serverUrl: string }
   | {
     type: 'result';

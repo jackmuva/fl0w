@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import type { CliOutput } from '../models/agent';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
-import { createStreamPrinter, createTranscriptPrinter } from './cli-output';
+import { createPhasePrinter, createStreamPrinter, createTranscriptPrinter } from './cli-output';
 
 describe('createTranscriptPrinter', () => {
   let lines: CliOutput[];
@@ -72,6 +72,32 @@ describe('createStreamPrinter', () => {
       { type: 'stream_delta', delta: 'Retry' },
       { type: 'stream_end' },
       { type: 'stream_delta', delta: 'Other' },
+    ]);
+  });
+});
+
+describe('createPhasePrinter', () => {
+  let lines: CliOutput[];
+  let logSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    lines = [];
+    logSpy = spyOn(console, 'log').mockImplementation((line: string) => void lines.push(JSON.parse(line)));
+  });
+  afterEach(() => logSpy.mockRestore());
+
+  test('prints each phase change once and null when the loop ends', () => {
+    const print = createPhasePrinter();
+    print(null);
+    print('PLAN');
+    print('PLAN');
+    print('EXECUTE');
+    print(null);
+
+    expect(lines).toEqual([
+      { type: 'phase', subagent: 'PLAN' },
+      { type: 'phase', subagent: 'EXECUTE' },
+      { type: 'phase', subagent: null },
     ]);
   });
 });

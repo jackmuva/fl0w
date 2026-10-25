@@ -1,19 +1,17 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
-import type { CapabilityKind, CapabilitySelection, CliOutput, Fl0wMessage } from '../models/agent';
+import type { CapabilityKind, CapabilitySelection, Fl0wMessage } from '../models/agent';
 import type { SessionRecord, StoredSession } from '../models/session';
 import { getSession, saveSession } from '../services/session/session-repo';
 import { createDraftSession } from '../services/session/session-record';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/config';
 import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/ask-question';
-import { createStreamPrinter, createTranscriptPrinter } from './cli-output';
+import { runHeadlessTurn } from './cli-output';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
 import { finishHeadlessRun } from '../services/setup';
 import { requireLogin, runStartupSync } from '../services/setup';
-import { llmLoop } from '../services/agent/llm-loop';
-import { loadModels } from '../services/model-registry';
 
 const USAGE =
   'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--messages <path.json>] [--remote]';
@@ -173,36 +171,12 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const seed = await applyCapabilitySelection(capabilities);
   const messages: Fl0wMessage[] = [...seed, ...saved, ...nextMessages];
 
-  let latest = messages;
-  const printTranscript = createTranscriptPrinter();
-  printTranscript(messages);
-  const onMessages = (next: Fl0wMessage[]) => {
-    latest = next;
-    printTranscript(next);
-    if (!remote) session = saveSession(session, next);
-  };
-
-  const abort = new AbortController();
-  process.on('SIGINT', () => abort.abort());
-  process.on('SIGTERM', () => abort.abort());
-
-  await loadModels();
-  const run = await llmLoop(messages, session.models, onMessages, abort.signal, createStreamPrinter());
-  const outcome = await Promise.resolve(run.finishReason).then(
-    (reason) => (reason === 'error' ? 'error' : 'ok'),
-    () => 'error' as const,
-  );
-  if (!remote) session = saveSession(session, latest);
-
-  const pendingQuestion = findPendingAskQuestion(latest);
-  const status = pendingQuestion ? 'needs_input' : abort.signal.aborted ? 'stopped' : outcome;
-  const result: CliOutput = {
-    type: 'result',
-    status,
+  const status = await runHeadlessTurn({
+    messages,
+    models: session.models,
     sessionId: session.id,
-    ...(pendingQuestion && { pendingQuestion }),
-  };
-  console.log(JSON.stringify(result));
+    onMessages: remote ? undefined : (next) => { session = saveSession(session, next); },
+  });
 
   await mcpClient.close();
   if (status === 'ok') return 0;
