@@ -122,7 +122,10 @@ export const useSessionPersistence = (
 
   const clearSession = useCallback(() => {
     flushSave();
-    setSession(store.createDraftSession(workspace));
+    const draft = store.createDraftSession(workspace);
+    sessionIdRef.current = draft.id;
+    setSession(draft);
+    setMessagesState([]);
   }, [flushSave, store, workspace]);
 
   const getSessions = useCallback(() => store.listSessions(workspace), [store, workspace]);

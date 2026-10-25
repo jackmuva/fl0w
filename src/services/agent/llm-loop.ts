@@ -21,17 +21,6 @@ export const resolveModels = (selection: Partial<ModelSelection> | null | undefi
   return resolved;
 }
 
-// Compacts against the context window of the model about to read the transcript.
-const compact = async (
-  transcript: Fl0wMessage[],
-  model: string,
-  onMessages: (messages: Fl0wMessage[]) => void,
-): Promise<Fl0wMessage[]> => {
-  const compacted = await compactionHook(transcript, model, await contextWindowFor(model));
-  if (compacted !== transcript) onMessages(compacted);
-  return compacted;
-};
-
 const runPhase = async (
   subagent: SubagentType,
   agent: Phase,
@@ -41,7 +30,6 @@ const runPhase = async (
   transcript: Fl0wMessage[],
   abort: AbortSignal,
 ): Promise<{ result: AgentResult, transcript: Fl0wMessage[] }> => {
-  transcript = await compact(transcript, model, onMessages);
   let streamed = "";
   const result = await agent(transcript, model, abort, (delta) => {
     streamed += delta;
@@ -61,14 +49,28 @@ export const llmLoop = async (
   onMessages: (messages: Fl0wMessage[]) => void,
   abort: AbortSignal,
   onStreamText: (text: string | null) => void,
-  sessionId: string,
 ): Promise<AgentResult> => {
   const models = resolveModels(selection);
-  let transcript = await compact(messages, models.ROUTER, onMessages);
+  const state = await routingAgent(messages, models.ROUTER, abort, onStreamText);
 
-  const state = await routingAgent(transcript, models.ROUTER, abort, onStreamText);
-  if (state === "discovery") ({ transcript } = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort));
-  if (state === "discovery" || state === "plan") ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort));
+  const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
+    const compacted = await compactionHook(transcript, models.SUMMARIZE, await contextWindowFor(target));
+    if (compacted !== transcript) onMessages(compacted);
+    return compacted;
+  };
+
+  let transcript = messages;
+  if (state === "discovery") {
+    transcript = await compact(transcript, models.DISCOVERY);
+    ({ transcript } = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort));
+  }
+
+  if (state === "discovery" || state === "plan") {
+    transcript = await compact(transcript, models.PLAN);
+    ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort));
+  }
+
+  transcript = await compact(transcript, models.EXECUTE);
   ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort));
   return (await runPhase("SUMMARY", summaryAgent, models.SUMMARIZE, onMessages, onStreamText, transcript, abort)).result;
 }

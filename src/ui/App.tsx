@@ -264,7 +264,7 @@ export function App({ initialMessage, capabilityCatalog, models }: AppProps) {
       const runAbort = new AbortController()
       runAbortRef.current = runAbort
       try {
-        await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, session.id)
+        await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText);
         setStreamingText(null);
         setStatus("ready");
       } finally {
@@ -283,7 +283,7 @@ export function App({ initialMessage, capabilityCatalog, models }: AppProps) {
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, session.id)
+      await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText)
       setStreamingText(null);
       setStatus("ready");
     } finally {
@@ -310,7 +310,7 @@ export function App({ initialMessage, capabilityCatalog, models }: AppProps) {
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, session.id)
+      await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText)
       setStreamingText(null);
       setStatus("ready");
     } finally {

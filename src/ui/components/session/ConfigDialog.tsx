@@ -42,6 +42,7 @@ const DONE_FG = "#9ece6a"
 type TabKind = "models" | CapabilityKind
 type Phase = keyof ModelSelection
 type ModelAssignments = Record<Phase, string | null>
+type ModelType = ModelMetadata["type"]
 
 const TABS: Array<{ kind: TabKind, label: string }> = [
   { kind: "models", label: "Models" },
@@ -51,13 +52,20 @@ const TABS: Array<{ kind: TabKind, label: string }> = [
   { kind: "agentsMd", label: "AGENTS.md" },
 ]
 
-const MODEL_PHASES: Array<{ phase: Phase, label: string, short: string }> = [
-  { phase: "ROUTER", label: "Router agent", short: "Router" },
-  { phase: "DISCOVERY", label: "Discovery subagent", short: "Discovery" },
-  { phase: "PLAN", label: "Workflow plan agent", short: "Plan" },
-  { phase: "EXECUTE", label: "Execution agent", short: "Execute" },
-  { phase: "SUMMARIZE", label: "Compaction summary", short: "Summarize" },
+const MODEL_PHASES: Array<{ phase: Phase, label: string, short: string, type: ModelType }> = [
+  { phase: "ROUTER", label: "Router agent", short: "Router", type: "decision" },
+  { phase: "DISCOVERY", label: "Discovery subagent", short: "Discovery", type: "text" },
+  { phase: "PLAN", label: "Workflow plan agent", short: "Plan", type: "text" },
+  { phase: "EXECUTE", label: "Execution agent", short: "Execute", type: "text" },
+  { phase: "SUMMARIZE", label: "Compaction summary", short: "Summarize", type: "text" },
 ]
+
+const MODEL_SECTIONS: Array<{ type: ModelType, label: string }> = [
+  { type: "text", label: "Text models" },
+  { type: "decision", label: "Decision models" },
+]
+
+const phasesFor = (type: ModelType) => MODEL_PHASES.filter((entry) => entry.type === type)
 
 const EMPTY_MESSAGES: Record<TabKind, string> = {
   models: "No models available",
@@ -71,9 +79,11 @@ type Row =
   | { type: "selectAll" }
   | { type: "item", name: string, description?: string }
   | { type: "model", name: string }
+  | { type: "section", label: string }
 
 type PhasePopup = {
   model: string
+  phases: Array<{ phase: Phase, label: string }>
   checked: Set<Phase>
   cursor: number
 }
@@ -115,18 +125,20 @@ const toSets = (selection: CapabilitySelection) => ({
   agentsMd: new Set(selection.agentsMd),
 })
 
+// Each phase defaults to the first model in its section; a saved choice is kept only if its type still matches.
 const toAssignments = (
   models: ModelMetadata[],
   initialModels: ModelSelection | null,
 ): ModelAssignments => {
-  const fallback = models[0]?.model ?? null
-  return {
-    ROUTER: initialModels?.ROUTER ?? fallback,
-    DISCOVERY: initialModels?.DISCOVERY ?? fallback,
-    PLAN: initialModels?.PLAN ?? fallback,
-    EXECUTE: initialModels?.EXECUTE ?? fallback,
-    SUMMARIZE: initialModels?.SUMMARIZE ?? fallback,
+  const assignments = {} as ModelAssignments
+  for (const { phase, type } of MODEL_PHASES) {
+    const candidates = models.filter((entry) => entry.type === type)
+    const initial = initialModels?.[phase]
+    assignments[phase] = candidates.some((entry) => entry.model === initial)
+      ? initial ?? null
+      : candidates[0]?.model ?? null
   }
+  return assignments
 }
 
 const isConfirmKey = (key: KeyEvent) => key.name === "return" || key.name === "kpenter"
@@ -167,7 +179,16 @@ export const ConfigDialog = ({
   const rows = useMemo<Row[]>(() => {
     if (filteredItems.length === 0) return []
     if (!capabilityKind) {
-      return filteredItems.map((entry) => ({ type: "model" as const, name: entry.name }))
+      const filteredNames = new Set(filteredItems.map((entry) => entry.name))
+      return MODEL_SECTIONS.flatMap(({ type, label }) => {
+        const sectionModels = models.filter((entry) =>
+          entry.type === type && filteredNames.has(entry.model))
+        if (sectionModels.length === 0) return []
+        return [
+          { type: "section" as const, label },
+          ...sectionModels.map((entry) => ({ type: "model" as const, name: entry.model })),
+        ]
+      })
     }
     return [
       { type: "selectAll" },
@@ -177,7 +198,17 @@ export const ConfigDialog = ({
         description: entry.description,
       })),
     ]
-  }, [capabilityKind, filteredItems])
+  }, [capabilityKind, filteredItems, models])
+
+  // Section headers are not selectable, so movement skips over them.
+  const nextSelectable = (from: number, delta: number) => {
+    for (let step = 1; step <= rows.length; step++) {
+      const index = (((from + delta * step) % rows.length) + rows.length) % rows.length
+      if (rows[index]?.type !== "section") return index
+    }
+    return from
+  }
+  const activeCursor = rows[cursor]?.type === "section" ? nextSelectable(cursor, 1) : cursor
 
   const enabledSet = capabilityKind ? enabled[capabilityKind] : null
   const enabledInTab = enabledSet
@@ -207,9 +238,12 @@ export const ConfigDialog = ({
 
   const toggleRow = (row: Row | undefined) => {
     if (!row) return
+    if (row.type === "section") return
     if (row.type === "model") {
+      const type = models.find((entry) => entry.model === row.name)?.type ?? "text"
       setPhasePopup({
         model: row.name,
+        phases: phasesFor(type),
         checked: new Set(assignedPhases(row.name).map(({ phase }) => phase)),
         cursor: 0,
       })
@@ -228,17 +262,20 @@ export const ConfigDialog = ({
     })
   }
 
-  // Popup row 0 is "Select all"; rows 1..n map to MODEL_PHASES.
+  // With more than one phase, popup row 0 is "Select all" and the remaining rows map to popup.phases.
+  const popupHasSelectAll = (popup: PhasePopup) => popup.phases.length > 1
+
   const togglePopupRow = (popup: PhasePopup): PhasePopup => {
     const checked = new Set(popup.checked)
-    const phase = MODEL_PHASES[popup.cursor - 1]?.phase
+    const offset = popupHasSelectAll(popup) ? 1 : 0
+    const phase = popup.phases[popup.cursor - offset]?.phase
     if (phase) {
       if (checked.has(phase)) checked.delete(phase)
       else checked.add(phase)
-    } else if (checked.size === MODEL_PHASES.length) {
+    } else if (checked.size === popup.phases.length) {
       checked.clear()
     } else {
-      for (const entry of MODEL_PHASES) checked.add(entry.phase)
+      for (const entry of popup.phases) checked.add(entry.phase)
     }
     return { ...popup, checked }
   }
@@ -247,7 +284,7 @@ export const ConfigDialog = ({
   const commitPhasePopup = (popup: PhasePopup) => {
     setModelAssignments((previous) => {
       const next = { ...previous }
-      for (const { phase } of MODEL_PHASES) {
+      for (const { phase } of popup.phases) {
         if (popup.checked.has(phase)) next[phase] = popup.model
         else if (next[phase] === popup.model) next[phase] = null
       }
@@ -257,7 +294,7 @@ export const ConfigDialog = ({
   }
 
   const handlePopupKey = (key: KeyEvent, popup: PhasePopup) => {
-    const rowCount = MODEL_PHASES.length + 1
+    const rowCount = popup.phases.length + (popupHasSelectAll(popup) ? 1 : 0)
     if (key.name === "up") {
       setPhasePopup({ ...popup, cursor: (popup.cursor - 1 + rowCount) % rowCount })
     } else if (key.name === "down") {
@@ -295,14 +332,13 @@ export const ConfigDialog = ({
   })
 
   const buildModels = (): ModelSelection => {
-    const fallback = models[0]?.model ?? ""
-    return {
-      ROUTER: modelAssignments.ROUTER ?? fallback,
-      DISCOVERY: modelAssignments.DISCOVERY ?? fallback,
-      PLAN: modelAssignments.PLAN ?? fallback,
-      EXECUTE: modelAssignments.EXECUTE ?? fallback,
-      SUMMARIZE: modelAssignments.SUMMARIZE ?? fallback,
+    const selection = {} as ModelSelection
+    for (const { phase, type } of MODEL_PHASES) {
+      selection[phase] = modelAssignments[phase]
+        ?? models.find((entry) => entry.type === type)?.model
+        ?? ""
     }
+    return selection
   }
 
   const confirm = () => onConfirm({ capabilities: buildSelection(), models: buildModels() })
@@ -344,11 +380,11 @@ export const ConfigDialog = ({
     }
 
     if (key.name === "up") {
-      setCursor((index) => (index - 1 + rows.length) % rows.length)
+      setCursor(nextSelectable(activeCursor, -1))
     } else if (key.name === "down") {
-      setCursor((index) => (index + 1) % rows.length)
+      setCursor(nextSelectable(activeCursor, 1))
     } else if (key.name === "space") {
-      toggleRow(rows[cursor])
+      toggleRow(rows[activeCursor])
     } else if (key.ctrl && key.name === "a") {
       setAllInTab(!allSelectedInTab)
     } else if (isConfirmKey(key)) {
@@ -393,7 +429,7 @@ export const ConfigDialog = ({
 
   const scrollStart = Math.min(
     Math.max(0, rows.length - listHeight),
-    Math.max(0, cursor - Math.floor(listHeight / 2)),
+    Math.max(0, activeCursor - Math.floor(listHeight / 2)),
   )
   const visibleRows = rows.slice(scrollStart, scrollStart + listHeight)
 
@@ -405,8 +441,19 @@ export const ConfigDialog = ({
 
   const popupWidth = Math.min(POPUP_WIDTH, dialogWidth - 4)
   const popupInnerWidth = popupWidth - DIALOG_BORDER - DIALOG_PADDING
-  // title + margin + (select all + phases) + margin + instructions
-  const popupHeight = 1 + 1 + (MODEL_PHASES.length + 1) + 1 + 1 + DIALOG_PADDING + DIALOG_BORDER
+  const popupOptions = phasePopup
+    ? [
+        ...(popupHasSelectAll(phasePopup)
+          ? [{ label: "Select all", checked: phasePopup.checked.size === phasePopup.phases.length }]
+          : []),
+        ...phasePopup.phases.map(({ phase, label }) => ({
+          label,
+          checked: phasePopup.checked.has(phase),
+        })),
+      ]
+    : []
+  // title + margin + options + margin + instructions
+  const popupHeight = 1 + 1 + popupOptions.length + 1 + 1 + DIALOG_PADDING + DIALOG_BORDER
   const popupTop = Math.max(1, top + Math.floor((dialogHeight - popupHeight) / 2))
   const popupLeft = Math.max(1, left + Math.floor((dialogWidth - popupWidth) / 2))
 
@@ -508,7 +555,14 @@ export const ConfigDialog = ({
           ) : (
             visibleRows.map((row, offset) => {
               const index = scrollStart + offset
-              const highlighted = index === cursor
+              const highlighted = index === activeCursor
+              if (row.type === "section") {
+                return (
+                  <text key={`${activeKind}-${index}`} fg={ACCENT_FG} flexShrink={0} wrapMode="none">
+                    {truncate(row.label, innerWidth)}
+                  </text>
+                )
+              }
               if (row.type === "model") {
                 const phases = assignedPhases(row.name).map(({ short }) => short).join(INSTRUCTION_SEPARATOR)
                 const prefix = `${highlighted ? "❯" : " "} `
@@ -569,18 +623,13 @@ export const ConfigDialog = ({
             {truncate(`Assign ${phasePopup.model}`, popupInnerWidth)}
           </text>
           <box flexDirection="column" width="100%" flexShrink={0} marginTop={1}>
-            {[
-              { label: "Select all", checked: phasePopup.checked.size === MODEL_PHASES.length },
-              ...MODEL_PHASES.map(({ phase, label }) => ({
-                label,
-                checked: phasePopup.checked.has(phase),
-              })),
-            ].map((option, index) => {
+            {popupOptions.map((option, index) => {
               const highlighted = index === phasePopup.cursor
+              const isSelectAll = index === 0 && popupHasSelectAll(phasePopup)
               return (
                 <text
                   key={`phase-${index}`}
-                  fg={highlighted || index === 0 ? TEXT_FG : MUTED_FG}
+                  fg={highlighted || isSelectAll ? TEXT_FG : MUTED_FG}
                   bg={highlighted ? HIGHLIGHT_BG : undefined}
                   flexShrink={0}
                   wrapMode="none"

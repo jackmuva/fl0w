@@ -185,7 +185,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   process.on('SIGTERM', () => abort.abort());
 
   await loadModels();
-  const run = await llmLoop(messages, session.models, onMessages, abort.signal, createStreamPrinter(), session.id);
+  const run = await llmLoop(messages, session.models, onMessages, abort.signal, createStreamPrinter());
   const outcome = await Promise.resolve(run.finishReason).then(
     (reason) => (reason === 'error' ? 'error' : 'ok'),
     () => 'error' as const,

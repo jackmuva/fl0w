@@ -58,7 +58,6 @@ export const ChatInput = ({
   const handleContentChange = () => {
     syncHeight()
     syncCompletion()
-    // Wrapped line count can lag one layout pass behind edits.
     queueMicrotask(syncHeight)
   }
 
