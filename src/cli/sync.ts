@@ -37,11 +37,9 @@ export const printFullSyncResult = (result: FullSyncResult): void => {
   console.log('Config files:');
   for (const line of formatConfig(result.config)) console.log(line);
 
-  const wf = result.workflows;
-  console.log(wf ? `Workflows: ${wf.pushed} pushed, ${wf.pulled} pulled` : 'Workflows: skipped');
-
-  const sessions = result.sessions;
-  console.log(sessions ? `Sessions: ${sessions.pushed} pushed, ${sessions.pulled} pulled` : 'Sessions: skipped');
+  console.log(result.pendingWrites
+    ? `Sessions and workflows: ${result.pendingWrites} writes could not be pushed yet; they retry on the next run`
+    : 'Sessions and workflows: all writes pushed');
 
   for (const block of [
     formatNamedResults('Skills', result.skills),
@@ -56,7 +54,7 @@ const hasErrors = (result: FullSyncResult): boolean => {
   if (result.config && Object.values(result.config).some((r) => r instanceof Error)) return true;
   if (result.skills && Object.values(result.skills).some((r) => r instanceof Error)) return true;
   if (result.tools && Object.values(result.tools).some((r) => r instanceof Error)) return true;
-  return Boolean(result.workflows?.errors?.length);
+  return Boolean(result.pendingWrites);
 };
 
 export const runSyncCommand = async (argv: string[]): Promise<number> => {
@@ -64,7 +62,8 @@ export const runSyncCommand = async (argv: string[]): Promise<number> => {
     if (HELP_FLAGS.has(arg)) {
       console.log(`Usage: fl0w sync
 
-Pull and push config (config.json, mcp.json, auth.json), workflows, sessions, skills, and user tools with fl0w-work.
+Pull and push config (config.json, mcp.json, auth.json), skills, and user tools with fl0w-work, and push any
+session and workflow writes still waiting in ~/.fl0w/outbox (fl0w-work is where sessions and workflows live).
 Requires \`fl0w login\` and sync enabled in config.json (default on).`);
       return 0;
     }

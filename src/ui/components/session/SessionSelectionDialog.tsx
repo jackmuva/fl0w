@@ -1,7 +1,7 @@
 import type { SelectOption } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
-import type { SessionRecord } from "../../../db/session-store"
+import type { SessionRecord } from "../../../models/session"
 import { DeleteConfirmationDialog } from "../primitives/DeleteConfirmationDialog"
 import { AGENT_BORDER_COLOR } from "../primitives/MessageFrame"
 

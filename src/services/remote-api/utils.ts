@@ -30,9 +30,16 @@ export const readResponseJson = async (res: Response): Promise<unknown> => {
 export const asErrorBody = (value: unknown): ErrorBody =>
   (value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as ErrorBody;
 
+/** A non-2xx response from fl0w-work; `status` tells a rejected request from a transient failure. */
+export class SyncHttpError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
 export async function fail(res: Response, action: string, kind = 'Config'): Promise<never> {
   const body = asErrorBody(await readResponseJson(res));
-  throw new Error(`${kind} sync ${action} failed: ${body.error_description ?? body.error ?? `HTTP ${res.status}`}`);
+  throw new SyncHttpError(`${kind} sync ${action} failed: ${body.error_description ?? body.error ?? `HTTP ${res.status}`}`, res.status);
 }
 
 

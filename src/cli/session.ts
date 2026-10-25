@@ -1,16 +1,17 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import type { CapabilityKind, CapabilitySelection, CliOutput, Fl0wMessage } from '../models/agent';
-import { SessionStore } from '../db/session-store';
+import type { SessionRecord, StoredSession } from '../models/session';
+import { getSession, saveSession } from '../services/session/session-repo';
+import { createDraftSession } from '../services/session/session-record';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/config';
 import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/ask-question';
 import { createStreamPrinter, createTranscriptPrinter } from './cli-output';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
-import { scheduleSessionPush } from '../services/sync/session-sync';
 import { finishHeadlessRun } from '../services/setup';
-import { runStartupSync } from '../services/setup';
+import { requireLogin, runStartupSync } from '../services/setup';
 import { llmLoop } from '../services/agent/llm-loop';
 import { loadModels } from '../services/model-registry';
 
@@ -105,22 +106,25 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   }
 
   const remote = values.remote === true;
-  const syncWarning = await runStartupSync({ log: console.error, syncSessions: !remote });
+  if (!(await requireLogin())) return 1;
+  const syncWarning = await runStartupSync({ log: console.error });
   if (syncWarning) console.error(syncWarning);
 
-  const store = SessionStore.open();
   const workspace = resolve(process.cwd());
 
-  let session = sessionIdArg
-    ? store.listAllSessions().find((entry) => entry.id === sessionIdArg)
-    : undefined;
-  if (!session) {
-    session = remote
-      ? { ...store.createDraftSession(workspace), ...(sessionIdArg ? { id: sessionIdArg } : {}) }
-      : store.createSession(workspace, sessionIdArg);
+  // --remote runs are recorded by fl0w-work itself, which passes the transcript with --messages
+  let stored: StoredSession | null = null;
+  if (sessionIdArg && !remote) {
+    try {
+      stored = await getSession(sessionIdArg);
+    } catch (error) {
+      console.error(`Could not load session ${sessionIdArg}: ${error instanceof Error ? error.message : String(error)}`);
+      return 1;
+    }
   }
+  let session: SessionRecord = stored ?? createDraftSession(workspace, sessionIdArg);
 
-  const saved = messagesFromCli ?? (store.hasSession(session.id) ? store.loadMessages(session.id) : []);
+  const saved = messagesFromCli ?? stored?.messages ?? [];
   const pendingAsk = findPendingAskQuestion(saved);
   if (answers && !pendingAsk) {
     console.error('--answers given but the session has no pending question');
@@ -143,9 +147,10 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   await loadUserTools();
 
   const capabilities = capabilitiesFromCli
-    ?? store.getCapabilities(session.id)
+    ?? session.capabilities
     ?? emptyCapabilitySelection();
-  if (capabilitiesFromCli && !remote) store.saveCapabilities(session.id, capabilities);
+  // saved with the session's next save
+  if (capabilitiesFromCli) session = { ...session, capabilities };
 
   // a pending question is answered with its tool-result (as the TUI's question box does), otherwise the loop stops
   // on it again; without --answers, --input is the free-text answer
@@ -174,10 +179,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const onMessages = (next: Fl0wMessage[]) => {
     latest = next;
     printTranscript(next);
-    if (!remote) {
-      store.saveMessages(session.id, next);
-      scheduleSessionPush(store);
-    }
+    if (!remote) session = saveSession(session, next);
   };
 
   const abort = new AbortController();
@@ -190,10 +192,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     (reason) => (reason === 'error' ? 'error' : 'ok'),
     () => 'error' as const,
   );
-  if (!remote) {
-    store.saveMessages(session.id, latest);
-    scheduleSessionPush(store);
-  }
+  if (!remote) session = saveSession(session, latest);
 
   const pendingQuestion = findPendingAskQuestion(latest);
   const status = pendingQuestion ? 'needs_input' : abort.signal.aborted ? 'stopped' : outcome;

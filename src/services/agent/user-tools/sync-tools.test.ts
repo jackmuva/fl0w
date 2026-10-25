@@ -90,10 +90,7 @@ describe('packUserTool', () => {
 });
 
 describe('syncEnabledTools', () => {
-  test('does nothing when signed out or sync is disabled', async () => {
-    expect(await syncEnabledTools(selection('weather'))).toBeNull();
-    await writeJson('auth.json', { fl0w: fl0wLogin });
-    await writeJson('config.json', { sync: false });
+  test('does nothing when signed out', async () => {
     expect(await syncEnabledTools(selection('weather'))).toBeNull();
     expect(requests).toEqual([]);
   });

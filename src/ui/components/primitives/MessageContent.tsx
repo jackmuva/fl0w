@@ -5,6 +5,7 @@ import { parseWorkflowPrompt } from "../../../services/workflow/build-message"
 import { ASK_QUESTION_ACTION } from "../../../services/agent/utils/tools"
 import { renderToolCall, renderToolResult } from "../../tool-renderers"
 import {
+  formatMessageContent,
   formatToolResultText,
   isToolResultError,
   type ToolCallPart,
@@ -18,36 +19,6 @@ import {
   MessageFrame,
   MessageFrameKindContext,
 } from "./MessageFrame"
-
-const formatMessageContent = (message: ModelMessage): string => {
-  if (typeof message.content === "string") return message.content
-
-  const parts: string[] = []
-  for (const part of message.content) {
-    switch (part.type) {
-      case "text":
-      case "reasoning":
-        parts.push(part.text)
-        break
-      case "image":
-        parts.push("[image]")
-        break
-      case "file":
-        if (part.mediaType.startsWith("image")) {
-          parts.push(`[image: ${part.filename ?? part.mediaType}]`)
-        } else {
-          parts.push(`[file: ${part.filename ?? part.mediaType}]`)
-        }
-        break
-      case "tool-call":
-      case "tool-result":
-        break
-      default:
-        parts.push(`[${part.type}]`)
-    }
-  }
-  return parts.join("")
-}
 
 const hasOnlyToolCalls = (message: ModelMessage): boolean => {
   if (message.role !== "assistant" || !Array.isArray(message.content)) return false

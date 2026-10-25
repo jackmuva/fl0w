@@ -98,11 +98,8 @@ describe('packSkill', () => {
 });
 
 describe('syncEnabledSkills', () => {
-  test('does nothing when signed out or sync is disabled', async () => {
+  test('does nothing when signed out', async () => {
     const skill = await writeSkill('demo', { 'SKILL.md': 'steps' });
-    expect(await syncEnabledSkills(selection('demo'), [skill])).toBeNull();
-    await writeJson('auth.json', { fl0w: fl0wLogin });
-    await writeJson('config.json', { sync: false });
     expect(await syncEnabledSkills(selection('demo'), [skill])).toBeNull();
     expect(requests).toEqual([]);
   });

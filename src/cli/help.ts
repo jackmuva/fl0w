@@ -11,22 +11,24 @@ Usage:
   fl0w login                        Sign in to fl0w (model calls use your fl0w account)
   fl0w logout                       Sign out
   fl0w whoami                       Show signed-in account
-  fl0w sync                         Sync config, auth, workflows, sessions, skills, and tools with fl0w-work
+  fl0w sync                         Sync config, auth, skills, and tools with fl0w-work; push pending session/workflow writes
+
+The TUI, workflow, and session commands require fl0w login: sessions and workflows are stored on fl0w-work.
 
 Headless commands (agent output as JSON lines on stdout; MCP progress on stderr):
 
   fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>] [--remote]
       Run a saved workflow unattended. Use --session to run in an existing session or create one with that id.
-      --messages loads prior messages from a JSON file instead of the local session store.
-      --remote runs without writing to the local session store or syncing sessions.
+      --messages loads prior messages from a JSON file instead of the session saved on fl0w-work.
+      --remote runs without saving the session to fl0w-work.
 
   fl0w capabilities
       List discoverable skills, MCP tools, user tools, and AGENTS.md (JSON lines).
 
   fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--messages <path.json>] [--remote]
       Run or continue a session. Omit session-id to create a new session.
-      --messages loads prior messages ([{"message":{...},"frame"?:...}]) from a JSON file instead of the local session store.
-      --remote runs without writing to the local session store or syncing sessions.
+      --messages loads prior messages ([{"message":{...},"frame"?:...}]) from a JSON file instead of the session saved on fl0w-work.
+      --remote runs without saving the session to fl0w-work.
       --answers answers the session's pending question: {"<question-id>":{"optionId":"<id>"}} or {"<question-id>":{"customText":"..."}}.
       Without --answers, --input answers a pending question as free text.
       --capabilities sets CapabilitySelection: {"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}

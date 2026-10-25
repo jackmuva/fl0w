@@ -11,6 +11,7 @@ import { summaryAgent } from "./subagents/summarize-agent";
 import { compactionHook } from "./hooks/compaction";
 import { contextWindowFor } from "../model-registry";
 import { toolsFor } from "./toolpacks";
+import { recordLlmUsage } from "./hooks/session-usage";
 
 export type Phase = (
   messages: Fl0wMessage[],
@@ -38,7 +39,9 @@ const runPhase = async (
   onStreamText: (text: string | null) => void,
   transcript: Fl0wMessage[],
   abort: AbortSignal,
+  onPhase?: (subagent: SubagentType | null) => void,
 ): Promise<{ result: AgentResult, transcript: Fl0wMessage[] }> => {
+  onPhase?.(subagent);
   let streamed = "";
   // Publish each finished step so tool calls (e.g. plan progress) show up before the phase ends.
   let stepped: Fl0wMessage[] = [];
@@ -52,9 +55,11 @@ const runPhase = async (
     streamed += delta;
     onStreamText(streamed);
   }, await toolsFor(subagent), onStep);
+  const window = await contextWindowFor(model);
   let streamError: unknown;
   for await (const part of result.fullStream) {
     if (part.type === "error") streamError ??= part.error;
+    if (part.type === "finish-step") recordLlmUsage(part, window);
   }
   let produced: Awaited<AgentResult["response"]>["messages"];
   try {
@@ -76,6 +81,23 @@ export const llmLoop = async (
   onMessages: (messages: Fl0wMessage[]) => void,
   abort: AbortSignal,
   onStreamText: (text: string | null) => void,
+  // Reports which subagent phase is running (null once the loop ends) so the UI can collapse finished phases.
+  onPhase?: (subagent: SubagentType | null) => void,
+): Promise<AgentResult> => {
+  try {
+    return await runLoop(messages, selection, onMessages, abort, onStreamText, onPhase);
+  } finally {
+    onPhase?.(null);
+  }
+}
+
+const runLoop = async (
+  messages: Fl0wMessage[],
+  selection: ModelSelection | null,
+  onMessages: (messages: Fl0wMessage[]) => void,
+  abort: AbortSignal,
+  onStreamText: (text: string | null) => void,
+  onPhase?: (subagent: SubagentType | null) => void,
 ): Promise<AgentResult> => {
   const models = resolveModels(selection);
   const state = await routingAgent(messages, models.ROUTER, abort, onStreamText);
@@ -89,15 +111,15 @@ export const llmLoop = async (
   let transcript = messages;
   if (state === "discovery") {
     transcript = await compact(transcript, models.DISCOVERY);
-    ({ transcript } = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort));
+    ({ transcript } = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort, onPhase));
   }
 
   if (state === "discovery" || state === "plan") {
     transcript = await compact(transcript, models.PLAN);
-    ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort));
+    ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort, onPhase));
   }
 
   transcript = await compact(transcript, models.EXECUTE);
-  ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort));
-  return (await runPhase("SUMMARY", summaryAgent, models.SUMMARIZE, onMessages, onStreamText, transcript, abort)).result;
+  ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
+  return (await runPhase("SUMMARY", summaryAgent, models.SUMMARIZE, onMessages, onStreamText, transcript, abort, onPhase)).result;
 }

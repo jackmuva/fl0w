@@ -1,10 +1,8 @@
 import { flushPendingSkillMirrors } from './skills/mirror-enabled-skills';
 import { flushPendingPushes } from './sync/config-sync';
-import { flushSessionPushes } from './sync/session-sync';
-import { flushWorkflowPushes } from './sync/workflow-sync';
 import { syncOnStartup, watchLocalConfigWrites } from './sync/config-sync';
-import { syncSessionsInBackground } from './sync/session-sync';
-import { syncWorkflowsInBackground } from './sync/workflow-sync';
+import { drainOutboxInBackground, flushOutbox } from './sync/outbox';
+import { readFl0wAuth } from './auth/token';
 import { mkdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -26,24 +24,28 @@ export async function ensureFl0wHome(home = FL0W_HOME): Promise<void> {
 
 export type StartupSyncOptions = {
   log?: (message: string) => void;
-  syncSessions?: boolean;
 };
+
+/** Sessions and workflows live on fl0w-work, so the TUI and headless runs need a signed-in user. */
+export async function requireLogin(): Promise<boolean> {
+  if (await readFl0wAuth()) return true;
+  console.error('Not logged in. Run `fl0w login` first.');
+  return false;
+}
 
 export async function runStartupSync(options: StartupSyncOptions = {}): Promise<string | null> {
   const log = options.log ?? console.log;
-  const syncSessions = options.syncSessions ?? true;
 
   log('Syncing config files...');
   const syncWarning = await syncOnStartup();
   watchLocalConfigWrites();
-  log(syncSessions ? 'Syncing workflows and sessions...' : 'Syncing workflows...');
-  syncWorkflowsInBackground();
-  if (syncSessions) syncSessionsInBackground();
+  // pushes writes left over from earlier runs (offline, crashed, or still debouncing at exit)
+  drainOutboxInBackground();
   return syncWarning;
 }
 
 export async function finishHeadlessRun(code: number): Promise<number> {
   void flushPendingSkillMirrors();
-  await Promise.all([flushPendingPushes(), flushWorkflowPushes(), flushSessionPushes()]);
+  await Promise.all([flushPendingPushes(), flushOutbox()]);
   return code;
 }

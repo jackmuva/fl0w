@@ -16,10 +16,9 @@ export const useProviderMetadata = (sessionId: string) => {
     setState(getSessionUsageState());
   }), []);
 
-  // TODO: fix this
-  // const contextPercent = state.lastInputTokens <= 0
-  //   ? 0
-  //   : Math.min(100, Math.round((state.lastInputTokens / CONTEXT_WINDOW) * 100));
-  //
-  return { ...state, contextPercent: 0 };
+  const contextPercent = state.lastInputTokens <= 0 || state.contextWindow <= 0
+    ? 0
+    : Math.min(100, Math.round((state.lastInputTokens / state.contextWindow) * 100));
+
+  return { ...state, contextPercent };
 };

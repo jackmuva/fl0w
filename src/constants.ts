@@ -57,7 +57,8 @@ export const TOOL_RESULT_MIN_KEEP = 120;
 
 export const USER_TOOL_SERVER = 'user';
 
-export const DB_PATH = join(FL0W_HOME, 'fl0w-sqlite.db');
+/** Session and workflow writes waiting to be pushed to fl0w-work, one JSON file per pending write. */
+export const OUTBOX_DIR = join(FL0W_HOME, 'outbox');
 
 export const FL0W_API_URL = 'https://www.fl0w.work';
 

@@ -32,7 +32,7 @@ conversational agent that plans, executes, and distills tasks into reusable work
 - **Tool output cap** — `executeNamedTool` truncates results over `TOOL_OUTPUT_MAX_CHARS` (`toolOutputMaxChars`, default `20000`)
   and writes the full text to `FL0W_HOME/workspace/<sessionId>/`; the model reads it back via `default/read_full_tool_output`.
   Compaction lists every saved file in its summary; deleting a session removes its workspace folder.
-- **Persistence** — sessions in SQLite (`DB_PATH` → `FL0W_HOME/fl0w-sqlite.db`, resume via `/resume`).
+- **Persistence** — sessions and workflows live on fl0w-work (`/api/sync/sessions`, `/api/sync/workflows`); there is no local DB, so the TUI and headless runs require `fl0w login`. Reads go through `services/session/session-repo.ts` and `services/workflow/workflow-repo.ts`. Writes go to the durable outbox (`services/sync/outbox.ts`, `OUTBOX_DIR` → `FL0W_HOME/outbox`, one JSON file per pending write), which pushes ~2s after writes settle, retries with backoff, and drains at startup and on exit; reads overlay unpushed writes.
 - **Workflows** — sessions distill into reusable workflows (`/generate-workflow`, `/run-workflow`).
 - **Skills** — found in `./skills`, `FL0W_HOME/skills`, `~/.cursor/skills-cursor`; loaded via `load_skill`.
 - **User tools** — `loadUserTools()` registers custom tools from `FL0W_HOME/tools` in the `user` namespace.
@@ -49,15 +49,15 @@ conversational agent that plans, executes, and distills tasks into reusable work
 ```
 src/
 ├── index.tsx          # Entry – loads config, initializes MCP/tools, renders TUI
-├── constants.ts       # Shared constants (FL0W_HOME, LLM_MODEL, DECISION_MODEL, DB_PATH)
-├── db/                # schema, session-store, workflow-store (+ tests)
+├── constants.ts       # Shared constants (FL0W_HOME, OUTBOX_DIR, FL0W_API_URL, DEFAULT_MODELS)
 ├── models/            # agent, config, mcp, ui, workflow types
 ├── services/          # Business logic
 │   ├── agent/         # loop, capabilities, graph, prompt, built-in & user tools, hooks
 │   ├── auth/          # login/logout/whoami, token.ts, callback-server
 │   ├── config/        # app-config (loadAppConfig, ensureFl0wHome)
 │   ├── mcp/           # mcp-client, oauth-provider
-│   ├── sync/          # fl0w-work config/mcp/auth sync
+│   ├── session/       # session records + fl0w-work session repo
+│   ├── sync/          # fl0w-work config/mcp/auth sync, session/workflow outbox
 │   ├── workflow/      # generate & extract tool calls
 │   └── session/
 └── ui/                # App, hooks, lib, components

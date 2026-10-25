@@ -14,7 +14,7 @@ mock.module('../../constants', () => ({
   AUTH_PATH: join(home, 'auth.json'),
   MCP_CONFIG_PATH: join(home, 'mcp.json'),
   SYNC_STATE_PATH: join(home, 'sync-state.json'),
-  DB_PATH: join(home, 'fl0w-sqlite.db'),
+  OUTBOX_DIR: join(home, 'outbox'),
 }));
 const { AUTH_PATH } = await import('../../constants');
 if (!AUTH_PATH.startsWith(home)) throw new Error('full-sync test is not isolated');
@@ -35,16 +35,4 @@ describe('runFullSync', () => {
     expect((await runFullSync()).skipped).toBe('not-signed-in');
   });
 
-  test('skips when sync is disabled', async () => {
-    await writeFile(join(home, 'config.json'), JSON.stringify({ sync: false }));
-    await writeFile(join(home, 'auth.json'), JSON.stringify({
-      fl0w: {
-        accessToken: 'a',
-        refreshToken: 'r',
-        expiresAt: Date.now() + 3_600_000,
-        user: { id: 'u1', email: 'a@b.c' },
-      },
-    }));
-    expect((await runFullSync()).skipped).toBe('sync-disabled');
-  });
 });

@@ -7,27 +7,25 @@ import { mirrorEnabledSkills } from '../skills/mirror-enabled-skills';
 import { syncEnabledSkills, type SkillSyncResults } from '../skills/sync-skills';
 import { readFl0wAuth } from '../auth/token';
 import { syncConfigFiles, type SyncResults } from './config-sync';
-import { syncSessions, type SessionSyncResult } from './session-sync';
-import { syncWorkflows, type WorkflowSyncResult } from './workflow-sync';
+import { flushOutbox, pendingOps } from './outbox';
 
 export type FullSyncSkipReason = 'not-signed-in' | 'sync-disabled';
 
 export type FullSyncResult = {
   skipped: FullSyncSkipReason | null;
   config: SyncResults | null;
-  workflows: WorkflowSyncResult | null;
-  sessions: SessionSyncResult | null;
+  /** Session and workflow writes still waiting in the outbox after trying to push them. */
+  pendingWrites: number | null;
   skills: SkillSyncResults | null;
   tools: ToolSyncResults | null;
 };
 
-/** Syncs config, auth, MCP config, workflows, sessions, and every local skill and user tool with fl0w-work. */
+/** Syncs config, auth, MCP config, and every local skill and user tool with fl0w-work, and pushes pending session and workflow writes. */
 export async function runFullSync(): Promise<FullSyncResult> {
   const empty: FullSyncResult = {
     skipped: null,
     config: null,
-    workflows: null,
-    sessions: null,
+    pendingWrites: null,
     skills: null,
     tools: null,
   };
@@ -35,8 +33,8 @@ export async function runFullSync(): Promise<FullSyncResult> {
   if (!(await readFl0wAuth())) return { ...empty, skipped: 'not-signed-in' };
 
   const config = await syncConfigFiles();
-  const workflows = await syncWorkflows();
-  const sessions = await syncSessions();
+  await flushOutbox();
+  const pendingWrites = pendingOps().length;
 
   const catalog = await discoverSkills();
   await loadUserTools();
@@ -49,5 +47,5 @@ export async function runFullSync(): Promise<FullSyncResult> {
   const skills = await syncEnabledSkills(selection, catalog);
   const tools = await syncEnabledTools(selection);
 
-  return { skipped: null, config, workflows, sessions, skills, tools };
+  return { skipped: null, config, pendingWrites, skills, tools };
 }

@@ -121,25 +121,6 @@ export const readNumberField = (input: unknown, key: string, fallback: number): 
 
 export const callTitle = (toolName: string) => `▶ ${toolName}`
 
-export const parsePlanSteps = (text: string): string[] => {
-  const steps: string[] = []
-
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
-
-    const numbered = trimmed.match(/^(?:\d+[.)]\s*|\[\s*[xX ]?\s*\]\s*|-|\*|\+)\s*(.+)$/)
-    const heading = trimmed.match(/^#{1,6}\s+(.+)$/)
-    const step = numbered?.[1] ?? heading?.[1]
-
-    if (step) {
-      steps.push(step.trim())
-    }
-  }
-
-  return steps
-}
-
 export const concatenateSubtitle = (items: string[], maxLength = 72): string => {
   if (items.length === 0) return ""
 
@@ -177,6 +158,36 @@ export const formatToolResultText = (part: ToolResultPart): string => {
   return `[${part.output.type}]`
 }
 
+export const formatMessageContent = (message: ModelMessage): string => {
+  if (typeof message.content === "string") return message.content
+
+  const parts: string[] = []
+  for (const part of message.content) {
+    switch (part.type) {
+      case "text":
+      case "reasoning":
+        parts.push(part.text)
+        break
+      case "image":
+        parts.push("[image]")
+        break
+      case "file":
+        if (part.mediaType.startsWith("image")) {
+          parts.push(`[image: ${part.filename ?? part.mediaType}]`)
+        } else {
+          parts.push(`[file: ${part.filename ?? part.mediaType}]`)
+        }
+        break
+      case "tool-call":
+      case "tool-result":
+        break
+      default:
+        parts.push(`[${part.type}]`)
+    }
+  }
+  return parts.join("")
+}
+
 export const isToolResultError = (part: ToolResultPart): boolean =>
   part.output.type === "error-text"
 
@@ -203,10 +214,11 @@ export type PlanStepProgress = {
 
 export type PlanProgress = {
   toolCallId: string
+  title?: string
   steps: PlanStepProgress[]
 }
 
-const bareToolName = (toolName: string) => toolName.split("/").pop() ?? toolName
+export const bareToolName = (toolName: string) => toolName.split("/").pop() ?? toolName
 
 export const readPlanSteps = (input: unknown): Omit<PlanStepProgress, "done">[] => {
   const steps = asRecord(input)?.steps
@@ -231,7 +243,11 @@ export const buildPlanProgress = (messages: Fl0wMessage[]): PlanProgress | undef
       if (name === "create_plan") {
         const steps = readPlanSteps(part.input)
         if (steps.length === 0) continue
-        progress = { toolCallId: part.toolCallId, steps: steps.map((step) => ({ ...step, done: false })) }
+        progress = {
+          toolCallId: part.toolCallId,
+          title: readStringField(part.input, "title")?.trim() || undefined,
+          steps: steps.map((step) => ({ ...step, done: false })),
+        }
         completed = new Set()
       } else if (name === "mark_step_complete") {
         const index = asRecord(part.input)?.index

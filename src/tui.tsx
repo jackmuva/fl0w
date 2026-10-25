@@ -2,6 +2,11 @@ import { loadUserTools } from './services/agent/user-tools/loader';
 import { mcpClient } from './services/mcp/mcp-client';
 import { buildCapabilityCatalog } from './services/capabilities';
 import { loadModels } from './services/model-registry';
+import type { StoredSession } from './models/session';
+import type { WorkflowRecord } from './models/workflow';
+import { findLatestSessionWithMessages } from './services/session/session-repo';
+import { createDraftSession } from './services/session/session-record';
+import { listWorkflows } from './services/workflow/workflow-repo';
 
 export async function runTui({ syncWarning }: { syncWarning: string | null }): Promise<void> {
   const { createCliRenderer } = await import('@opentui/core');
@@ -23,6 +28,19 @@ export async function runTui({ syncWarning }: { syncWarning: string | null }): P
     }
   } catch (e) {
     initialMessage = [initialMessage, `Error with MCP process: ${e}`].filter(Boolean).join('\n');
+  }
+
+  console.log('Loading sessions and workflows...');
+  const workspace = process.cwd();
+  let initialSession: StoredSession = { ...createDraftSession(workspace), messages: [] };
+  let initialWorkflows: WorkflowRecord[] = [];
+  try {
+    const [latest, workflows] = await Promise.all([findLatestSessionWithMessages(workspace), listWorkflows()]);
+    if (latest) initialSession = latest;
+    initialWorkflows = workflows;
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    initialMessage = [initialMessage, `Could not load sessions and workflows from fl0w-work: ${reason}`].filter(Boolean).join('\n');
   }
 
   await loadUserTools();
@@ -51,6 +69,8 @@ export async function runTui({ syncWarning }: { syncWarning: string | null }): P
   createRoot(renderer).render(
     <App
       initialMessage={initialMessage}
+      initialSession={initialSession}
+      initialWorkflows={initialWorkflows}
       capabilityCatalog={capabilityCatalog}
       models={models}
     />

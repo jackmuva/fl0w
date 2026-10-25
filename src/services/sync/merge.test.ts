@@ -15,10 +15,10 @@ describe('jsonEqual', () => {
 
 describe('mergeConfig', () => {
   test('takes the only side that changed, whichever is newer', () => {
-    const base = { llmModel: 'a', extra: true };
-    const edited = { llmModel: 'b' };
-    expect(mergeConfig('config.json', { base, local: edited, remote: base, preferLocal: false })).toEqual(edited);
-    expect(mergeConfig('config.json', { base, local: base, remote: edited, preferLocal: true })).toEqual(edited);
+    const base = { mcpServers: { a: { url: 'a' } } };
+    const edited = { mcpServers: { a: { url: 'b' } } };
+    expect(mergeConfig('mcp.json', { base, local: edited, remote: base, preferLocal: false })).toEqual(edited);
+    expect(mergeConfig('mcp.json', { base, local: base, remote: edited, preferLocal: true })).toEqual(edited);
   });
 
   test('takes the newer file whole when both sides changed', () => {
@@ -53,29 +53,28 @@ describe('mergeConfig', () => {
 
 describe('shareable', () => {
   test('drops only each file\'s local-only keys', () => {
-    expect(shareable('config.json', { llmModel: 'm', sync: false })).toEqual({ llmModel: 'm' });
-    expect(shareable('mcp.json', { sync: false })).toEqual({ sync: false });
+    expect(shareable('mcp.json', { mcpServers: {}, extra: true })).toEqual({ mcpServers: {}, extra: true });
     expect(shareable('auth.json', { fl0w: login('t', 1), mcp: {} })).toEqual({ mcp: {} });
   });
 
   test('treats null content as empty object', () => {
-    expect(shareable('config.json', null as unknown as JsonObject)).toEqual({});
+    expect(shareable('mcp.json', null as unknown as JsonObject)).toEqual({});
   });
 });
 
 describe('mergeConfig with null snapshots', () => {
   test('merges when base or remote is null', () => {
-    expect(mergeConfig('config.json', {
+    expect(mergeConfig('mcp.json', {
       base: null,
-      local: { llmModel: 'l', decisionModel: 'd' },
-      remote: { llmModel: 'r' },
+      local: { mcpServers: { l: { url: 'l' } }, extra: 'd' },
+      remote: { mcpServers: { r: { url: 'r' } } },
       preferLocal: true,
-    })).toEqual({ llmModel: 'l', decisionModel: 'd' });
-    expect(mergeConfig('config.json', {
+    })).toEqual({ mcpServers: { l: { url: 'l' } }, extra: 'd' });
+    expect(mergeConfig('mcp.json', {
       base: {},
-      local: { llmModel: 'l' },
+      local: { mcpServers: { l: { url: 'l' } } },
       remote: null,
       preferLocal: false,
-    })).toEqual({ llmModel: 'l' });
+    })).toEqual({ mcpServers: { l: { url: 'l' } } });
   });
 });

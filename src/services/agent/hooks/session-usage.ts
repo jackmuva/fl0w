@@ -4,6 +4,7 @@ export type SessionUsageState = {
   sessionCostUsd: number;
   sessionTokensUsed: number;
   lastInputTokens: number;
+  contextWindow: number;
 };
 
 type LlmUsageSource = {
@@ -18,6 +19,7 @@ type LlmUsageSource = {
 let sessionCostUsd = 0;
 let sessionTokensUsed = 0;
 let lastInputTokens = 0;
+let contextWindow = 0;
 const listeners = new Set<() => void>();
 
 const notify = () => {
@@ -28,16 +30,20 @@ export const getSessionUsageState = (): SessionUsageState => ({
   sessionCostUsd,
   sessionTokensUsed,
   lastInputTokens,
+  contextWindow,
 });
 
 export const resetSessionUsage = (): void => {
   sessionCostUsd = 0;
   sessionTokensUsed = 0;
   lastInputTokens = 0;
+  contextWindow = 0;
   notify();
 };
 
-export const recordLlmUsage = (source: LlmUsageSource): void => {
+// Pass `window` only for main-agent calls: side calls (compaction, tool filtering) see a different
+// prompt, so their input tokens would misreport how full the conversation's context is.
+export const recordLlmUsage = (source: LlmUsageSource, window?: number): void => {
   let changed = false;
 
   const gateway = source.providerMetadata?.gateway;
@@ -55,8 +61,9 @@ export const recordLlmUsage = (source: LlmUsageSource): void => {
   }
 
   const usage = source.usage;
-  if (usage?.inputTokens != null && usage.inputTokens > 0) {
+  if (window != null && usage?.inputTokens != null && usage.inputTokens > 0) {
     lastInputTokens = usage.inputTokens;
+    contextWindow = window;
     changed = true;
   }
 

@@ -1,6 +1,7 @@
 import { experimental_decide, type JSONValue } from 'ai';
 import type { Fl0wMessage } from '../../../models/agent';
 import { findLastUserAndSummaryMessages } from '../utils/fl0w-message';
+import { recordLlmUsage } from '../hooks/session-usage';
 
 export const routingAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void): Promise<"discovery" | "plan" | "execute"> => {
   const state: JSONValue = JSON.parse(
@@ -21,5 +22,6 @@ export const routingAgent = async (messages: Fl0wMessage[], model: string, abort
       },
     },
   });
+  recordLlmUsage(result);
   return result.answers.agent.choice;
 }

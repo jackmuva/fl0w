@@ -1,4 +1,5 @@
-import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSession, RemoteSessionMeta, RemoteSkillMeta, RemoteToolMeta, RemoteWorkflowMeta, SyncFilename } from '../../models/sync';
+import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSkillMeta, RemoteToolMeta, SyncFilename } from '../../models/sync';
+import type { SessionListEntry, StoredSession } from '../../models/session';
 import { type WorkflowRecord } from '../../models/workflow';
 import { normalizeWorkflowSteps } from '../workflow/generate';
 import { UPLOAD_TIMEOUT_MS, request, readResponseJson, asErrorBody, fail } from './utils';
@@ -42,11 +43,12 @@ export async function putRemote(filename: SyncFilename, content: JsonObject, bas
   return parsed.configFile;
 }
 
-export async function listRemoteWorkflows(): Promise<RemoteWorkflowMeta[]> {
+/** Every workflow the user has, newest first. */
+export async function listRemoteWorkflows(): Promise<WorkflowRecord[]> {
   const res = await request('/sync/workflows');
   if (!res.ok) return fail(res, 'list', 'Workflow');
   const body = asErrorBody(await readResponseJson(res)) as { workflows?: unknown };
-  return Array.isArray(body.workflows) ? body.workflows as RemoteWorkflowMeta[] : [];
+  return Array.isArray(body.workflows) ? body.workflows as WorkflowRecord[] : [];
 }
 
 export async function getRemoteWorkflow(id: string): Promise<WorkflowRecord | null> {
@@ -58,6 +60,7 @@ export async function getRemoteWorkflow(id: string): Promise<WorkflowRecord | nu
   return parsed.workflow;
 }
 
+/** False when the workflow already exists on fl0w-work (409); workflows are immutable, so there's nothing to update. */
 export async function pushWorkflow(workflow: WorkflowRecord): Promise<boolean> {
   const payload = { ...workflow, steps: normalizeWorkflowSteps(workflow.steps) };
   const res = await request('/sync/workflows', { method: 'POST', body: JSON.stringify(payload) });
@@ -72,23 +75,26 @@ export async function deleteRemoteWorkflow(id: string): Promise<void> {
   if (!res.ok && res.status !== 404) return fail(res, `delete of ${id}`, 'Workflow');
 }
 
-export async function listRemoteSessions(): Promise<RemoteSessionMeta[]> {
-  const res = await request('/sync/sessions');
+/** Sessions without their messages, newest first; `workspacePath` limits them to one workspace. */
+export async function listRemoteSessions(workspacePath?: string): Promise<SessionListEntry[]> {
+  const query = workspacePath === undefined ? '' : `?workspacePath=${encodeURIComponent(workspacePath)}`;
+  const res = await request(`/sync/sessions${query}`);
   if (!res.ok) return fail(res, 'list', 'Session');
   const body = asErrorBody(await readResponseJson(res)) as { sessions?: unknown };
-  return Array.isArray(body.sessions) ? body.sessions as RemoteSessionMeta[] : [];
+  return Array.isArray(body.sessions) ? body.sessions as SessionListEntry[] : [];
 }
 
-export async function getRemoteSession(id: string): Promise<RemoteSession | null> {
+export async function getRemoteSession(id: string): Promise<StoredSession | null> {
   const res = await request(`/sync/sessions/${encodeURIComponent(id)}`, {}, UPLOAD_TIMEOUT_MS);
   if (res.status === 404) return null;
   if (!res.ok) return fail(res, `pull of ${id}`, 'Session');
-  const parsed = asErrorBody(await readResponseJson(res)) as { session?: RemoteSession };
+  const parsed = asErrorBody(await readResponseJson(res)) as { session?: StoredSession };
   if (!parsed.session || !Array.isArray(parsed.session.messages)) throw new Error(`Session sync pull of ${id} failed: invalid response body`);
   return parsed.session;
 }
 
-export async function pushSession({ id, ...session }: RemoteSession): Promise<boolean> {
+/** False when fl0w-work refuses the copy for good: it holds one at least as new (409) or it's too large (413). */
+export async function pushSession({ id, ...session }: StoredSession): Promise<boolean> {
   const res = await request(`/sync/sessions/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(session) }, UPLOAD_TIMEOUT_MS);
   if (res.status === 409 || res.status === 413) return false;
   if (!res.ok) return fail(res, `push of "${session.title ?? id}"`, 'Session');

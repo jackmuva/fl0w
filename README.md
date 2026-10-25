@@ -33,7 +33,7 @@ The installer downloads a standalone binary and installs it as `fl0w` (default `
 
 ## Setup
 
-**Sign in**: run `fl0w login` and approve the code in your browser. Model calls go through your fl0w account (fl0w-work's AI proxy), so there's no API key to manage. `fl0w whoami` shows the account; `fl0w logout` signs out. Run `fl0w sync` anytime to pull and push config, workflows, sessions, skills, and user tools with fl0w-work (requires sign-in).
+**Sign in**: run `fl0w login` and approve the code in your browser. Model calls go through your fl0w account (fl0w-work's AI proxy), so there's no API key to manage. `fl0w whoami` shows the account; `fl0w logout` signs out. Signing in is required for the TUI and the `workflow`/`session` commands, because sessions and workflows are stored on fl0w-work. Run `fl0w sync` anytime to pull and push config, skills, and user tools, and to push any pending session and workflow writes.
 
 On first launch fl0w creates `~/.fl0w/` with default `config.json`, `mcp.json`, and `tools/`. Sign-in tokens and MCP OAuth credentials are stored in `~/.fl0w/auth.json` (mode 0600).
 
@@ -62,10 +62,10 @@ Skills, MCPs, and templates can be toggled per session to keep the context windo
 When signed in, fl0w syncs with your fl0w-work account so you can move between machines:
 
 - **Config files** — `config.json`, `mcp.json`, and `auth.json` (encrypted at rest, versioned on the server). Changes push ~1 second after you edit them; the TUI and headless commands pull the latest at startup. If a file changed on both sides since the last sync, the newer copy wins.
-- **Workflows and sessions** — two-way sync in the background (skipped for `--remote` headless runs, which do not touch the local session store).
+- **Workflows and sessions** — stored on fl0w-work, not on this machine; `/resume` and the workflow picker read from there. Saves are debounced (~2 seconds after the conversation settles) and pushed in the background. Until a push succeeds, it waits in `~/.fl0w/outbox/`, so nothing is lost while offline or if fl0w exits early, and it retries on the next run. `--remote` headless runs don't save sessions.
 - **Skills and user tools** — uploaded when enabled in a session (mirrored under `~/.fl0w/skills` first for skills outside that tree).
 
-Disable automatic sync on this device with `"sync": false` in `config.json` or `FL0W_SYNC=0`. Use **`fl0w sync`** for a full manual sync (config, workflows, sessions, every discovered skill, and every user tool in `~/.fl0w/tools`).
+Disable automatic sync on this device with `"sync": false` in `config.json` or `FL0W_SYNC=0`. Use **`fl0w sync`** for a full manual sync (config, every discovered skill, and every user tool in `~/.fl0w/tools`, plus pending session and workflow writes).
 
 ## Usage
 
@@ -95,7 +95,7 @@ fl0w login | logout | whoami
 fl0w sync                  # manual full sync with fl0w-work
 ```
 
-Headless commands run startup config sync (and workflow/session background sync unless `--remote`) before the agent runs, then flush pending sync work on exit.
+Headless commands require `fl0w login`. They run startup config sync before the agent runs, then push pending session and config writes on exit.
 
 **Shared behavior (`workflow` and `session`)**
 
@@ -114,8 +114,8 @@ Headless commands run startup config sync (and workflow/session background sync 
   ```
 
   `status` is `ok`, `error`, `stopped`, or `needs_input`. When the agent left an unanswered question, `status` is `needs_input` and the result includes `pendingQuestion` so you can reply in a follow-up `session` run.
-- **`--messages <path.json>`:** load prior messages (a JSON array of `Fl0wMessage`) from a file instead of the local session store. Pair with `--remote` when another service owns the transcript.
-- **`--remote`:** do not write to the local session store or sync sessions to fl0w-work. You still get a `sessionId` in the result (in-memory for the run). An existing stored session can still be loaded by id for context; new turns are not persisted.
+- **`--messages <path.json>`:** load prior messages (a JSON array of `Fl0wMessage`) from a file instead of the session saved on fl0w-work. Pair with `--remote` when another service owns the transcript.
+- **`--remote`:** do not save the session to fl0w-work (fl0w-work records remote runs itself). You still get a `sessionId` in the result (in-memory for the run); pass prior turns with `--messages`.
 - **Exit codes:** `0` success, `1` error or stopped, `2` ended waiting on input (`needs_input`).
 - OAuth MCP servers must already be authorized: run `fl0w` interactively once, or copy `~/.fl0w/auth.json` (MCP credentials live under its `mcp` key). Unauthorized servers log a warning and the run continues without them.
 
@@ -131,10 +131,10 @@ fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions
 | --- | --- | --- |
 | `--input` | `-i` | Extra instructions appended to the workflow prompt (e.g. webhook payload). |
 | `--session` | `-s` | Session to use. Continues an existing session’s messages, or creates one with that id if missing. Omit to start a new session every run. |
-| `--messages` | `-m` | Prior messages JSON file, used instead of the local session store. |
+| `--messages` | `-m` | Prior messages JSON file, used instead of the session saved on fl0w-work. |
 | `--remote` | — | Run without persisting messages or capabilities locally. |
 
-- The positional argument is a workflow JSON file on disk, or a workflow **id** stored in `~/.fl0w/fl0w-sqlite.db` (same records the TUI saves with `/generate`).
+- The positional argument is a workflow JSON file on disk, or a workflow **id** stored on fl0w-work (same records the TUI saves with `/generate`).
 - Workflow runs inject a system instruction to avoid clarifying questions when possible; the agent should assume and continue.
 
 Example:
@@ -173,7 +173,7 @@ fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabili
 | `--input` | `-i` | User message for this turn. **Required** when the session is new or has no saved messages. |
 | `--answers` | `-a` | Answers the session's pending question (`needs_input`): JSON keyed by question id, e.g. `{"q1":{"optionId":"yes"}}` or `{"q1":{"customText":"..."}}`. Without it, `--input` answers a pending question as free text. |
 | `--capabilities` | `-c` | JSON [capability selection](#headless-capability-selection) for this run. Saved on the session when set (not when `--remote`). If omitted, uses capabilities already stored on the session, or empty. |
-| `--messages` | `-m` | Prior messages JSON file, used instead of the local session store. |
+| `--messages` | `-m` | Prior messages JSON file, used instead of the session saved on fl0w-work. |
 | `--remote` | — | Run without persisting messages or capabilities locally. |
 
 Example — start a session, then continue it using `sessionId` from the result line:
@@ -226,7 +226,6 @@ src/
 ├── index.tsx             # Entry point – dispatches TUI vs CLI commands
 ├── constants.ts          # Shared constants (FL0W_HOME, LLM_MODEL, SYSTEM_ONE_MODEL, …)
 ├── cli/                  # CLI commands (sync, workflow, session, capabilities, TUI boot, help)
-├── db/                   # Persistence (sessions, workflows)
 ├── models/               # Data models / types
 ├── services/             # Business logic (agent, auth, config, mcp, sync, workflow)
 └── ui/                   # TUI components
@@ -256,6 +255,6 @@ src/
 `fl0w login` signs you into fl0w-work via browser and stores sign-in tokens + MCP OAuth credentials in
 `~/.fl0w/auth.json` (mode 0600). Every model call goes through fl0w-work's AI proxy with that sign-in. `fl0w whoami` prints the account; `fl0w logout` signs out.
 
-When signed in, config files, workflows, sessions, skills, and user tools can sync with fl0w-work
+Sessions and workflows are stored on fl0w-work. When signed in, config files, skills, and user tools can sync with fl0w-work
 (see **Keeping your setup in sync**). `fl0w sync` runs a full manual sync; the TUI and headless
 commands reconcile config automatically at startup.

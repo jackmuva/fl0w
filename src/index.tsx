@@ -38,7 +38,8 @@ switch (command) {
     process.exit(await runCapabilitiesCli(rest))
   }
   default: {
-    const { runStartupSync } = await import("./services/setup")
+    const { requireLogin, runStartupSync } = await import("./services/setup")
+    if (!(await requireLogin())) process.exit(1)
     const syncWarning = await runStartupSync()
     const { runTui } = await import("./tui")
     await runTui({ syncWarning })

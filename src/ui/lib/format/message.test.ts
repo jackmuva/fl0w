@@ -6,7 +6,6 @@ import {
   filetypeFromPath,
   looksLikeLineNumberedOutput,
   parseLineNumberedContent,
-  parsePlanSteps,
 } from "./message"
 
 describe("parseLineNumberedContent", () => {
@@ -30,17 +29,6 @@ describe("filetypeFromPath", () => {
   test("maps common extensions", () => {
     expect(filetypeFromPath("src/index.tsx")).toBe("tsx")
     expect(filetypeFromPath("script.sh")).toBe("bash")
-  })
-})
-
-describe("parsePlanSteps", () => {
-  test("extracts numbered and bulleted steps", () => {
-    const input = "1. Read the file\n2. Edit the handler\n- Run tests"
-    expect(parsePlanSteps(input)).toEqual([
-      "Read the file",
-      "Edit the handler",
-      "Run tests",
-    ])
   })
 })
 
@@ -84,11 +72,16 @@ describe("buildPlanProgress", () => {
       call("m1", "default/mark_step_complete", { index: 2 }),
     ])).toEqual({
       toolCallId: "p1",
+      title: undefined,
       steps: [
         { index: 1, description: "Read", done: false },
         { index: 2, description: "Edit", done: true },
       ],
     })
+  })
+
+  test("carries the plan title", () => {
+    expect(buildPlanProgress([call("p1", "default/create_plan", { title: " Refactor ", steps })])?.title).toBe("Refactor")
   })
 
   test("a new plan resets progress", () => {

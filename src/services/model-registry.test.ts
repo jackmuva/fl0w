@@ -4,9 +4,9 @@ import { DEFAULT_CONTEXT_WINDOW } from '../constants';
 const listModels = mock(async () => [
   { model: 'test/model', contextWindow: 32_000, type: 'text' as const },
 ]);
-mock.module('../../remote-api/ai-api', () => ({ listModels }));
+mock.module('./remote-api/ai-api', () => ({ listModels }));
 
-const { contextWindowFor, loadModels } = await import('./agent/utils/model-registrystry');
+const { contextWindowFor, loadModels } = await import('./model-registry');
 
 describe('model registry', () => {
   test('looks up context windows and falls back for unknown models', async () => {

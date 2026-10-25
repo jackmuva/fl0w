@@ -15,7 +15,7 @@ describe('createTranscriptPrinter', () => {
 
   const system = fl0wMessage({ role: 'system', content: 'rules' });
   const user = fl0wMessage({ role: 'user', content: 'hi' });
-  const decision = fl0wMessage({ role: 'assistant', content: '{}' }, 'decision');
+  const decision = fl0wMessage({ role: 'assistant', content: '{}' }, 'ROUTING');
   const reply = fl0wMessage({ role: 'assistant', content: 'hello' });
 
   test('snapshots first, then appends with indices that skip system messages', () => {
@@ -34,7 +34,7 @@ describe('createTranscriptPrinter', () => {
   test('re-snapshots when entries shrink or are rewritten in place', () => {
     const print = createTranscriptPrinter();
     print([user, decision, reply]);
-    const summary = fl0wMessage({ role: 'assistant', content: 'condensed' }, 'summary');
+    const summary = fl0wMessage({ role: 'assistant', content: 'condensed' }, 'SUMMARY');
     print([user, summary]);
     const truncated = { ...user, message: { role: 'user' as const, content: 'h' } };
     print([truncated, summary]);

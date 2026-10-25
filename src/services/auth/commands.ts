@@ -1,6 +1,5 @@
 import { syncConfigFiles } from '../sync/config-sync';
-import { syncWorkflows } from '../sync/workflow-sync';
-import { syncSessions } from '../sync/session-sync';
+import { flushOutbox } from '../sync/outbox';
 import { login } from './login';
 import { clearFl0wAuth, readFl0wAuth } from './token';
 
@@ -37,16 +36,6 @@ async function reportLoginSync() {
   } catch (error) {
     console.log(`Config sync failed: ${error instanceof Error ? error.message : String(error)}. It will retry on next start.`);
   }
-  try {
-    const synced = await syncWorkflows();
-    if (synced && (synced.pushed || synced.pulled)) console.log(`Workflows synced with fl0w-work (${synced.pushed} pushed, ${synced.pulled} pulled).`);
-  } catch (error) {
-    console.log(`Workflow sync failed: ${error instanceof Error ? error.message : String(error)}. It will retry on next start.`);
-  }
-  try {
-    const synced = await syncSessions();
-    if (synced && (synced.pushed || synced.pulled)) console.log(`Sessions synced with fl0w-work (${synced.pushed} pushed, ${synced.pulled} pulled).`);
-  } catch (error) {
-    console.log(`Session sync failed: ${error instanceof Error ? error.message : String(error)}. It will retry on next start.`);
-  }
+  // session and workflow writes left from before a sign-in expired
+  await flushOutbox();
 }

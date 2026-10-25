@@ -2,17 +2,18 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import type { CliOutput, Fl0wMessage } from '../models/agent';
 import type { WorkflowRecord } from '../models/workflow';
-import { WorkflowStore } from '../db/workflow-store';
-import { SessionStore } from '../db/session-store';
+import type { SessionRecord, StoredSession } from '../models/session';
+import { getSession, saveSession } from '../services/session/session-repo';
+import { createDraftSession } from '../services/session/session-record';
+import { getWorkflow } from '../services/workflow/workflow-repo';
 import { applyCapabilitySelection } from '../services/agent/config';
 import { findPendingAskQuestion } from '../services/agent/utils/ask-question';
 import { createStreamPrinter, createTranscriptPrinter } from './cli-output';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
 import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
-import { scheduleSessionPush } from '../services/sync/session-sync';
 import { finishHeadlessRun } from '../services/setup';
-import { runStartupSync } from '../services/setup';
+import { requireLogin, runStartupSync } from '../services/setup';
 import { buildWorkflowUserMessage } from '../services/workflow/build-message';
 import { llmLoop } from '../services/agent/llm-loop';
 import { loadModels } from '../services/model-registry';
@@ -45,10 +46,18 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     return 1;
   }
 
+  if (!(await requireLogin())) return 1;
+
   const workflowFile = Bun.file(workflowRef);
-  const workflow: WorkflowRecord | null = (await workflowFile.exists())
-    ? await workflowFile.json() as WorkflowRecord
-    : WorkflowStore.open().getWorkflow(workflowRef);
+  let workflow: WorkflowRecord | null;
+  try {
+    workflow = (await workflowFile.exists())
+      ? await workflowFile.json() as WorkflowRecord
+      : await getWorkflow(workflowRef);
+  } catch (error) {
+    console.error(`Could not load workflow ${workflowRef}: ${error instanceof Error ? error.message : String(error)}`);
+    return 1;
+  }
   if (!workflow) {
     console.error(`Workflow not found: ${workflowRef}`);
     return 1;
@@ -64,24 +73,26 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   }
 
   const remote = values.remote === true;
-  const syncWarning = await runStartupSync({ log: console.error, syncSessions: !remote });
+  const syncWarning = await runStartupSync({ log: console.error });
   if (syncWarning) console.error(syncWarning);
 
-  const store = SessionStore.open();
   const workspace = resolve(process.cwd());
   const sessionIdArg = values.session?.trim() || undefined;
 
-  let session = sessionIdArg
-    ? store.listAllSessions().find((entry) => entry.id === sessionIdArg)
-    : undefined;
-  if (!session) {
-    session = remote
-      ? { ...store.createDraftSession(workspace), ...(sessionIdArg ? { id: sessionIdArg } : {}) }
-      : store.createSession(workspace, sessionIdArg);
+  // --remote runs are recorded by fl0w-work itself, which passes the transcript with --messages
+  let stored: StoredSession | null = null;
+  if (sessionIdArg && !remote) {
+    try {
+      stored = await getSession(sessionIdArg);
+    } catch (error) {
+      console.error(`Could not load session ${sessionIdArg}: ${error instanceof Error ? error.message : String(error)}`);
+      return 1;
+    }
   }
+  // the workflow's capabilities are saved with the session's next save
+  let session: SessionRecord = { ...(stored ?? createDraftSession(workspace, sessionIdArg)), capabilities: workflow.requiredCapabilities };
 
-  const saved = messagesFromCli ?? (sessionIdArg && store.hasSession(session.id) ? store.loadMessages(session.id) : []);
-  if (!remote) store.saveCapabilities(session.id, workflow.requiredCapabilities);
+  const saved = messagesFromCli ?? stored?.messages ?? [];
 
   console.error('Connecting MCPs...');
   try {
@@ -108,10 +119,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   const onMessages = (next: Fl0wMessage[]) => {
     latest = next;
     printTranscript(next);
-    if (!remote) {
-      store.saveMessages(session.id, next);
-      scheduleSessionPush(store);
-    }
+    if (!remote) session = saveSession(session, next);
   };
 
   const abort = new AbortController();
@@ -124,10 +132,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     (reason) => (reason === 'error' ? 'error' : 'ok'),
     () => 'error' as const,
   );
-  if (!remote) {
-    store.saveMessages(session.id, latest);
-    scheduleSessionPush(store);
-  }
+  if (!remote) session = saveSession(session, latest);
 
   const pendingQuestion = findPendingAskQuestion(latest);
   const status = pendingQuestion ? 'needs_input' : abort.signal.aborted ? 'stopped' : outcome;
