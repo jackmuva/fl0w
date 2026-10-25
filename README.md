@@ -2,8 +2,6 @@
 
 fl0w is an agent harness that **puts the agent in the driver's seat** to drive AI workflows. Treating the agent as a workflow generator makes each turn a decision point: the agent picks the next tool or action in the workflow.
 
-<img src="/public/fl0w-ss.png" alt="fl0w screenshot" width="800" />
-
 The design is twofold:
 
 1. **Explainability** — at each turn you can see the agent-generated probabilities (traces).
