@@ -12,7 +12,7 @@ export const SLASH_COMMANDS: SlashCommandDefinition[] = [
   },
   {
     name: "configure",
-    description: "Choose which MCPs, skills, tools, and AGENTS.md to enable",
+    description: "Choose which models, MCPs, skills, tools, and AGENTS.md to enable",
   },
   {
     name: "generate",

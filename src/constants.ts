@@ -8,6 +8,9 @@ export const HEADLESS_COMMANDS = ["workflow", "capabilities", "session"];
 
 export const HEADLESS = HEADLESS_COMMANDS.includes(Bun.argv[2] ?? "");
 
+/** `fl0w workflow` runs unattended, so it never asks the user questions; `fl0w session` may. */
+export const WORKFLOW_RUN = (Bun.argv[2] ?? "") === "workflow";
+
 export const ACCOUNT_COMMANDS = ["login", "logout", "whoami"]
 
 export const APP_CONFIG_PATH = join(FL0W_HOME, 'config.json');

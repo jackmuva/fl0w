@@ -1,6 +1,6 @@
 import { jsonSchema, tool, type generateText } from "ai";
 import { mcpToolKey, type McpTool, type McpToolResult } from "../../../models/mcp";
-import { HEADLESS, sessionWorkspacePath, TOOL_OUTPUT_MAX_CHARS } from "../../../constants";
+import { sessionWorkspacePath, TOOL_OUTPUT_MAX_CHARS, WORKFLOW_RUN } from "../../../constants";
 import { mcpClient } from "../../mcp/mcp-client";
 import { isCapabilityEnabled, isMcpToolEnabled } from "../config";
 import { executeDefaultTool, getDefaultTool, isDefaultToolKey, listDefaultTools } from "../default-tools";
@@ -40,10 +40,11 @@ export const describeToolCallGenerationFailure = (
   return undefined;
 };
 
-export const listAllTools = async () => [
+/** `unattended` (default: a `fl0w workflow` run) withholds ask_question, since nobody is there to answer it. */
+export const listAllTools = async (unattended = WORKFLOW_RUN) => [
   ...listDefaultTools().filter((entry) => {
     if (entry.name === 'load_skill' && listSkills().length === 0) return false;
-    if (HEADLESS && entry.name === 'ask_question') return false;
+    if (unattended && entry.name === 'ask_question') return false;
     return true;
   }),
   ...listUserTools().filter((entry) => isCapabilityEnabled('userTools', entry.name)),
