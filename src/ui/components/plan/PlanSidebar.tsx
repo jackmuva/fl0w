@@ -7,6 +7,9 @@ export const PLAN_SIDEBAR_WIDTH = 36
 // Below this terminal width the sidebar is hidden so the chat keeps its room.
 export const PLAN_SIDEBAR_MIN_TERMINAL_WIDTH = 100
 
+// Steps render on one line, so keep only the first line of the description; the text truncates with an ellipsis.
+const stepHeadline = (description: string) => description.trim().split("\n")[0]!.trim()
+
 type PlanSidebarProps = {
   progress: PlanProgress
 }
@@ -48,8 +51,12 @@ export const PlanSidebar = ({ progress }: PlanSidebarProps) => {
                   <text fg={PLAN_STEP_FG[state]}>{` ${PLAN_STEP_GLYPH[state]}`}</text>
                 </box>
                 <box flexGrow={1} flexShrink={1}>
-                  <text fg={state === "pending" ? PLAN_PENDING_FG : state === "done" ? GREEN_FG : undefined}>
-                    {`${step.index}. ${step.description}`}
+                  <text
+                    fg={state === "pending" ? PLAN_PENDING_FG : state === "done" ? GREEN_FG : undefined}
+                    wrapMode="none"
+                    truncate
+                  >
+                    {`${step.index}. ${stepHeadline(step.description)}`}
                   </text>
                 </box>
               </box>

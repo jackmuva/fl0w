@@ -12,6 +12,7 @@ import { compactionHook } from "./hooks/compaction";
 import { contextWindowFor } from "../model-registry";
 import { toolsFor } from "./toolpacks";
 import { recordLlmUsage } from "./hooks/session-usage";
+import { findPendingAskQuestion } from "./utils/ask-question";
 
 export type Phase = (
   messages: Fl0wMessage[],
@@ -109,9 +110,12 @@ const runLoop = async (
   };
 
   let transcript = messages;
+  let result: AgentResult;
   if (state === "discovery") {
     transcript = await compact(transcript, models.DISCOVERY);
-    ({ transcript } = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort, onPhase));
+    ({ result, transcript } = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort, onPhase));
+    // ask_question has no execute step: hand control back to the UI until the user answers.
+    if (findPendingAskQuestion(transcript)) return result;
   }
 
   if (state === "discovery" || state === "plan") {

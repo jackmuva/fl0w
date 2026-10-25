@@ -25,6 +25,29 @@ const hasOnlyToolCalls = (message: ModelMessage): boolean => {
   return message.content.length > 0 && message.content.every((part) => part.type === "tool-call")
 }
 
+const ToolCalls = ({ message }: { message: ModelMessage }) => {
+  if (!Array.isArray(message.content)) return null
+  const toolCalls = message.content.filter(
+    (part): part is ToolCallPart => part.type === "tool-call" && part.toolName !== ASK_QUESTION_ACTION,
+  )
+  if (toolCalls.length === 0) return null
+
+  return (
+    <MessageFrameKindContext.Provider value="call">
+      {toolCalls.map((toolCall, index) => (
+        <box key={toolCall.toolCallId ?? index}>
+          {renderToolCall({
+            toolName: toolCall.toolName,
+            toolCallId: toolCall.toolCallId,
+            input: toolCall.input,
+            text: "",
+          })}
+        </box>
+      ))}
+    </MessageFrameKindContext.Provider>
+  )
+}
+
 type MessageContentProps = {
   message: Fl0wMessage
   toolCallInputs: Map<string, { toolName: string; input: unknown }>
@@ -74,32 +97,10 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
     )
   }
 
-  if (hasOnlyToolCalls(message) && Array.isArray(message.content)) {
-    return (
-      <MessageFrameKindContext.Provider value="call">
-        {message.content.map((part, index) => {
-          if (part.type !== "tool-call") return null
-          const toolCall = part as ToolCallPart
-
-          if (toolCall.toolName === ASK_QUESTION_ACTION) return null
-
-          return (
-            <box key={toolCall.toolCallId ?? index}>
-              {renderToolCall({
-                toolName: toolCall.toolName,
-                toolCallId: toolCall.toolCallId,
-                input: toolCall.input,
-                text: "",
-              })}
-            </box>
-          )
-        })}
-      </MessageFrameKindContext.Provider>
-    )
-  }
+  if (hasOnlyToolCalls(message)) return <ToolCalls message={message} />
 
   const text = formatMessageContent(message)
-  if (!text) return null
+  if (!text) return message.role === "assistant" ? <ToolCalls message={message} /> : null
 
   if (message.role === "user") {
     const workflow = parseWorkflowPrompt(text)
@@ -136,16 +137,20 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
   }
 
   return (
-    <box
-      border={isAgent ? ["left"] : false}
-      borderColor={isAgent ? AGENT_BORDER_COLOR : undefined}
-      paddingLeft={isAgent ? 1 : 0}
-      marginBottom={1}
-      width="100%"
-    >
-      {message.role === "assistant"
-        ? <markdown content={text} syntaxStyle={syntaxStyle} />
-        : <text>{text}</text>}
-    </box>
+    <>
+      <box
+        border={isAgent ? ["left"] : false}
+        borderColor={isAgent ? AGENT_BORDER_COLOR : undefined}
+        paddingLeft={isAgent ? 1 : 0}
+        marginBottom={1}
+        width="100%"
+      >
+        {message.role === "assistant"
+          ? <markdown content={text} syntaxStyle={syntaxStyle} />
+          : <text>{text}</text>}
+      </box>
+      {/* Assistant messages can mix text with tool calls; show the calls after the text. */}
+      {message.role === "assistant" && <ToolCalls message={message} />}
+    </>
   )
 }

@@ -2,7 +2,6 @@ import type { ProviderMetadata } from 'ai';
 
 export type SessionUsageState = {
   sessionCostUsd: number;
-  sessionTokensUsed: number;
   lastInputTokens: number;
   contextWindow: number;
 };
@@ -17,7 +16,6 @@ type LlmUsageSource = {
 };
 
 let sessionCostUsd = 0;
-let sessionTokensUsed = 0;
 let lastInputTokens = 0;
 let contextWindow = 0;
 const listeners = new Set<() => void>();
@@ -28,14 +26,12 @@ const notify = () => {
 
 export const getSessionUsageState = (): SessionUsageState => ({
   sessionCostUsd,
-  sessionTokensUsed,
   lastInputTokens,
   contextWindow,
 });
 
 export const resetSessionUsage = (): void => {
   sessionCostUsd = 0;
-  sessionTokensUsed = 0;
   lastInputTokens = 0;
   contextWindow = 0;
   notify();
@@ -65,16 +61,6 @@ export const recordLlmUsage = (source: LlmUsageSource, window?: number): void =>
     lastInputTokens = usage.inputTokens;
     contextWindow = window;
     changed = true;
-  }
-
-  if (usage) {
-    const total = usage.totalTokens != null && usage.totalTokens > 0
-      ? usage.totalTokens
-      : (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
-    if (total > 0) {
-      sessionTokensUsed += total;
-      changed = true;
-    }
   }
 
   if (changed) notify();

@@ -17,7 +17,7 @@ import { flushPendingSkillMirrorsInBackground } from "../services/skills/mirror-
 import type { WorkflowRecord } from "../models/workflow"
 import type { SessionListEntry, StoredSession } from "../models/session"
 import { useSessionPersistence } from "./hooks/useSessionPersistence"
-import { buildPlanProgress, buildToolCallInputMap } from "./lib/format/message"
+import { buildPlanProgress, buildToolCallInputMap, type PlanProgress } from "./lib/format/message"
 import { PlanSidebar, PLAN_SIDEBAR_MIN_TERMINAL_WIDTH } from "./components/plan/PlanSidebar"
 import { Transcript } from "./components/transcript/Transcript"
 import { CompletionOverlayDialog } from "./components/input/CompletionOverlayDialog"
@@ -99,7 +99,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     // Only re-sync when switching sessions; /configure opens the picker without changing session id.
   }, [applySessionCapabilities, capabilityCatalog, session.id])
   const { width, height } = useTerminalDimensions()
-  const { contextPercent, sessionCostUsd, sessionTokensUsed } = useProviderMetadata(session.id)
+  const { contextPercent, sessionCostUsd, lastInputTokens } = useProviderMetadata(session.id)
   const pendingAsk = findPendingAskQuestion(messages)
 
   const visibleMessages = useMemo(
@@ -112,10 +112,14 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     [visibleMessages],
   )
 
-  const planProgress = useMemo(
-    () => buildPlanProgress(visibleMessages),
-    [visibleMessages],
-  )
+  // Compaction can drop the create_plan call, so keep showing the session's latest plan once it has appeared.
+  const lastPlanRef = useRef<{ sessionId: string; plan: PlanProgress } | null>(null)
+  const planProgress = useMemo(() => {
+    const latest = buildPlanProgress(visibleMessages)
+    if (latest) lastPlanRef.current = { sessionId: session.id, plan: latest }
+    const kept = lastPlanRef.current
+    return latest ?? (kept?.sessionId === session.id ? kept.plan : undefined)
+  }, [visibleMessages, session.id])
 
   const showPlanSidebar = planProgress !== undefined && width >= PLAN_SIDEBAR_MIN_TERMINAL_WIDTH
 
@@ -385,7 +389,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
               )}
               <ContextCostStatusBar
                 contextPercent={contextPercent}
-                sessionTokensUsed={sessionTokensUsed}
+                inputTokens={lastInputTokens}
                 sessionCostUsd={sessionCostUsd}
                 terminalWidth={width}
               />

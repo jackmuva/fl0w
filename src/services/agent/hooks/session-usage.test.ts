@@ -10,7 +10,7 @@ describe('session-usage', () => {
     resetSessionUsage();
   });
 
-  test('tracks cost, cumulative tokens, and last input tokens', () => {
+  test('tracks cost and last input tokens for main-agent calls', () => {
     recordLlmUsage({
       providerMetadata: { gateway: { cost: '0.002' } },
       usage: { inputTokens: 8000, outputTokens: 200, totalTokens: 8200 },
@@ -22,7 +22,6 @@ describe('session-usage', () => {
 
     expect(getSessionUsageState()).toEqual({
       sessionCostUsd: 0.003,
-      sessionTokensUsed: 20300,
       lastInputTokens: 12000,
       contextWindow: 200_000,
     });
@@ -34,18 +33,16 @@ describe('session-usage', () => {
 
     expect(getSessionUsageState()).toEqual({
       sessionCostUsd: 0,
-      sessionTokensUsed: 95600,
       lastInputTokens: 5000,
       contextWindow: 100_000,
     });
   });
 
   test('reset clears state', () => {
-    recordLlmUsage({ usage: { inputTokens: 100, totalTokens: 150 } });
+    recordLlmUsage({ usage: { inputTokens: 100, totalTokens: 150 } }, 32_000);
     resetSessionUsage();
     expect(getSessionUsageState()).toEqual({
       sessionCostUsd: 0,
-      sessionTokensUsed: 0,
       lastInputTokens: 0,
       contextWindow: 0,
     });

@@ -6,18 +6,18 @@ const WARM_FG = '#e0af68';
 
 type ContextCostStatusBarProps = {
   contextPercent: number;
-  sessionTokensUsed: number;
+  inputTokens: number;
   sessionCostUsd: number;
   terminalWidth: number;
 };
 
 const buildStatusText = (
   contextPercent: number,
-  sessionTokensUsed: number,
+  inputTokens: number,
   sessionCostUsd: number,
   terminalWidth: number,
 ): string => {
-  const tokensLabel = formatSessionTokens(sessionTokensUsed);
+  const tokensLabel = formatSessionTokens(inputTokens);
   const costLabel = formatSessionCostUsd(sessionCostUsd);
   const full = `context ${contextPercent}% · ${tokensLabel} · session ${costLabel}`;
   const medium = `${contextPercent}% · ${tokensLabel} · ${costLabel}`;
@@ -31,12 +31,12 @@ const buildStatusText = (
 
 export const ContextCostStatusBar = ({
   contextPercent,
-  sessionTokensUsed,
+  inputTokens,
   sessionCostUsd,
   terminalWidth,
 }: ContextCostStatusBarProps) => {
   const warmContext = contextPercent >= Math.round(COMPACTION_TOKEN_THRESHOLD * 100);
-  const text = buildStatusText(contextPercent, sessionTokensUsed, sessionCostUsd, terminalWidth);
+  const text = buildStatusText(contextPercent, inputTokens, sessionCostUsd, terminalWidth);
 
   return (
     <text flexShrink={0} fg={warmContext ? WARM_FG : MUTED_FG}>
