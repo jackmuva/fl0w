@@ -25,7 +25,7 @@ const HEADLESS_INSTRUCTIONS = [
 ].join(' ');
 
 const USAGE =
-  'Usage: fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>] [--remote]';
+  'Usage: fl0w workflow <workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>] [--remote]';
 
 /** Runs a saved workflow without the TUI. Streams JSON lines to stdout and returns the exit code. */
 export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
@@ -40,26 +40,23 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     allowPositionals: true,
     strict: true,
   });
-  const workflowRef = positionals[0];
-  if (!workflowRef) {
+  const workflowId = positionals[0];
+  if (!workflowId) {
     console.error(USAGE);
     return 1;
   }
 
   if (!(await requireLogin())) return 1;
 
-  const workflowFile = Bun.file(workflowRef);
   let workflow: WorkflowRecord | null;
   try {
-    workflow = (await workflowFile.exists())
-      ? await workflowFile.json() as WorkflowRecord
-      : await getWorkflow(workflowRef);
+    workflow = await getWorkflow(workflowId);
   } catch (error) {
-    console.error(`Could not load workflow ${workflowRef}: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`Could not load workflow ${workflowId}: ${error instanceof Error ? error.message : String(error)}`);
     return 1;
   }
   if (!workflow) {
-    console.error(`Workflow not found: ${workflowRef}`);
+    console.error(`Workflow not found: ${workflowId}`);
     return 1;
   }
 

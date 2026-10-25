@@ -17,7 +17,7 @@ The TUI, workflow, and session commands require fl0w login: sessions and workflo
 
 Headless commands (agent output as JSON lines on stdout; MCP progress on stderr):
 
-  fl0w workflow <path.json | workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>] [--remote]
+  fl0w workflow <workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>] [--remote]
       Run a saved workflow unattended. Use --session to run in an existing session or create one with that id.
       --messages loads prior messages from a JSON file instead of the session saved on fl0w-work.
       --remote runs without saving the session to fl0w-work.

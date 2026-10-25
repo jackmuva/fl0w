@@ -124,7 +124,7 @@ Headless commands require `fl0w login`. They run startup config sync before the 
 Run a saved workflow unattended.
 
 ```bash
-fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions"] [--session <session-id>] [--messages <path.json>] [--remote]
+fl0w workflow <workflow-id> [--input "extra instructions"] [--session <session-id>] [--messages <path.json>] [--remote]
 ```
 
 | Flag | Short | Description |
@@ -134,7 +134,7 @@ fl0w workflow <path/to/workflow.json | workflow-id> [--input "extra instructions
 | `--messages` | `-m` | Prior messages JSON file, used instead of the session saved on fl0w-work. |
 | `--remote` | — | Run without persisting messages or capabilities locally. |
 
-- The positional argument is a workflow JSON file on disk, or a workflow **id** stored on fl0w-work (same records the TUI saves with `/generate`).
+- The positional argument is a workflow **id** stored on fl0w-work (same records the TUI saves with `/generate`).
 - Workflow runs inject a system instruction to avoid clarifying questions when possible; the agent should assume and continue.
 
 Example:
