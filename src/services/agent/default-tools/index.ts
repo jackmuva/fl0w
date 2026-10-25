@@ -32,7 +32,6 @@ import {
 import { executeWriteFile, writeFileDescription, writeFileTool, writeFileToolSchema } from './write-file';
 import { DEFAULT_TOOL_SERVER } from './utils';
 import { executeWebFetch, webFetchDescription, webFetchTool, webFetchToolSchema } from './web-fetch';
-import { executeMessageAnswer, messageAnswerDescription, messageAnswerTool, messageAnswerToolSchema } from './message-answer';
 import { executeWebSearch, webSearchDescription, webSearchTool, webSearchToolSchema } from './web-search';
 import { executeLoadSkill, loadSkillDescription, loadSkillTool, loadSkillToolSchema } from './load-skill';
 
@@ -48,13 +47,6 @@ export type DefaultToolEntry = {
 };
 
 const defaultToolEntries: DefaultToolEntry[] = [
-  {
-    name: 'message_answer',
-    description: messageAnswerDescription,
-    inputSchema: messageAnswerToolSchema,
-    execute: (args) => executeMessageAnswer(args as Parameters<typeof executeMessageAnswer>[0]),
-    tool: messageAnswerTool,
-  },
   {
     name: 'create_plan',
     description: createPlanDescription,

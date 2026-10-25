@@ -36,6 +36,7 @@ export async function runTui({ syncWarning }: { syncWarning: string | null }): P
 
   const renderer = await createCliRenderer({
     exitOnCtrlC: false,
+    openConsoleOnError: false,
     exitSignals: [
       'SIGTERM',
       'SIGQUIT',
