@@ -9,8 +9,14 @@ import {
   createPlanDescription,
   createPlanTool,
   createPlanToolSchema,
-  type CreatePlanInput,
+  executeCreatePlan,
 } from './create-plan';
+import {
+  executeMarkStepComplete,
+  markStepCompleteDescription,
+  markStepCompleteTool,
+  markStepCompleteToolSchema,
+} from './mark-step-complete';
 import { bashDescription, bashTool, bashToolSchema, executeBash } from './bash';
 import { editFileDescription, editFileTool, editFileToolSchema, executeEditFile } from './edit-file';
 import { executeGlob, globDescription, globTool, globToolSchema } from './glob';
@@ -53,12 +59,15 @@ const defaultToolEntries: DefaultToolEntry[] = [
     name: 'create_plan',
     description: createPlanDescription,
     inputSchema: createPlanToolSchema,
-    execute: (args) => {
-      const plan = String((args as CreatePlanInput).plan ?? '').trim();
-      if (!plan) throw new Error('create_plan requires a non-empty `plan` string');
-      return Promise.resolve(plan);
-    },
+    execute: (args) => executeCreatePlan(args as Parameters<typeof executeCreatePlan>[0]),
     tool: createPlanTool,
+  },
+  {
+    name: 'mark_step_complete',
+    description: markStepCompleteDescription,
+    inputSchema: markStepCompleteToolSchema,
+    execute: (args) => executeMarkStepComplete(args as Parameters<typeof executeMarkStepComplete>[0]),
+    tool: markStepCompleteTool,
   },
   {
     name: 'ask_question',

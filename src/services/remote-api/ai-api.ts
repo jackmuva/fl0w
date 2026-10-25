@@ -5,7 +5,7 @@ export async function listModels(): Promise<ModelMetadata[]> {
   //mock for now
   return [
     {
-      model: 'deepseek/deepseek-v4.1',
+      model: 'deepseek/deepseek-v4.1-flash',
       contextWindow: 1000000,
       type: "text"
     },

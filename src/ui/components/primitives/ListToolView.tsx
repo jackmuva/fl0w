@@ -4,12 +4,16 @@ import { MessageFrame } from "./MessageFrame"
 type ListToolViewProps = ToolViewProps & {
   items: string[]
   subtitle?: string
+  markers?: string[]
+  markerColors?: (string | undefined)[]
 }
 
 export const ListToolView = ({
   toolName,
   items,
   subtitle,
+  markers,
+  markerColors,
   text,
   isError,
 }: ListToolViewProps) => (
@@ -19,7 +23,9 @@ export const ListToolView = ({
     ) : (
       <>
         {items.map((item, index) => (
-          <text key={index}>• {item}</text>
+          <text key={index}>
+            <span fg={markerColors?.[index]}>{markers?.[index] ?? "•"}</span> {item}
+          </text>
         ))}
       </>
     )}

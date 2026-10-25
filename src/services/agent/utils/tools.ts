@@ -58,6 +58,11 @@ export const toAiSdkTools = (tools: McpTool[]) =>
     return [key, tool({
       description: entry.description ?? `Call the ${key} tool`,
       inputSchema: jsonSchema<Record<string, unknown>>(entry.inputSchema as Record<string, unknown>),
+      execute: async (input, { toolCallId }) => {
+        const result = await executeNamedTool(key, input, { toolCallId });
+        if (result.isError) throw new Error(result.content);
+        return result.content;
+      },
     })];
   }));
 

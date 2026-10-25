@@ -194,3 +194,55 @@ export const buildToolCallInputMap = (messages: Fl0wMessage[]): Map<string, { to
   return map
 }
 
+
+export type PlanStepProgress = {
+  index: number
+  description: string
+  done: boolean
+}
+
+export type PlanProgress = {
+  toolCallId: string
+  steps: PlanStepProgress[]
+}
+
+const bareToolName = (toolName: string) => toolName.split("/").pop() ?? toolName
+
+export const readPlanSteps = (input: unknown): Omit<PlanStepProgress, "done">[] => {
+  const steps = asRecord(input)?.steps
+  if (!Array.isArray(steps)) return []
+  return steps.flatMap((step) => {
+    const index = asRecord(step)?.index
+    const description = asRecord(step)?.description
+    return typeof index === "number" && typeof description === "string" ? [{ index, description }] : []
+  })
+}
+
+// Latest create_plan call plus every mark_step_complete call made after it.
+export const buildPlanProgress = (messages: Fl0wMessage[]): PlanProgress | undefined => {
+  let progress: PlanProgress | undefined
+  let completed = new Set<number>()
+
+  for (const { message } of messages) {
+    if (message.role !== "assistant" || !Array.isArray(message.content)) continue
+    for (const part of message.content) {
+      if (part.type !== "tool-call") continue
+      const name = bareToolName(part.toolName)
+      if (name === "create_plan") {
+        const steps = readPlanSteps(part.input)
+        if (steps.length === 0) continue
+        progress = { toolCallId: part.toolCallId, steps: steps.map((step) => ({ ...step, done: false })) }
+        completed = new Set()
+      } else if (name === "mark_step_complete") {
+        const index = asRecord(part.input)?.index
+        if (typeof index === "number") completed.add(index)
+      }
+    }
+  }
+
+  if (!progress) return undefined
+  return {
+    ...progress,
+    steps: progress.steps.map((step) => ({ ...step, done: completed.has(step.index) })),
+  }
+}

@@ -136,7 +136,7 @@ export const frontLoadMessages = async (rootDir = process.cwd(), options?: { ski
     role: 'system',
     content:
       `Workspace root: ${workspace}\n` +
-      'For file tools (read, edit, write, list_dir, glob), use paths relative to this directory (e.g. "src/index.ts"). ' +
+      'If you have file tools (read, edit, write, list_dir, glob), use paths relative to this directory (e.g. "src/index.ts"). ' +
       'Do not use root-relative paths like "/src/index.ts'
   }];
 
@@ -157,4 +157,12 @@ export const frontLoadMessages = async (rootDir = process.cwd(), options?: { ski
   }
 
   return messages;
+};
+
+export const frontLoadInstructions = async (
+  rootDir = process.cwd(),
+  options?: { skillsDirs?: string[] },
+): Promise<string> => {
+  const messages = await frontLoadMessages(rootDir, options);
+  return messages.map((message) => String(message.content)).join('\n\n');
 };

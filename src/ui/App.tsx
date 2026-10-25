@@ -17,7 +17,8 @@ import { flushSessionPushes } from "../services/sync/session-sync"
 import { flushPendingSkillMirrorsInBackground } from "../services/skills/mirror-enabled-skills"
 import type { WorkflowRecord } from "../models/workflow"
 import { useSessionPersistence } from "./hooks/useSessionPersistence"
-import { buildToolCallInputMap } from "./lib/format/message"
+import { buildPlanProgress, buildToolCallInputMap } from "./lib/format/message"
+import { PlanProgressContext } from "./components/tools/PlanToolView"
 import { CompletionOverlayDialog } from "./components/input/CompletionOverlayDialog"
 import { SessionSelectionDialog } from "./components/session/SessionSelectionDialog"
 import { WorkflowSelectionDialog } from "./components/workflow/WorkflowSelectionDialog"
@@ -112,6 +113,11 @@ export function App({ initialMessage, capabilityCatalog, models }: AppProps) {
 
   const toolCallInputs = useMemo(
     () => buildToolCallInputMap(visibleMessages),
+    [visibleMessages],
+  )
+
+  const planProgress = useMemo(
+    () => buildPlanProgress(visibleMessages),
     [visibleMessages],
   )
 
@@ -335,13 +341,15 @@ export function App({ initialMessage, capabilityCatalog, models }: AppProps) {
           stickyStart="bottom"
         >
           {initialMessage && <text fg={"red"}>{initialMessage}</text>}
-          {visibleMessages.map((message, index) => (
-            <MessageContent
-              key={index}
-              message={message}
-              toolCallInputs={toolCallInputs}
-            />
-          ))}
+          <PlanProgressContext.Provider value={planProgress}>
+            {visibleMessages.map((message, index) => (
+              <MessageContent
+                key={index}
+                message={message}
+                toolCallInputs={toolCallInputs}
+              />
+            ))}
+          </PlanProgressContext.Provider>
           {streamingText && (
             <MessageContent
               message={fl0wMessage({ role: "assistant", content: streamingText })}

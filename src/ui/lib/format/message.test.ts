@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
+  buildPlanProgress,
   buildUnifiedDiff,
   concatenateSubtitle,
   filetypeFromPath,
@@ -68,5 +69,39 @@ describe("buildUnifiedDiff", () => {
     expect(diff).toContain("--- a/src/a.ts")
     expect(diff).toContain("-old")
     expect(diff).toContain("+new")
+  })
+})
+
+describe("buildPlanProgress", () => {
+  const call = (toolCallId: string, toolName: string, input: unknown) => ({
+    message: { role: "assistant" as const, content: [{ type: "tool-call" as const, toolCallId, toolName, input }] },
+  })
+  const steps = [{ index: 1, description: "Read" }, { index: 2, description: "Edit" }]
+
+  test("marks steps completed after the latest plan", () => {
+    expect(buildPlanProgress([
+      call("p1", "default/create_plan", { steps }),
+      call("m1", "default/mark_step_complete", { index: 2 }),
+    ])).toEqual({
+      toolCallId: "p1",
+      steps: [
+        { index: 1, description: "Read", done: false },
+        { index: 2, description: "Edit", done: true },
+      ],
+    })
+  })
+
+  test("a new plan resets progress", () => {
+    const progress = buildPlanProgress([
+      call("p1", "default/create_plan", { steps }),
+      call("m1", "default/mark_step_complete", { index: 1 }),
+      call("p2", "default/create_plan", { steps }),
+    ])
+    expect(progress?.toolCallId).toBe("p2")
+    expect(progress?.steps.every((step) => !step.done)).toBe(true)
+  })
+
+  test("returns undefined without a structured plan", () => {
+    expect(buildPlanProgress([call("p1", "default/create_plan", { plan: "1. Read" })])).toBeUndefined()
   })
 })

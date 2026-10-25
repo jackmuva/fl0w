@@ -6,6 +6,7 @@ export const DEFAULT_TOOL_SERVER = 'default';
 export const defaultToolKey = (name: string) => `${DEFAULT_TOOL_SERVER}/${name}`;
 
 export const DEFAULT_CREATE_PLAN_TOOL = defaultToolKey('create_plan');
+export const DEFAULT_MARK_STEP_COMPLETE_TOOL = defaultToolKey('mark_step_complete');
 
 export const READ_FULL_TOOL_OUTPUT_TOOL = defaultToolKey('read_full_tool_output');
 export const DEFAULT_ASK_QUESTION_TOOL = defaultToolKey('ask_question');

@@ -10,7 +10,12 @@ import { GrepToolCallView, GrepToolResultView } from "./components/tools/GrepToo
 import { ListDirToolCallView, ListDirToolResultView } from "./components/tools/ListDirToolView"
 import { ReadToolCallView, ReadToolResultView } from "./components/tools/ReadToolView"
 import { MessageAnswerToolCallView, MessageAnswerToolResultView } from "./components/tools/MessageAnswerToolView"
-import { PlanToolCallView, PlanToolResultView } from "./components/tools/PlanToolView"
+import {
+  MarkStepCompleteToolCallView,
+  MarkStepCompleteToolResultView,
+  PlanToolCallView,
+  PlanToolResultView,
+} from "./components/tools/PlanToolView"
 import { WebFetchToolCallView, WebFetchToolResultView } from "./components/tools/WebFetchToolView"
 import { WebSearchToolCallView, WebSearchToolResultView } from "./components/tools/WebSearchToolView"
 import { WriteToolCallView, WriteToolResultView } from "./components/tools/WriteToolView"
@@ -33,6 +38,7 @@ const toolResultComponents: Record<string, ToolComponent> = {
   "default/message_answer": MessageAnswerToolResultView,
   "default/ask_question": AskQuestionToolResultView,
   "default/create_plan": PlanToolResultView,
+  "default/mark_step_complete": MarkStepCompleteToolResultView,
 }
 
 const toolCallComponents: Record<string, ToolComponent> = {
@@ -49,6 +55,7 @@ const toolCallComponents: Record<string, ToolComponent> = {
   "default/message_answer": MessageAnswerToolCallView,
   "default/ask_question": AskQuestionToolCallView,
   "default/create_plan": PlanToolCallView,
+  "default/mark_step_complete": MarkStepCompleteToolCallView,
 }
 
 const lookupComponent = (

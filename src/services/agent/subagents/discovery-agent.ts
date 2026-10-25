@@ -2,9 +2,9 @@ import { isStepCount, streamText, type ModelMessage, type ToolSet } from "ai";
 import { MAX_ITERATIONS } from "../../../constants";
 import type { Fl0wMessage } from "../../../models/agent";
 import { toModelMessages, type AgentResult } from "../utils/fl0w-message";
-import { frontLoadMessages } from "../hooks/front-load";
+import { frontLoadInstructions } from "../hooks/front-load";
 
-export const discoveryAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void): Promise<AgentResult> => {
+export const discoveryAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolSet | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
   const systemPrompt = `You are a subagent tasked with fully scoping the problem and the current state of the project.
 
 For coding projects, please find the AGENTS.md and README.md if present.
@@ -16,12 +16,15 @@ Depending on the task and project you are in, perform any sort of background res
 Be thorough AND concise. Only your last message will be delivered to the planning agent so deliver your report there.`;
   return streamText({
     model,
-    messages: [...(await frontLoadMessages()), { role: "system", content: systemPrompt } as ModelMessage, ...toModelMessages(messages)],
+    instructions: `${await frontLoadInstructions()}\n\n${systemPrompt}`,
+    messages: toModelMessages(messages),
+    tools,
     stopWhen: isStepCount(MAX_ITERATIONS),
     abortSignal: abort,
     onChunk: ({ chunk }) => {
       if (chunk.type === "text-delta") onStreamText(chunk.text);
     },
+    onStepFinish: (step) => onStep(step.response.messages),
   });
 }
 
