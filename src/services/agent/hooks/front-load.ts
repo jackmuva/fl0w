@@ -3,7 +3,9 @@ import { readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'path';
 import { FL0W_HOME } from '../../../constants';
+import type { WorkflowRecord } from '../../../models/workflow';
 import { isCapabilityEnabled } from '../config';
+import { DEFAULT_MARK_STEP_COMPLETE_TOOL } from '../default-tools/utils';
 
 export const AGENTS_MD_FILENAME = 'AGENTS.md';
 export const SKILL_FILENAME = 'SKILL.md';
@@ -22,6 +24,19 @@ export const getSkillsDirs = (cwd = process.cwd()): string[] => [
 ];
 
 let skillRegistry = new Map<string, SkillSummary>();
+
+export type ActiveWorkflow = {
+  workflow: WorkflowRecord;
+  userInstructions: string;
+};
+
+let activeWorkflow: ActiveWorkflow | null = null;
+
+export const setActiveWorkflow = (workflow: WorkflowRecord, userInstructions = ''): void => { activeWorkflow = { workflow, userInstructions } };
+
+export const clearActiveWorkflow = (): void => { activeWorkflow = null; };
+
+export const getActiveWorkflow = (): ActiveWorkflow | null => activeWorkflow;
 
 const parseFrontmatter = (content: string): Record<string, string> => {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
@@ -130,6 +145,31 @@ const formatSkillsCatalog = (skills: SkillSummary[]): string => {
   ].join('\n');
 };
 
+const formatWorkflowStep = (step: WorkflowRecord['steps'][number]): string => {
+  const lines = [`### Step ${step.index}: ${step.description}`, step.instructions];
+  if (step.tools && step.tools.length > 0) {
+    lines.push('Tools:');
+    for (const call of step.tools) lines.push(`- ${call.tool}(${JSON.stringify(call.parameters)})`);
+  }
+  return lines.join('\n');
+};
+
+export const formatWorkflowInstructions = ({ workflow, userInstructions }: ActiveWorkflow): string => {
+  const extra = userInstructions.trim();
+  return [
+    `<workflow title="${workflow.title}">`,
+    `Goal: ${workflow.goal}`,
+    '',
+    'You are running this saved workflow. Its plan is already created; follow the steps in order using the listed tools and parameters.',
+    `After finishing each step, call ${DEFAULT_MARK_STEP_COMPLETE_TOOL} with that step's index.`,
+    'Fill {{placeholder}} parameters from the additional instructions or the workspace. If a listed call fails, adapt its parameters or pick another tool that achieves the step.',
+    '',
+    workflow.steps.map(formatWorkflowStep).join('\n\n'),
+    ...(extra ? ['', '## Additional instructions', extra] : []),
+    '</workflow>',
+  ].join('\n');
+};
+
 export const frontLoadMessages = async (rootDir = process.cwd(), options?: { skillsDirs?: string[] }): Promise<ModelMessage[]> => {
   const workspace = resolve(rootDir);
   const messages: ModelMessage[] = [{
@@ -154,6 +194,10 @@ export const frontLoadMessages = async (rootDir = process.cwd(), options?: { ski
   skillRegistry = new Map(skills.map((skill) => [skill.name, skill]));
   if (skills.length > 0) {
     messages.push({ role: 'system', content: formatSkillsCatalog(skills) });
+  }
+
+  if (activeWorkflow) {
+    messages.push({ role: 'system', content: formatWorkflowInstructions(activeWorkflow) });
   }
 
   return messages;

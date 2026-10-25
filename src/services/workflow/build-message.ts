@@ -1,5 +1,6 @@
 import type { ModelMessage } from 'ai';
 import type { WorkflowRecord } from '../../models/workflow';
+import { wrapPlanToolMessages } from '../agent/default-tools/create-plan';
 
 export const WORKFLOW_PROMPT_LEAD = 'Execute this workflow step by step.';
 
@@ -20,24 +21,11 @@ export const parseWorkflowPrompt = (
   return null;
 };
 
-const formatStep = (step: WorkflowRecord['steps'][number], index: number): string => {
-  const lines = [
-    `${index + 1}. **Intent:** ${step.intent}`,
-    `   **Action:** ${step.action}`,
-  ];
-
-  if (step.toolParameters && Object.keys(step.toolParameters).length > 0) {
-    lines.push(`   **Tool parameters:** ${JSON.stringify(step.toolParameters)}`);
-  }
-
-  return lines.join('\n');
-};
-
+/** The step instructions themselves are front-loaded (see setActiveWorkflow); this message records the run in the transcript. */
 export const buildWorkflowUserMessage = (
   workflow: WorkflowRecord,
   userInstructions: string,
 ): ModelMessage => {
-  const stepsText = workflow.steps.map(formatStep).join('\n\n');
   const instructionsBlock = userInstructions.trim()
     ? `\n\n## Additional instructions\n\n${userInstructions.trim()}`
     : '';
@@ -48,16 +36,15 @@ export const buildWorkflowUserMessage = (
       formatWorkflowHeader(workflow.title),
       '',
       WORKFLOW_PROMPT_LEAD,
-      'If additional instructions or values are given, use them for {{placeholder}} values below (additional instructions and values are optional).',
       '',
       '## Goal',
       '',
       workflow.goal,
-      '',
-      '## Steps',
-      '',
-      stepsText,
       instructionsBlock,
     ].join('\n'),
   };
 };
+
+/** A create_plan call seeded from the workflow's steps, so the execute agent can mark them off by index. */
+export const buildWorkflowPlanMessages = (workflow: WorkflowRecord): ModelMessage[] =>
+  wrapPlanToolMessages(workflow.steps.map(({ index, description }) => ({ index, description })), workflow.title);

@@ -36,9 +36,10 @@ export const executeCreatePlan = async (input: CreatePlanInput) => {
 
 export const wrapPlanToolMessages = (
   steps: PlanStep[],
+  title?: string,
   toolCallId: string = crypto.randomUUID(),
 ): [ModelMessage, ModelMessage] => {
-  const input: CreatePlanInput = { steps };
+  const input: CreatePlanInput = title?.trim() ? { title: title.trim(), steps } : { steps };
 
   return [
     {
@@ -56,7 +57,7 @@ export const wrapPlanToolMessages = (
         type: 'tool-result',
         toolCallId,
         toolName: DEFAULT_CREATE_PLAN_TOOL,
-        output: { type: 'text', value: formatPlanSteps(steps) },
+        output: { type: 'text', value: input.title ? `${input.title}\n${formatPlanSteps(steps)}` : formatPlanSteps(steps) },
       }],
     },
   ];

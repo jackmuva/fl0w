@@ -1,5 +1,5 @@
 import type { CapabilitySelection } from '../../models/agent';
-import type { WorkflowRecord, WorkflowStep } from '../../models/workflow';
+import { isWorkflowRecord, type WorkflowRecord, type WorkflowStep } from '../../models/workflow';
 import { getRemoteWorkflow, listRemoteWorkflows } from '../remote-api/sync-api';
 import { nowIso } from '../session/session-record';
 import { enqueue, pendingOps } from '../sync/outbox';
@@ -10,7 +10,7 @@ const pendingWorkflows = () => {
   const created = new Map<string, WorkflowRecord>();
   const deleted = new Set<string>();
   for (const op of pendingOps()) {
-    if (op.kind === 'workflow') created.set(op.workflow.id, op.workflow);
+    if (op.kind === 'workflow' && isWorkflowRecord(op.workflow)) created.set(op.workflow.id, op.workflow);
     else if (op.kind === 'delete-workflow') deleted.add(op.id);
   }
   return { created, deleted };

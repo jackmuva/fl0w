@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { WorkflowRecord } from '../../models/workflow';
-import { buildWorkflowUserMessage, parseWorkflowPrompt } from './build-message';
+import { buildWorkflowPlanMessages, buildWorkflowUserMessage, parseWorkflowPrompt } from './build-message';
 
 const sampleWorkflow: WorkflowRecord = {
   id: 'wf-1',
@@ -17,19 +17,21 @@ const sampleWorkflow: WorkflowRecord = {
   updatedAt: '1970-01-01T00:00:00.001Z',
   steps: [
     {
-      intent: 'Find session store',
-      action: 'Search for SessionStore usage',
-      toolParameters: { pattern: 'SessionStore' },
+      index: 1,
+      description: 'Find session store',
+      instructions: 'Search for SessionStore usage',
+      tools: [{ tool: 'default/grep', parameters: { pattern: 'SessionStore' } }],
     },
     {
-      intent: 'Run lint',
-      action: 'Verify types with the linter',
+      index: 2,
+      description: 'Run lint',
+      instructions: 'Verify types with the linter',
     },
   ],
 };
 
 describe('buildWorkflowUserMessage', () => {
-  test('includes goal, steps, and additional instructions', () => {
+  test('includes goal and additional instructions but leaves steps to the front-load', () => {
     const message = buildWorkflowUserMessage(sampleWorkflow, 'Use the main branch');
 
     expect(message.role).toBe('user');
@@ -38,10 +40,8 @@ describe('buildWorkflowUserMessage', () => {
 
     expect(content).toContain('[Workflow: Add persistence]');
     expect(content).toContain('Add SQLite-backed workflow storage');
-    expect(content).toContain('Search for SessionStore usage');
-    expect(content).toContain('"pattern":"SessionStore"');
-    expect(content).toContain('Verify types with the linter');
     expect(content).toContain('Use the main branch');
+    expect(content).not.toContain('Search for SessionStore usage');
   });
 
   test('omits additional instructions section when empty', () => {
@@ -49,6 +49,27 @@ describe('buildWorkflowUserMessage', () => {
     const content = message.content as string;
 
     expect(content).not.toContain('## Additional instructions');
+  });
+});
+
+describe('buildWorkflowPlanMessages', () => {
+  test('seeds a create_plan call and result with the workflow steps', () => {
+    const [call, result] = buildWorkflowPlanMessages(sampleWorkflow);
+
+    expect(call?.role).toBe('assistant');
+    const callPart = (call?.content as Array<{ type: string; toolName: string; toolCallId: string; input: unknown }>)[0]!;
+    expect(callPart.toolName).toBe('default/create_plan');
+    expect(callPart.input).toEqual({
+      title: 'Add persistence',
+      steps: [
+        { index: 1, description: 'Find session store' },
+        { index: 2, description: 'Run lint' },
+      ],
+    });
+
+    expect(result?.role).toBe('tool');
+    const resultPart = (result?.content as Array<{ toolCallId: string }>)[0]!;
+    expect(resultPart.toolCallId).toBe(callPart.toolCallId);
   });
 });
 

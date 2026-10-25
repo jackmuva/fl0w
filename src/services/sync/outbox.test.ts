@@ -82,7 +82,7 @@ const outboxFiles = () => (existsSync(OUTBOX_DIR) ? readdirSync(OUTBOX_DIR) : []
 const workflowInput = (title: string) => ({
   title,
   goal: 'goal',
-  steps: [{ intent: 'i', action: 'a' }],
+  steps: [{ index: 1, description: 'd', instructions: 'i' }],
   requiredCapabilities: { skills: [], mcpServers: [], userTools: [], agentsMd: [] },
 });
 

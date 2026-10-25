@@ -9,7 +9,9 @@ import {
 } from "../services/agent/config"
 import { findPendingAskQuestion } from "../services/agent/utils/ask-question"
 import { fl0wMessage } from "../services/agent/utils/fl0w-message"
-import { buildWorkflowUserMessage } from "../services/workflow/build-message"
+import { listAllTools } from "../services/agent/utils/tools"
+import { setActiveWorkflow } from "../services/agent/hooks/front-load"
+import { buildWorkflowPlanMessages, buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { deleteWorkflow, listWorkflows, saveWorkflow } from "../services/workflow/workflow-repo"
 import { flushOutbox } from "../services/sync/outbox"
@@ -199,7 +201,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
       const source = await loadSession(sessionId)
       if (!source) throw new WorkflowGenerationError("The selected session is no longer on fl0w-work")
       //TODO: Fix
-      const generated = await generateWorkflowFromSession(source.messages, session.models?.EXECUTE ?? "")
+      const generated = await generateWorkflowFromSession(source.messages, session.models?.EXECUTE ?? "", await listAllTools())
       const saved = saveWorkflow({
         sourceSessionId: sessionId,
         title: generated.title,
@@ -276,9 +278,15 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
         workflow.requiredCapabilities,
       )
       await applySessionCapabilities(merged)
+      // after the capabilities are applied, so their front-loaded messages don't capture the workflow; llmLoop clears it
+      setActiveWorkflow(workflow, text)
 
       const userMessage = buildWorkflowUserMessage(workflow, text)
-      const nextMessages = [...messages, fl0wMessage(userMessage)]
+      const nextMessages = [
+        ...messages,
+        fl0wMessage(userMessage),
+        ...buildWorkflowPlanMessages(workflow).map((message) => fl0wMessage(message)),
+      ]
       setMessages(nextMessages)
 
       const runAbort = new AbortController()

@@ -1,6 +1,6 @@
 import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSkillMeta, RemoteToolMeta, SyncFilename } from '../../models/sync';
 import type { SessionListEntry, StoredSession } from '../../models/session';
-import { type WorkflowRecord } from '../../models/workflow';
+import { isWorkflowRecord, type WorkflowRecord } from '../../models/workflow';
 import { normalizeWorkflowSteps } from '../workflow/generate';
 import { UPLOAD_TIMEOUT_MS, request, readResponseJson, asErrorBody, fail } from './utils';
 
@@ -43,20 +43,21 @@ export async function putRemote(filename: SyncFilename, content: JsonObject, bas
   return parsed.configFile;
 }
 
-/** Every workflow the user has, newest first. */
+/** Every workflow the user has, newest first. Workflows saved in the old step format are skipped. */
 export async function listRemoteWorkflows(): Promise<WorkflowRecord[]> {
   const res = await request('/sync/workflows');
   if (!res.ok) return fail(res, 'list', 'Workflow');
   const body = asErrorBody(await readResponseJson(res)) as { workflows?: unknown };
-  return Array.isArray(body.workflows) ? body.workflows as WorkflowRecord[] : [];
+  return Array.isArray(body.workflows) ? body.workflows.filter(isWorkflowRecord) : [];
 }
 
 export async function getRemoteWorkflow(id: string): Promise<WorkflowRecord | null> {
   const res = await request(`/sync/workflows/${encodeURIComponent(id)}`);
   if (res.status === 404) return null;
   if (!res.ok) return fail(res, `pull of ${id}`, 'Workflow');
-  const parsed = asErrorBody(await readResponseJson(res)) as { workflow?: WorkflowRecord };
-  if (!parsed.workflow || !Array.isArray(parsed.workflow.steps)) throw new Error(`Workflow sync pull of ${id} failed: invalid response body`);
+  const parsed = asErrorBody(await readResponseJson(res)) as { workflow?: unknown };
+  if (!parsed.workflow || !Array.isArray((parsed.workflow as { steps?: unknown }).steps)) throw new Error(`Workflow sync pull of ${id} failed: invalid response body`);
+  if (!isWorkflowRecord(parsed.workflow)) throw new Error(`Workflow ${id} was saved in an older format; regenerate it from its session`);
   return parsed.workflow;
 }
 

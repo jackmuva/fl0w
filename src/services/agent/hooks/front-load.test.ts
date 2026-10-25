@@ -3,8 +3,11 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { FL0W_HOME } from '../../../constants';
 import { setCapabilitySelection } from '../config';
+import type { WorkflowRecord } from '../../../models/workflow';
 import {
   AGENTS_MD_FILENAME,
+  clearActiveWorkflow,
+  setActiveWorkflow,
   discoverAgentsMd,
   discoverSkills,
   frontLoadMessages,
@@ -16,6 +19,7 @@ import {
 const tempRoot = join(import.meta.dir, '__fixtures__', 'skills-front-load');
 
 afterEach(async () => {
+  clearActiveWorkflow();
   await rm(tempRoot, { recursive: true, force: true });
 });
 
@@ -164,5 +168,48 @@ describe('frontLoadMessages agents md', () => {
     });
     const enabled = await frontLoadMessages(tempRoot);
     expect(enabled.map((message) => String(message.content)).join('\n')).toContain('Always load these instructions.');
+  });
+});
+
+describe('frontLoadMessages active workflow', () => {
+  const workflow: WorkflowRecord = {
+    id: 'wf-1',
+    sourceSessionId: null,
+    title: 'Open PR',
+    goal: 'Open a PR for the change',
+    requiredCapabilities: { skills: [], mcpServers: [], userTools: [], agentsMd: [] },
+    createdAt: '1970-01-01T00:00:00.001Z',
+    updatedAt: '1970-01-01T00:00:00.001Z',
+    steps: [
+      {
+        index: 1,
+        description: 'Find the handler',
+        instructions: 'Search the source tree for the handler',
+        tools: [{ tool: 'default/grep', parameters: { pattern: '{{handler}}' } }],
+      },
+      { index: 2, description: 'Open the PR', instructions: 'Push and open a PR' },
+    ],
+  };
+
+  const workflowMessage = async () =>
+    (await frontLoadMessages(tempRoot, { skillsDirs: [] }))
+      .find((message) => String(message.content).includes('<workflow'));
+
+  test('front-loads the plan, step tools, and user instructions', async () => {
+    setActiveWorkflow(workflow, 'handler is loginHandler');
+    const content = String((await workflowMessage())?.content);
+
+    expect(content).toContain('Goal: Open a PR for the change');
+    expect(content).toContain('### Step 1: Find the handler');
+    expect(content).toContain('- default/grep({"pattern":"{{handler}}"})');
+    expect(content).toContain('### Step 2: Open the PR');
+    expect(content).toContain('default/mark_step_complete');
+    expect(content).toContain('handler is loginHandler');
+  });
+
+  test('omits the workflow once cleared', async () => {
+    setActiveWorkflow(workflow);
+    clearActiveWorkflow();
+    expect(await workflowMessage()).toBeUndefined();
   });
 });

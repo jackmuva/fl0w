@@ -13,6 +13,7 @@ import { contextWindowFor } from "../model-registry";
 import { toolsFor } from "./toolpacks";
 import { recordLlmUsage } from "./hooks/session-usage";
 import { findPendingAskQuestion } from "./utils/ask-question";
+import { clearActiveWorkflow, getActiveWorkflow } from "./hooks/front-load";
 
 export type Phase = (
   messages: Fl0wMessage[],
@@ -88,6 +89,8 @@ export const llmLoop = async (
   try {
     return await runLoop(messages, selection, onMessages, abort, onStreamText, onPhase);
   } finally {
+    // A workflow covers one run; follow-up turns go through the normal routing.
+    clearActiveWorkflow();
     onPhase?.(null);
   }
 }
@@ -101,7 +104,8 @@ const runLoop = async (
   onPhase?: (subagent: SubagentType | null) => void,
 ): Promise<AgentResult> => {
   const models = resolveModels(selection);
-  const state = await routingAgent(messages, models.ROUTER, abort, onStreamText);
+  // A workflow arrives with its plan already seeded, so it goes straight to execution.
+  const state = getActiveWorkflow() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText);
 
   const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
     const compacted = await compactionHook(transcript, models.SUMMARIZE, await contextWindowFor(target));

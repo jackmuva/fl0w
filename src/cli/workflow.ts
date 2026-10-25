@@ -14,7 +14,8 @@ import { loadUserTools } from '../services/agent/user-tools/loader';
 import { mcpClient } from '../services/mcp/mcp-client';
 import { finishHeadlessRun } from '../services/setup';
 import { requireLogin, runStartupSync } from '../services/setup';
-import { buildWorkflowUserMessage } from '../services/workflow/build-message';
+import { buildWorkflowPlanMessages, buildWorkflowUserMessage } from '../services/workflow/build-message';
+import { setActiveWorkflow } from '../services/agent/hooks/front-load';
 import { llmLoop } from '../services/agent/llm-loop';
 import { loadModels } from '../services/model-registry';
 
@@ -108,7 +109,10 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     ...saved,
     fl0wMessage({ role: 'system', content: HEADLESS_INSTRUCTIONS }),
     fl0wMessage(buildWorkflowUserMessage(workflow, values.input ?? '')),
+    ...buildWorkflowPlanMessages(workflow).map((message) => fl0wMessage(message)),
   ];
+  // set after applyCapabilitySelection so the seeded front-load messages don't capture it; llmLoop clears it
+  setActiveWorkflow(workflow, values.input ?? '');
 
   let latest = messages;
   const printTranscript = createTranscriptPrinter();
