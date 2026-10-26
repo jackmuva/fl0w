@@ -1,11 +1,10 @@
-import type { CapabilitySelection, Fl0wMessage } from '../../models/agent';
+import type { CapabilitySelection, Fl0wMessage, ModelSelection } from '../../models/agent';
 import { resolve } from 'node:path';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionListEntry, SessionRecord, StoredSession } from '../../models/session';
 import { deleteSession, getSession, listSessions, saveSession } from '../../services/session/session-repo';
 import { createDraftSession } from '../../services/session/session-record';
 import { applyCapabilitySelection } from '../../services/agent/config';
-import type { ModelSelection } from '../../models/ai-model';
 
 type SetMessagesAction = Fl0wMessage[] | ((previous: Fl0wMessage[]) => Fl0wMessage[]);
 

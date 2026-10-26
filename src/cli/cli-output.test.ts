@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import type { CliOutput } from '../models/agent';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';
-import { createPhasePrinter, createStreamPrinter, createTranscriptPrinter } from './cli-output';
+import { createPhasePrinter, createStreamPrinter, createTranscriptPrinter, createUsagePrinter } from './cli-output';
 
 describe('createTranscriptPrinter', () => {
   let lines: CliOutput[];
@@ -98,6 +98,29 @@ describe('createPhasePrinter', () => {
       { type: 'phase', subagent: 'PLAN' },
       { type: 'phase', subagent: 'EXECUTE' },
       { type: 'phase', subagent: null },
+    ]);
+  });
+});
+
+describe('createUsagePrinter', () => {
+  let lines: CliOutput[];
+  let logSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    lines = [];
+    logSpy = spyOn(console, 'log').mockImplementation((line: string) => void lines.push(JSON.parse(line)));
+  });
+  afterEach(() => logSpy.mockRestore());
+
+  test('prints the context percent, tokens and cost, skipping repeats', () => {
+    const print = createUsagePrinter();
+    print({ sessionCostUsd: 0.01, lastInputTokens: 0, contextWindow: 0 });
+    print({ sessionCostUsd: 0.01, lastInputTokens: 0, contextWindow: 0 });
+    print({ sessionCostUsd: 0.02, lastInputTokens: 50_000, contextWindow: 200_000 });
+
+    expect(lines).toEqual([
+      { type: 'usage', contextPercent: 0, inputTokens: 0, sessionCostUsd: 0.01 },
+      { type: 'usage', contextPercent: 25, inputTokens: 50_000, sessionCostUsd: 0.02 },
     ]);
   });
 });

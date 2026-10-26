@@ -1,6 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { ModelSelection } from './models/ai-model';
+import type { ModelSelection } from './models/agent';
 
 export const FL0W_HOME = join(homedir(), '.fl0w');
 

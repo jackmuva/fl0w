@@ -12,7 +12,6 @@ import { readSyncState, writeSyncState } from './sync-state';
 const STARTUP_TIMEOUT_MS = 8_000;
 const PUSH_DEBOUNCE_MS = 1_000;
 
-// getters read the live bindings, so paths stay correct even if constants are patched after this module loads
 const PATHS: Record<SyncFilename, string> = {
   get 'mcp.json'() { return MCP_CONFIG_PATH; },
   get 'auth.json'() { return AUTH_PATH; },
@@ -34,7 +33,6 @@ export function notifyLocalWrite(path: string): void {
   for (const listener of listeners) listener(path);
 }
 
-/** Undefined when missing; throws on invalid JSON so a half-edited file is never overwritten. */
 async function readLocal(path: string): Promise<JsonObject | undefined> {
   const file = Bun.file(path);
   if (!(await file.exists())) return undefined;
@@ -47,7 +45,6 @@ async function readLocal(path: string): Promise<JsonObject | undefined> {
 
 const mtimeMs = (path: string) => stat(path).then((s) => s.mtimeMs, () => 0);
 
-/** Reads, transforms, and (if changed) writes a local file; auth.json goes through its write queue. */
 async function applyLocal(filename: SyncFilename, transform: (local: JsonObject | undefined) => JsonObject): Promise<JsonObject> {
   if (filename === 'auth.json') {
     return await updateAuthFile((file) => {
@@ -72,7 +69,6 @@ async function syncFile(filename: SyncFilename, state: SyncState, meta: RemoteFi
   if (remote) remote = { ...remote, content: asJsonObject(remote.content) };
 
   if (!remote) {
-    // nothing on the server yet (e.g. first sign-in): just insert this device's copy
     const local = await readLocal(path);
     if (!local) return 'unchanged';
     const content = shareable(filename, local);
@@ -86,7 +82,6 @@ async function syncFile(filename: SyncFilename, state: SyncState, meta: RemoteFi
     return 'pushed';
   }
 
-  // with no merge base (first sync on this device/account) the server's established state wins conflicts
   const preferLocal = entry ? (await mtimeMs(path)) >= Date.parse(remote.updatedAt) : false;
   let before: JsonObject | undefined;
   const merged = await applyLocal(filename, (local) => {

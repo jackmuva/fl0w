@@ -1,10 +1,8 @@
 import type { CapabilitySelection, Fl0wMessage } from './agent';
-import type { ModelSelection } from './ai-model';
+import type { ModelSelection } from './agent';
 
-/** A session as fl0w-work stores it, without its messages. */
 export type SessionRecord = {
   id: string;
-  /** Absolute path of the workspace the session was started in. */
   workspacePath: string;
   title: string | null;
   models: ModelSelection | null;

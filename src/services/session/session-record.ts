@@ -1,6 +1,5 @@
 import { resolve } from 'node:path';
-import type { Fl0wMessage } from '../../models/agent';
-import type { ModelSelection } from '../../models/ai-model';
+import type { Fl0wMessage, ModelSelection } from '../../models/agent';
 import type { SessionRecord } from '../../models/session';
 
 export const nowIso = (): string => new Date().toISOString();

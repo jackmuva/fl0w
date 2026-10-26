@@ -1,6 +1,5 @@
 import { NoOutputGeneratedError, type ModelMessage, type ToolSet } from "ai";
-import type { Fl0wMessage, SubagentType } from "../../models/agent";
-import type { ModelSelection } from "../../models/ai-model";
+import type { Fl0wMessage, ModelSelection, SubagentType } from "../../models/agent";
 import { DEFAULT_MODELS } from "../../constants";
 import { discoveryAgent } from "./subagents/discovery-agent";
 import { planAgent } from "./subagents/plan-agent";

@@ -6,6 +6,11 @@ export type SessionUsageState = {
   contextWindow: number;
 };
 
+export const contextPercentOf = ({ lastInputTokens, contextWindow }: SessionUsageState): number =>
+  lastInputTokens <= 0 || contextWindow <= 0
+    ? 0
+    : Math.min(100, Math.round((lastInputTokens / contextWindow) * 100));
+
 type LlmUsageSource = {
   usage?: {
     inputTokens?: number | undefined;

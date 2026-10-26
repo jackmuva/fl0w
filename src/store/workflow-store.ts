@@ -1,10 +1,9 @@
-import type { CapabilitySelection } from '../../models/agent';
-import type { ModelSelection } from '../../models/ai-model';
-import { isWorkflowRecord, type WorkflowRecord, type WorkflowStep } from '../../models/workflow';
-import { getRemoteWorkflow, listRemoteWorkflows } from '../remote-api/sync-api';
-import { nowIso } from '../session/session-record';
-import { enqueue, pendingOps } from '../sync/outbox';
-import { normalizeWorkflowSteps } from './generate';
+import type { CapabilitySelection, ModelSelection } from '../models/agent';
+import { isWorkflowRecord, type WorkflowRecord, type WorkflowStep } from '../models/workflow';
+import { getRemoteWorkflow, listRemoteWorkflows } from '../services/remote-api/sync-api';
+import { nowIso } from '../services/session/session-record';
+import { enqueue, pendingOps } from '../services/sync/outbox';
+import { normalizeWorkflowSteps } from '../services/workflow/generate';
 
 /** Creates and deletes not yet pushed, so reads see this device's latest writes. */
 const pendingWorkflows = () => {

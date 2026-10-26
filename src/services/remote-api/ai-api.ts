@@ -1,4 +1,4 @@
-import type { ModelMetadata } from "../../models/ai-model";
+import type { ModelMetadata } from "../../models/agent";
 import { asErrorBody, fail, readResponseJson, request } from "./utils";
 
 export async function listModels(): Promise<ModelMetadata[]> {

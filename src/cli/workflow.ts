@@ -4,7 +4,7 @@ import type { Fl0wMessage } from '../models/agent';
 import type { WorkflowRecord } from '../models/workflow';
 import type { SessionRecord } from '../models/session';
 import { createDraftSession, emptyModelSelection } from '../services/session/session-record';
-import { getWorkflow } from '../services/workflow/workflow-repo';
+import { getWorkflow } from '../store/workflow-store';
 import { applyCapabilitySelection } from '../services/agent/config';
 import { runHeadlessTurn } from './cli-output';
 import { fl0wMessage } from '../services/agent/utils/fl0w-message';

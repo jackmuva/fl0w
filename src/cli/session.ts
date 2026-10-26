@@ -1,7 +1,6 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
-import type { CapabilityKind, CapabilitySelection, Fl0wMessage } from '../models/agent';
-import type { ModelSelection } from '../models/ai-model';
+import type { CapabilityKind, CapabilitySelection, Fl0wMessage, ModelSelection } from '../models/agent';
 import type { SessionRecord } from '../models/session';
 import { createDraftSession, emptyModelSelection, parseModelsJson } from '../services/session/session-record';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/config';

@@ -5,12 +5,13 @@ import type {
   CapabilityCatalog,
   CapabilityKind,
   CapabilitySelection,
+  ModelMetadata,
+  ModelSelection,
 } from "../../../models/agent"
 import { getFilterKeyAction } from "../../lib/dialog-filter-key"
 import { filterByFuzzyName } from "../../lib/input-completion/fuzzy-match"
 import { formatSessionCostUsd } from "../../lib/format/session-stats"
 import { AGENT_BORDER_COLOR } from "../primitives/MessageFrame"
-import type { ModelMetadata, ModelSelection } from "../../../models/ai-model"
 
 const DIALOG_WIDTH = 64
 const DIALOG_PADDING = 2

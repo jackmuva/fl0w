@@ -1,5 +1,5 @@
 import type { CapabilitySelection } from './agent';
-import type { ModelSelection } from './ai-model';
+import type { ModelSelection } from './agent';
 
 /** A tool the step should call; `tool` is the `server/name` key, parameters may hold {{placeholder}} values. */
 export type WorkflowToolCall = {

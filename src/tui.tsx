@@ -6,7 +6,7 @@ import type { StoredSession } from './models/session';
 import type { WorkflowRecord } from './models/workflow';
 import { findLatestSessionWithMessages } from './services/session/session-repo';
 import { createDraftSession } from './services/session/session-record';
-import { listWorkflows } from './services/workflow/workflow-repo';
+import { listWorkflows } from './store/workflow-store';
 
 const loadMcp = async (initialMessage: string): Promise<string> => {
   console.log('Connecting MCPs...');

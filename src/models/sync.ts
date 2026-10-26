@@ -25,14 +25,11 @@ export type RemoteSkillMeta = {
 /** Server-side metadata for one synced user tool bundle (GET /api/sync/tools). */
 export type RemoteToolMeta = RemoteSkillMeta;
 
-/** Shape of ~/.fl0w/sync-state.json. */
 export type SyncState = {
-  /** fl0w user the state was synced for; a different signed-in user starts fresh. */
   userId?: string;
   files: Partial<Record<SyncFilename, {
     version: number;
     updatedAt: string;
-    /** Content both sides agreed on at `version`; tells which side changed since. */
     base: JsonObject;
   }>>;
 };

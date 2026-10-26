@@ -4,8 +4,6 @@ import { wrapPlanToolMessages } from '../agent/default-tools/create-plan';
 
 export const WORKFLOW_PROMPT_LEAD = 'Execute this workflow step by step.';
 
-export const formatWorkflowHeader = (title: string): string => `[Workflow: ${title}]`;
-
 export const parseWorkflowPrompt = (
   text: string,
 ): { title: string; content: string } | null => {
@@ -33,7 +31,7 @@ export const buildWorkflowUserMessage = (
   return {
     role: 'user',
     content: [
-      formatWorkflowHeader(workflow.title),
+      `[Workflow: ${workflow.title}]`,
       '',
       WORKFLOW_PROMPT_LEAD,
       '',

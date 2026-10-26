@@ -1,8 +1,8 @@
-import type { CliOuputStatus, CliOutput, Fl0wMessage, SubagentType } from '../models/agent';
-import type { ModelSelection } from '../models/ai-model';
+import type { CliOuputStatus, CliOutput, Fl0wMessage, ModelSelection, SubagentType } from '../models/agent';
 import { findPendingAskQuestion } from '../services/agent/utils/ask-question';
 import { llmLoop } from '../services/agent/llm-loop';
 import { modelStore } from '../store/model-store';
+import { contextPercentOf, sessionUsageStore, type SessionUsageState } from '../store/session-usage-store';
 
 const printLine = (line: CliOutput) => console.log(JSON.stringify(line));
 
@@ -41,10 +41,26 @@ export const createPhasePrinter = () => {
   };
 };
 
+export const createUsagePrinter = () => {
+  let last = '';
+  return (state: SessionUsageState) => {
+    const line: CliOutput = {
+      type: 'usage',
+      contextPercent: contextPercentOf(state),
+      inputTokens: state.lastInputTokens,
+      sessionCostUsd: state.sessionCostUsd,
+    };
+    const json = JSON.stringify(line);
+    if (json === last) return;
+    last = json;
+    console.log(json);
+  };
+};
+
 /**
  * Runs one headless turn the way the TUI's App does, printing what App keeps in state instead: the transcript
- * (`setMessages`), the live text preview (`setStreamingText`) and the running subagent (`setActivePhase`), then the
- * `result` line. `onMessages` lets the caller persist each update.
+ * (`setMessages`), the live text preview (`setStreamingText`), the running subagent (`setActivePhase`) and the status
+ * bar's usage (`useProviderMetadata`), then the `result` line. `onMessages` lets the caller persist each update.
  */
 export const runHeadlessTurn = async ({ messages, models, sessionId, onMessages }: {
   messages: Fl0wMessage[];
@@ -60,6 +76,9 @@ export const runHeadlessTurn = async ({ messages, models, sessionId, onMessages 
   process.on('SIGINT', () => abort.abort());
   process.on('SIGTERM', () => abort.abort());
 
+  const printUsage = createUsagePrinter();
+  const unsubscribeUsage = sessionUsageStore.subscribe(() => printUsage(sessionUsageStore.get()));
+
   await modelStore.loadModels();
   const run = await llmLoop(messages, models, (next) => {
     latest = next;
@@ -70,6 +89,7 @@ export const runHeadlessTurn = async ({ messages, models, sessionId, onMessages 
     (reason) => (reason === 'error' ? 'error' : 'ok'),
     () => 'error' as const,
   );
+  unsubscribeUsage();
   onMessages?.(latest);
 
   const pendingQuestion = findPendingAskQuestion(latest);

@@ -1,4 +1,4 @@
-import type { ModelMetadata } from '../models/ai-model';
+import type { ModelMetadata } from '../models/agent';
 import { DEFAULT_CONTEXT_WINDOW } from '../constants';
 import { listModels } from '../services/remote-api/ai-api';
 

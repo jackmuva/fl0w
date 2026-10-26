@@ -22,7 +22,7 @@ if (!AUTH_PATH.startsWith(home)) throw new Error('outbox test is not isolated');
 const { enqueue, flushOutbox, pendingOps } = await import('./outbox');
 const { deleteSession, getSession, listSessions, saveSession } = await import('../session/session-repo');
 const { createDraftSession } = await import('../session/session-record');
-const { deleteWorkflow, listWorkflows, saveWorkflow } = await import('../workflow/workflow-repo');
+const { deleteWorkflow, listWorkflows, saveWorkflow } = await import('../../store/workflow-store');
 
 let sessions: Map<string, StoredSession>;
 let workflows: Map<string, WorkflowRecord>;
