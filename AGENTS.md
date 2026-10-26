@@ -9,73 +9,98 @@ A terminal (TUI) app built on **OpenTUI** that connects to MCP servers and runs 
 conversational agent that plans, executes, and distills tasks into reusable workflows.
 
 - **Stack** — TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
-- **Config** — `config.json` in `FL0W_HOME` (`~/.fl0w`); `loadAppConfig()` applies it via `applyAppConfig()` into runtime exports in `constants.ts`.
-- **Models** — `LLM_MODEL` (from `llmModel`, default `deepseek/deepseek-v4.1-flash`); `DECISION_MODEL` (from `decisionModel`, default `typesafe-ai/jev`) drives agent planning/choices.
-  `AGENT_MODE` (from `mode`, default `decision`) selects the runtime: `decision` is the
-  evaluate/rewind graph; `llm` is a standard tool-calling loop on `LLM_MODEL`.
-  `CONTEXT_WINDOW` (from `contextWindow`, default `232000`) drives compaction thresholds and the UI usage meter.
-  `MAX_ITERATIONS` (from `maxIterations`, default `50`) caps agent loop iterations per turn.
-  `TOOL_OUTPUT_MAX_CHARS` (from `toolOutputMaxChars`, default `20000`) caps inline tool results.
+- **Config** — there is no `config.json`; runtime values are constants in `src/constants.ts`
+  and models are chosen per session. `ensureFl0wHome()` (`services/setup.ts`) scaffolds
+  `FL0W_HOME` (`~/.fl0w`) with `mcp.json`, `tools/`, `skills/`, and `workspace/`.
+- **Models** — each session carries a `ModelSelection` (`models/ai-model.ts`) over five phases:
+  `ROUTER` (a decision model), `DISCOVERY`, `PLAN`, `EXECUTE`, `SUMMARIZE` (text models). Unset
+  phases fall back to `DEFAULT_MODELS` via `resolveModels()` in `llm-loop.ts`; the TUI's
+  `/configure` dialog edits the selection. The model list and per-model context windows come
+  from fl0w-work's `/api/cli/ai/models` route (`services/model-registry.ts` → `remote-api/ai-api.ts`
+  `listModels()`); metadata includes per-model context windows and input token prices. `contextWindowFor()`
+  falls back to `DEFAULT_CONTEXT_WINDOW` (200,000) and drives compaction thresholds and the UI usage meter.
+  `MAX_ITERATIONS` (50) caps steps per phase;
+  `TOOL_OUTPUT_MAX_CHARS` (20,000) caps inline tool results.
 - **Auth** — `fl0w login`/`logout`/`whoami` sign in via fl0w-work (`FL0W_API_URL` →
   `https://www.fl0w.work`); tokens + MCP OAuth state live in `auth.json`. There is no AI Gateway key
   on the client: `index.tsx` sets `AI_SDK_DEFAULT_PROVIDER` to `fl0wModelProvider` (`services/auth/token.ts`),
   a gateway provider pointed at fl0w-work's `/api/cli/ai` proxy and authenticated with the fl0w access token,
   so every model id string resolves through it. Model calls require `fl0w login`.
-- **Config sync** — when signed in, `config.json`, `mcp.json`, `auth.json` sync with fl0w-work:
-  reconciled at startup and after `fl0w login`, pushed ~1s after writes; when a file changed on both
-  sides since the last sync (`sync-state.json`, 0600), the newer copy wins. Disable per device with `"sync": false` in `config.json` (never synced itself).
+- **Config sync** — when signed in, `mcp.json` and `auth.json` (`SYNC_FILENAMES` in `models/sync.ts`)
+  sync with fl0w-work: reconciled at startup (`syncOnStartup()`, 8s timeout) and pushed ~1s after local
+  writes (`watchLocalConfigWrites()`); `sync-state.json` (0600) records the last agreed content, and the
+  newer copy wins when both sides changed. Enabled skills and user tools upload separately
+  (`services/skills/`, `services/agent/user-tools/sync-tools.ts`); `fl0w sync` runs `runFullSync()`
+  (`services/sync/full-sync.ts`): config files, outbox flush, then every local skill and tool.
 - **MCP** — servers auto-connect at startup (with OAuth); failure is non-fatal (UI warning).
-  On auth/connection tool-call failures, syncs config and reconnects once when config sync is enabled.
+  On auth/connection tool-call failures, syncs config and reconnects once.
 - **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content, and the skills
-  catalog seed the conversation before the UI boots.
+  catalog seed the conversation (`services/agent/hooks/front-load.ts`); a running workflow adds its
+  step instructions (`setActiveWorkflow()`).
 - **Capabilities** — skills, MCP servers, `AGENTS.md`, and user tools are discoverable/toggleable.
-- **Tool output cap** — `executeNamedTool` truncates results over `TOOL_OUTPUT_MAX_CHARS` (`toolOutputMaxChars`, default `20000`)
-  and writes the full text to `FL0W_HOME/workspace/<sessionId>/`; the model reads it back via `default/read_full_tool_output`.
+  `buildCapabilityCatalog()` lives in `services/capabilities.ts` (also backs `fl0w capabilities`);
+  the active selection lives in `services/agent/config.ts`.
+- **Tool output cap** — `executeNamedTool` (`services/agent/utils/tools.ts`) truncates results over
+  `TOOL_OUTPUT_MAX_CHARS` (20,000) and writes the full text to `FL0W_HOME/workspace/<sessionId>/`;
+  the model reads it back via `default/read_full_tool_output`.
   Compaction lists every saved file in its summary; deleting a session removes its workspace folder.
 - **Persistence** — sessions and workflows live on fl0w-work (`/api/sync/sessions`, `/api/sync/workflows`); there is no local DB, so the TUI and headless runs require `fl0w login`. Reads go through `services/session/session-repo.ts` and `services/workflow/workflow-repo.ts`. Writes go to the durable outbox (`services/sync/outbox.ts`, `OUTBOX_DIR` → `FL0W_HOME/outbox`, one JSON file per pending write), which pushes ~2s after writes settle, retries with backoff, and drains at startup and on exit; reads overlay unpushed writes.
-- **Workflows** — sessions distill into reusable workflows (`/generate-workflow`, `/run-workflow`).
-- **Skills** — found in `./skills`, `FL0W_HOME/skills`, `~/.cursor/skills-cursor`; loaded via `load_skill`.
+- **Workflows** — sessions distill into reusable workflows (`/generate`, `/workflow`; headless `fl0w workflow`).
+- **Skills** — discovered in `<workspace>/.agents/skills`, `~/.cursor/skills-cursor`, `~/.claude/skills`,
+  and `FL0W_HOME/skills`; loaded via the `load_skill` tool.
 - **User tools** — `loadUserTools()` registers custom tools from `FL0W_HOME/tools` in the `user` namespace.
-- **Agent graph** — `fl0wLoop()` in `src/services/agent/main-loop.ts` dispatches on `mode`: decision state machine
-  (`START` → `PLAN`/`DISCOVERY` → `EXECUTE` → `END`, with `REWIND`) in
-  `src/services/agent/loops/graph.ts`, or LLM tool-calling loop in `src/services/agent/loops/llm-loop.ts`.
-- **Streaming** — `fl0wLoop` options take `onStreamText`, a live preview of assistant text as it generates
-  (LLM-mode text; decision-mode `message_answer`/`create_plan` tool inputs); `null` once committed. The TUI renders it
-  below the transcript; headless `session`/`workflow` print it as `stream_delta`/`stream_end` JSON lines, and the running subagent
-  (the TUI's active phase, from `onPhase`) as `phase` lines (`cli/cli-output.ts` `runHeadlessTurn`).
-- **Shutdown** — MCP connections close cleanly on exit.
+- **Agent loop** — `llmLoop()` in `src/services/agent/llm-loop.ts`. `routingAgent` (the `ROUTER`
+  decision model, `experimental_decide`) picks `discovery`/`plan`/`execute` per turn; the turn then runs
+  DISCOVERY (skipped unless routed there; returns early on a pending `ask_question`), PLAN, EXECUTE, and a
+  closing SUMMARY phase, each a subagent in `services/agent/subagents/` with its own model and tool
+  allowlist (`toolpacks.ts`). `compactionHook` rewrites the transcript before each phase once it exceeds
+  `COMPACTION_TOKEN_THRESHOLD` of that phase model's context window.
+- **Streaming** — `llmLoop` options take `onStreamText`, a live preview of assistant text as it generates
+  (`null` once committed), and `onPhase`, the running subagent (`null` at end). The TUI renders them
+  below the transcript; headless `session`/`workflow` print them as `stream_delta`/`stream_end` and
+  `phase` JSON lines (`cli/cli-output.ts` `runHeadlessTurn`).
+- **Shutdown** — MCP connections close cleanly on exit; headless commands end with `finishHeadlessRun()`,
+  which flushes pending config pushes, skill mirrors, and the outbox.
 
 ## Structure
 
 ```
 src/
-├── index.tsx          # Entry – loads config, initializes MCP/tools, renders TUI
+├── index.tsx          # Entry – scaffolds FL0W_HOME, dispatches CLI commands vs TUI
+├── tui.tsx            # TUI startup – MCP connect, session/workflow load, renderer
 ├── constants.ts       # Shared constants (FL0W_HOME, OUTBOX_DIR, FL0W_API_URL, DEFAULT_MODELS)
-├── models/            # agent, config, mcp, ui, workflow types
+├── cli/               # Headless commands (help, sync, session, workflow) + JSON-lines output
+├── models/            # agent, ai-model, auth, mcp, session, sync, ui, workflow types
 ├── services/          # Business logic
-│   ├── agent/         # loop, capabilities, graph, prompt, built-in & user tools, hooks
-│   ├── auth/          # login/logout/whoami, token.ts, callback-server
-│   ├── config/        # app-config (loadAppConfig, ensureFl0wHome)
+│   ├── agent/         # llm-loop, subagents, toolpacks, config, hooks, default-tools, user-tools, utils
+│   ├── auth/          # login/logout/whoami, token.ts, auth-store, callback-server
 │   ├── mcp/           # mcp-client, oauth-provider
+│   ├── remote-api/    # fl0w-work HTTP: ai-api (model list), sync-api
 │   ├── session/       # session records + fl0w-work session repo
-│   ├── sync/          # fl0w-work config/mcp/auth sync, session/workflow outbox
+│   ├── skills/        # skill mirroring + sync with fl0w-work
+│   ├── sync/          # config-file sync, full-sync, outbox, sync-state
 │   ├── workflow/      # generate & extract tool calls
-│   └── session/
+│   ├── capabilities.ts     # capability catalog + `fl0w capabilities`
+│   ├── model-registry.ts   # fl0w-work model list cache + contextWindowFor
+│   └── setup.ts            # ensureFl0wHome, requireLogin, startup sync, headless teardown
 └── ui/                # App, hooks, lib, components
 ```
 
 ## How It Works
 
-1. `ensureFl0wHome()` scaffolds `FL0W_HOME`; CLI account commands dispatch up front;
-   `loadAppConfig()` populates env. Messages front-load so the UI renders immediately.
-2. Workspace instructions, enabled `AGENTS.md`, and the skills catalog seed the conversation.
-3. `mcpClient.loadConfig()` + `connectAll()` connect all servers (optional OAuth); failures warn.
-4. `loadUserTools()` registers `user` namespace tools.
-5. Skills/servers/tools/`AGENTS.md` load into a togglable `CapabilityCatalog`.
-6. `@opentui/core` boots and `<App />` renders seeded messages.
-7. `fl0wLoop()` runs the selected runtime (`loops/graph.ts` + `rewindState` in decision mode,
-   `loops/llm-loop.ts` in LLM mode) with shared hooks (`compactionHook`, front-load, session-usage).
-8. Exit handler closes all MCP connections.
+1. `ensureFl0wHome()` scaffolds `FL0W_HOME`; `index.tsx` dispatches `help`, account commands,
+   `sync`, `workflow`, `session`, and `capabilities` up front. Bare `fl0w` requires login
+   (`requireLogin()`) and reconciles config with fl0w-work (`runStartupSync()`) before booting the TUI.
+2. `tui.tsx` runs `mcpClient.loadConfig()` + `connectAll()` (optional OAuth); failures warn, never crash.
+3. The latest workspace session and all workflows load from fl0w-work; `loadUserTools()` registers
+   `user` namespace tools; `buildCapabilityCatalog()` and `loadModels()` feed the `/configure` dialog.
+4. `@opentui/core` boots and `<App />` renders the session. Applying a capability selection seeds
+   front-load messages (workspace instructions, enabled `AGENTS.md`, skills catalog).
+5. Each turn, `llmLoop()` runs ROUTING → optional DISCOVERY (a pending `ask_question` ends the turn
+   with `needs_input`) → PLAN → EXECUTE → SUMMARY, compacting before each phase.
+6. Headless turns go through `runHeadlessTurn()` (`cli/cli-output.ts`), printing
+   snapshot/message/stream/phase/result JSON lines; `fl0w session` exits `2` on `needs_input`.
+7. Exit closes all MCP connections; headless runs also flush pending sync writes.
 
 ## Conventions
 
@@ -84,15 +109,17 @@ src/
 - **Prefer inline logic over one-off helper methods.**
 - Reuse existing files over creating new ones.
 - Models/types → `src/models/`; business logic → `src/services/`; UI → `src/ui/`; shared values → `src/constants.ts`.
+- Tests are colocated `*.test.ts` (`bun:test`); run `bun test`.
 
 ## Agent Instructions
 
-- **Read before editing** — understand `src/index.tsx`, `src/services/config/app-config.ts`,
-  and `src/services/mcp/mcp-client.ts` before touching startup, config, or connection logic.
-- **Config-driven runtime constants** — map a `config.json` field to a default in
-  `src/constants.ts` and refresh it from `applyAppConfig()` in `loadAppConfig()`.
+- **Read before editing** — understand `src/index.tsx`, `src/tui.tsx`, `src/services/setup.ts`,
+  and `src/services/mcp/mcp-client.ts` before touching startup, config, or connection logic;
+  `src/services/agent/llm-loop.ts` before touching the agent runtime.
+- **Runtime constants** — plain exports in `src/constants.ts`; per-session models resolve via
+  `resolveModels()` against `DEFAULT_MODELS`, not config files.
 - **Failure-tolerant** — never crash on missing MCP config; surface UI warnings.
 - **Capability types** — import `CapabilityCatalog`/`CapabilityKind`/`CapabilitySelection`
-  from `src/models/agent.ts`, not `src/services/agent/capabilities.ts`.
+  from `src/models/agent.ts`; the catalog is built in `src/services/capabilities.ts`.
 - **Graceful shutdown** — MCP-touching code must respect the clean-close-on-exit path.
 - **Verify** — after changes run `bun run lint` and confirm `bun dev` boots.

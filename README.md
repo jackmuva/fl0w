@@ -1,11 +1,10 @@
 # fl0w
 
-fl0w is an agent harness that **puts the agent in the driver's seat** to drive AI workflows. Treating the agent as a workflow generator makes each turn a decision point: the agent picks the next tool or action in the workflow.
+Fl0w is a harness that syncs your local CLI configs, MCPs, skills, and custom tools to your personal cloud machine.
 
-The design is twofold:
+The same sessions you use to automate work can be run in the cloud **with zero-config and via CRON, webhooks, or forms**.
 
-1. **Explainability** — at each turn you can see the agent-generated probabilities (traces).
-2. **Agents as Workflows** — the UX feels like a series of workflow steps, more CLI tool than conversational intelligence.
+Try fl0w at [https://fl0w.work](https://fl0w.work)
 
 ## Installation
 
@@ -35,8 +34,6 @@ The installer downloads a standalone binary and installs it as `fl0w` (default `
 
 On first launch fl0w creates `~/.fl0w/` with `mcp.json`, `tools/`, `skills/`, and `workspace/`. Sign-in tokens and MCP OAuth credentials are stored in `~/.fl0w/auth.json` (mode 0600).
 
-There is no `config.json`: models are picked per session (see below), and the remaining runtime values are code constants.
-
 ### Models
 
 Every session assigns a model to five phases, chosen in the `/configure` dialog:
@@ -47,13 +44,14 @@ Every session assigns a model to five phases, chosen in the `/configure` dialog:
 | Discovery (`DISCOVERY`) | Scopes the task and researches the workspace | `anthropic/claude-opus-5.5` |
 | Plan (`PLAN`) | Turns the research into a step-by-step plan | `anthropic/claude-opus-5.5` |
 | Execute (`EXECUTE`) | Does the work | `anthropic/claude-opus-5.5` |
-| Summarize (`SUMMARIZE`) | Compacts the transcript as it fills the context window | `anthropic/claude-opus-5.5` |
+| Summarize (`SUMMARIZE`) | Wraps up each turn, and compacts the transcript as it fills the context window | `anthropic/claude-opus-5.5` |
 
 Phases you leave unassigned fall back to those defaults. The router needs a decision model; the other four take text models. The model list and each model's context window come from fl0w-work's model list (currently mocked in `src/services/remote-api/ai-api.ts`). The context window drives compaction and the usage meter, and defaults to 200,000 tokens for models the list doesn't describe.
 
 1. Optional: local skills in `~/.fl0w/skills/`.
 2. Optional: MCPs in `~/.fl0w/mcp.json`, using [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers).
 3. Optional: an `AGENTS.md` in your workspace root.
+4. Optional: custom tools written in typescript in `~/.fl0w/user-tools/`
 
 Skills are discovered in `<workspace>/.agents/skills`, `~/.cursor/skills-cursor`, `~/.claude/skills`, and `~/.fl0w/skills`; the agent reads one with the `load_skill` tool when it looks relevant. Only the `AGENTS.md` at your workspace root is loaded.
 
@@ -111,6 +109,7 @@ fl0w sync                  # manual full sync with fl0w-work
   - `{"type":"stream_delta","delta":"..."}` appends to the preview.
   - `{"type":"stream_end"}` discards it (the finished text then arrives as a `message`, or a retried call starts a new preview).
   - The preview isn't part of the transcript, so replays can ignore these lines.
+- `{"type":"phase","subagent":"DISCOVERY"}` announces each agent phase as it starts (`DISCOVERY`, `PLAN`, `EXECUTE`, or `SUMMARY`), ending with `{"type":"phase","subagent":null}`. Like the stream preview, phase lines are live-only and not part of the transcript.
 - `{"type":"mcp_auth_required","server":"...","serverUrl":"..."}` reports an MCP server whose OAuth credentials need authorizing again. It's emitted once per server per run, and the run continues without that server's tools.
 - The run ends with a single result line:
 
@@ -237,8 +236,8 @@ src/
 ├── constants.ts          # Shared constants (FL0W_HOME, DEFAULT_MODELS, WORKSPACE_DIR, …)
 ├── cli/                  # CLI commands (sync, workflow, session, help, JSON output)
 ├── models/               # Data models / types
-├── services/             # Business logic (agent, auth, capabilities, config, mcp,
-│                         #   model-registry, remote-api, session, skills, sync, workflow)
+├── services/             # Business logic (agent, auth, capabilities, mcp, model-registry,
+│                         #   remote-api, session, setup, skills, sync, workflow)
 └── ui/                   # TUI components
 ```
 
@@ -259,15 +258,7 @@ src/
 7. **Render** — boots the renderer and shows your seeded messages and any initial error.
 8. **Agent runtime** — a router decision model picks a phase per turn. A *discovery* phase
    scopes the task and researches the workspace (and can ask you a question), a *plan* phase
-   writes a step-by-step plan, an *execute* phase does the work, and a *summarize* phase compacts
-   the transcript as it fills the context window. Compaction runs before each phase.
+   writes a step-by-step plan, an *execute* phase does the work, and a *summarize* phase closes
+   out the turn. The summarize model also compacts the transcript as it fills the context
+   window — compaction runs before each phase.
 9. **Shutdown** — closes all MCP connections cleanly.
-
-## Sync & Auth
-
-`fl0w login` signs you into fl0w-work via browser and stores sign-in tokens + MCP OAuth credentials in
-`~/.fl0w/auth.json` (mode 0600). Every model call goes through fl0w-work's AI proxy with that sign-in. `fl0w whoami` prints the account; `fl0w logout` signs out.
-
-Sessions and workflows are stored on fl0w-work. When signed in, `mcp.json`, `auth.json`, skills, and user tools can sync with fl0w-work
-(see **Keeping your setup in sync**). `fl0w sync` runs a full manual sync; the TUI and headless
-commands reconcile config automatically at startup.

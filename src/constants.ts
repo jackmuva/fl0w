@@ -31,10 +31,10 @@ export const sessionWorkspacePath = (sessionId: string): string => join(WORKSPAC
 /** Fallback per phase when a session hasn't picked a model (new sessions store ""). */
 export const DEFAULT_MODELS: ModelSelection = {
   ROUTER: 'typesafe-ai/jev',
-  DISCOVERY: 'anthropic/claude-opus-5.5',
-  PLAN: 'anthropic/claude-opus-5.5',
-  EXECUTE: 'anthropic/claude-opus-5.5',
-  SUMMARIZE: 'anthropic/claude-opus-5.5',
+  DISCOVERY: 'deepseek/deepseek-v4.1-flash',
+  PLAN: 'deepseek/deepseek-v4.1-flash',
+  EXECUTE: 'deepseek/deepseek-v4.1-flash',
+  SUMMARIZE: 'deepseek/deepseek-v4.1-flash',
 };
 
 export const DEFAULT_TOOL_OUTPUT_MAX_CHARS = 20_000;

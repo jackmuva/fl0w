@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from 'bun:test';
 import { DEFAULT_CONTEXT_WINDOW } from '../constants';
 
 const listModels = mock(async () => [
-  { model: 'test/model', contextWindow: 32_000, type: 'text' as const },
+  { model: 'test/model', contextWindow: 32_000, inputTokenPrice: 0.1, type: 'text' as const },
 ]);
 mock.module('./remote-api/ai-api', () => ({ listModels }));
 
