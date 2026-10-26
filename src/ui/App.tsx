@@ -10,7 +10,6 @@ import {
 import { findPendingAskQuestion } from "../services/agent/utils/ask-question"
 import { fl0wMessage } from "../services/agent/utils/fl0w-message"
 import { listAllTools } from "../services/agent/utils/tools"
-import { setActiveWorkflow } from "../services/agent/hooks/front-load"
 import { buildWorkflowPlanMessages, buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { deleteWorkflow, listWorkflows, saveWorkflow } from "../services/workflow/workflow-repo"
@@ -37,6 +36,7 @@ import { resolveUserMessage } from "./lib/input-completion/at-files"
 import type { CapabilityCatalog, CapabilitySelection, Fl0wMessage, SubagentType } from "../models/agent"
 import type { ModelMetadata, ModelSelection } from "../models/ai-model"
 import { ConfigDialog } from "./components/session/ConfigDialog"
+import { activeWorkflowStore } from "../store/active-workflow-store"
 
 type AppProps = {
   initialMessage?: string | null
@@ -294,8 +294,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
         workflow.requiredCapabilities,
       )
       await applySessionCapabilities(merged)
-      // after the capabilities are applied, so their front-loaded messages don't capture the workflow; llmLoop clears it
-      setActiveWorkflow(workflow, text)
+      activeWorkflowStore.set(workflow, text)
 
       const userMessage = buildWorkflowUserMessage(workflow, text)
       const nextMessages = [

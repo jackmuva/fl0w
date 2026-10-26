@@ -36,7 +36,7 @@ conversational agent that plans, executes, and distills tasks into reusable work
   On auth/connection tool-call failures, syncs config and reconnects once.
 - **Front-loaded messages** — workspace instructions, enabled `AGENTS.md` content, and the skills
   catalog seed the conversation (`services/agent/hooks/front-load.ts`); a running workflow adds its
-  step instructions (`setActiveWorkflow()`).
+  step instructions (`activeWorkflowStore.set()`).
 - **Capabilities** — skills, MCP servers, `AGENTS.md`, and user tools are discoverable/toggleable.
   `buildCapabilityCatalog()` lives in `services/capabilities.ts` (also backs `fl0w capabilities`);
   the active selection lives in `services/agent/config.ts`.

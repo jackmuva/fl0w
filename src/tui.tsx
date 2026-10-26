@@ -1,7 +1,7 @@
 import { loadUserTools } from './services/agent/user-tools/loader';
 import { mcpClient } from './services/mcp/mcp-client';
 import { buildCapabilityCatalog } from './services/capabilities';
-import { loadModels } from './services/model-registry';
+import { modelStore } from './store/model-store';
 import type { StoredSession } from './models/session';
 import type { WorkflowRecord } from './models/workflow';
 import { findLatestSessionWithMessages } from './services/session/session-repo';
@@ -65,7 +65,7 @@ export async function runTui({ syncWarning }: { syncWarning: string | null }): P
 
   await loadUserTools();
   const capabilityCatalog = await buildCapabilityCatalog();
-  const models = [...(await loadModels()).values()];
+  const models = [...(await modelStore.loadModels()).values()];
 
   process.on('exit', () => {
     void mcpClient.close();

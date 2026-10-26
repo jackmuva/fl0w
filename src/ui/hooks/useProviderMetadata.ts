@@ -1,19 +1,15 @@
 import { useEffect, useState } from 'react';
-import {
-  getSessionUsageState,
-  resetSessionUsage,
-  subscribeSessionUsage,
-} from '../../services/agent/hooks/session-usage';
+import { sessionUsageStore } from '../../store/session-usage-store';
 
 export const useProviderMetadata = (sessionId: string) => {
-  const [state, setState] = useState(getSessionUsageState);
+  const [state, setState] = useState(() => sessionUsageStore.get());
 
   useEffect(() => {
-    resetSessionUsage();
+    sessionUsageStore.reset();
   }, [sessionId]);
 
-  useEffect(() => subscribeSessionUsage(() => {
-    setState(getSessionUsageState());
+  useEffect(() => sessionUsageStore.subscribe(() => {
+    setState(sessionUsageStore.get());
   }), []);
 
   const contextPercent = state.lastInputTokens <= 0 || state.contextWindow <= 0

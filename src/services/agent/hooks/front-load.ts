@@ -4,6 +4,10 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'path';
 import { FL0W_HOME } from '../../../constants';
 import type { WorkflowRecord } from '../../../models/workflow';
+import {
+  activeWorkflowStore,
+  type ActiveWorkflow,
+} from '../../../store/active-workflow-store';
 import { isCapabilityEnabled } from '../config';
 import { DEFAULT_MARK_STEP_COMPLETE_TOOL } from '../default-tools/utils';
 
@@ -25,18 +29,8 @@ export const getSkillsDirs = (cwd = process.cwd()): string[] => [
 
 let skillRegistry = new Map<string, SkillSummary>();
 
-export type ActiveWorkflow = {
-  workflow: WorkflowRecord;
-  userInstructions: string;
-};
-
-let activeWorkflow: ActiveWorkflow | null = null;
-
-export const setActiveWorkflow = (workflow: WorkflowRecord, userInstructions = ''): void => { activeWorkflow = { workflow, userInstructions } };
-
-export const clearActiveWorkflow = (): void => { activeWorkflow = null; };
-
-export const getActiveWorkflow = (): ActiveWorkflow | null => activeWorkflow;
+export type { ActiveWorkflow };
+export { activeWorkflowStore };
 
 const parseFrontmatter = (content: string): Record<string, string> => {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
@@ -196,8 +190,9 @@ export const frontLoadMessages = async (rootDir = process.cwd(), options?: { ski
     messages.push({ role: 'system', content: formatSkillsCatalog(skills) });
   }
 
-  if (activeWorkflow) {
-    messages.push({ role: 'system', content: formatWorkflowInstructions(activeWorkflow) });
+  const workflow = activeWorkflowStore.get();
+  if (workflow) {
+    messages.push({ role: 'system', content: formatWorkflowInstructions(workflow) });
   }
 
   return messages;

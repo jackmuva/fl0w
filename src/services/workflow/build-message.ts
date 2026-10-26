@@ -21,7 +21,7 @@ export const parseWorkflowPrompt = (
   return null;
 };
 
-/** The step instructions themselves are front-loaded (see setActiveWorkflow); this message records the run in the transcript. */
+/** The step instructions themselves are front-loaded (see activeWorkflowStore); this message records the run in the transcript. */
 export const buildWorkflowUserMessage = (
   workflow: WorkflowRecord,
   userInstructions: string,

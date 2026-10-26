@@ -4,10 +4,9 @@ import { join } from 'node:path';
 import { FL0W_HOME } from '../../../constants';
 import { setCapabilitySelection } from '../config';
 import type { WorkflowRecord } from '../../../models/workflow';
+import { activeWorkflowStore } from '../../../store/active-workflow-store';
 import {
   AGENTS_MD_FILENAME,
-  clearActiveWorkflow,
-  setActiveWorkflow,
   discoverAgentsMd,
   discoverSkills,
   frontLoadMessages,
@@ -19,7 +18,7 @@ import {
 const tempRoot = join(import.meta.dir, '__fixtures__', 'skills-front-load');
 
 afterEach(async () => {
-  clearActiveWorkflow();
+  activeWorkflowStore.clear();
   await rm(tempRoot, { recursive: true, force: true });
 });
 
@@ -197,7 +196,7 @@ describe('frontLoadMessages active workflow', () => {
       .find((message) => String(message.content).includes('<workflow'));
 
   test('front-loads the plan, step tools, and user instructions', async () => {
-    setActiveWorkflow(workflow, 'handler is loginHandler');
+    activeWorkflowStore.set(workflow, 'handler is loginHandler');
     const content = String((await workflowMessage())?.content);
 
     expect(content).toContain('Goal: Open a PR for the change');
@@ -209,8 +208,8 @@ describe('frontLoadMessages active workflow', () => {
   });
 
   test('omits the workflow once cleared', async () => {
-    setActiveWorkflow(workflow);
-    clearActiveWorkflow();
+    activeWorkflowStore.set(workflow);
+    activeWorkflowStore.clear();
     expect(await workflowMessage()).toBeUndefined();
   });
 });

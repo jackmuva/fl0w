@@ -13,7 +13,7 @@ import { mcpClient } from '../services/mcp/mcp-client';
 import { finishHeadlessRun } from '../services/setup';
 import { requireLogin, runStartupSync } from '../services/setup';
 import { buildWorkflowPlanMessages, buildWorkflowUserMessage } from '../services/workflow/build-message';
-import { setActiveWorkflow } from '../services/agent/hooks/front-load';
+import { activeWorkflowStore } from '../store/active-workflow-store';
 
 const HEADLESS_INSTRUCTIONS = [
   'You are running unattended: no human is available to answer questions.',
@@ -100,7 +100,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     ...buildWorkflowPlanMessages(workflow).map((message) => fl0wMessage(message)),
   ];
   // set after applyCapabilitySelection so the seeded front-load messages don't capture it; llmLoop clears it
-  setActiveWorkflow(workflow, values.input ?? '');
+  activeWorkflowStore.set(workflow, values.input ?? '');
 
   const status = await runHeadlessTurn({
     messages,

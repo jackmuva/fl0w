@@ -2,7 +2,7 @@ import type { CliOuputStatus, CliOutput, Fl0wMessage, SubagentType } from '../mo
 import type { ModelSelection } from '../models/ai-model';
 import { findPendingAskQuestion } from '../services/agent/utils/ask-question';
 import { llmLoop } from '../services/agent/llm-loop';
-import { loadModels } from '../services/model-registry';
+import { modelStore } from '../store/model-store';
 
 const printLine = (line: CliOutput) => console.log(JSON.stringify(line));
 
@@ -60,7 +60,7 @@ export const runHeadlessTurn = async ({ messages, models, sessionId, onMessages 
   process.on('SIGINT', () => abort.abort());
   process.on('SIGTERM', () => abort.abort());
 
-  await loadModels();
+  await modelStore.loadModels();
   const run = await llmLoop(messages, models, (next) => {
     latest = next;
     printTranscript(next);

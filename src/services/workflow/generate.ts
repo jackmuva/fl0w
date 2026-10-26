@@ -1,12 +1,9 @@
 import {
   APICallError,
-  generateText,
   jsonSchema,
   NoObjectGeneratedError,
-  Output,
   UnsupportedFunctionalityError,
 } from 'ai';
-import { recordLlmUsage } from '../agent/hooks/session-usage';
 import type { Fl0wMessage } from '../../models/agent';
 import type { StoredSession } from '../../models/session';
 import { emptyCapabilitySelection } from '../agent/config';
@@ -18,13 +15,12 @@ import {
   DEFAULT_MARK_STEP_COMPLETE_TOOL,
 } from '../agent/default-tools/utils';
 import type { GeneratedWorkflow, WorkflowStep, WorkflowToolCall } from '../../models/workflow';
+import { generateStructured } from '../utils';
 
-/** What the model writes; the source session supplies the rest of a GeneratedWorkflow. */
 type GeneratedPlanSteps = Pick<GeneratedWorkflow, 'title' | 'goal' | 'steps'>;
 
 export type WorkflowToolCatalogEntry = Pick<McpTool, 'server' | 'name' | 'description'>;
 
-// Workflow runs seed their own plan and are not interactive, so steps never call these.
 const NON_STEP_TOOLS = new Set([DEFAULT_ASK_QUESTION_TOOL, DEFAULT_CREATE_PLAN_TOOL, DEFAULT_MARK_STEP_COMPLETE_TOOL]);
 
 export type GeneratedPlan = {
@@ -272,38 +268,6 @@ export const mergePlanAndInstructions = (
   return { title: plan.title, goal: plan.goal, steps };
 };
 
-/** Structured output when the model supports it, else the same prompt asking for raw JSON. */
-const generateStructured = async <T>(
-  model: string,
-  prompt: string,
-  schema: ReturnType<typeof jsonSchema<T>>,
-  name: string,
-  jsonShape: string,
-  validate: (value: unknown) => T,
-): Promise<T> => {
-  try {
-    const generation = await generateText({
-      model,
-      prompt,
-      output: Output.object({ schema, name }),
-    });
-    recordLlmUsage(generation);
-    return validate(generation.output);
-  } catch { }
-
-  try {
-    const generation = await generateText({
-      model,
-      prompt: `${prompt}\n\nReturn only a single JSON object (no markdown fences or surrounding prose) with:\n${jsonShape}`,
-    });
-    recordLlmUsage(generation);
-    return validate(parseJsonObject(generation.text));
-  } catch (error) {
-    if (error instanceof WorkflowGenerationError) throw error;
-    throw new WorkflowGenerationError('Could not parse generated workflow JSON');
-  }
-};
-
 export const generateWorkflowPlan = (context: string, model: string): Promise<GeneratedPlan> =>
   generateStructured(
     model,
@@ -353,7 +317,6 @@ ${context}`,
     validateGeneratedInstructions,
   );
 
-/** The workflow keeps the source session's capabilities and models, so its runs use what the session used. */
 export const generateWorkflowFromSession = async (
   source: StoredSession,
   model: string,
@@ -364,7 +327,6 @@ export const generateWorkflowFromSession = async (
     throw new WorkflowGenerationError('Selected session has no conversation to generate a workflow from');
   }
 
-  // Tools the session called count even if they aren't enabled right now; the run enables the workflow's capabilities.
   const catalog = new Map(tools.map((entry) => [mcpToolKey(entry), entry]));
   for (const { toolName } of extractToolCalls(conversation)) {
     const slash = toolName.indexOf('/');

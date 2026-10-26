@@ -9,11 +9,11 @@ import { fl0wMessage, type AgentResult } from "./utils/fl0w-message";
 import { routingAgent } from "./subagents/routing-agent";
 import { summaryAgent } from "./subagents/summarize-agent";
 import { compactionHook } from "./hooks/compaction";
-import { contextWindowFor } from "../model-registry";
+import { modelStore } from "../../store/model-store";
 import { toolsFor } from "./toolpacks";
-import { recordLlmUsage } from "./hooks/session-usage";
+import { sessionUsageStore } from "../../store/session-usage-store";
 import { findPendingAskQuestion } from "./utils/ask-question";
-import { clearActiveWorkflow, getActiveWorkflow } from "./hooks/front-load";
+import { activeWorkflowStore } from "../../store/active-workflow-store";
 
 export type Phase = (
   messages: Fl0wMessage[],
@@ -57,11 +57,11 @@ const runPhase = async (
     streamed += delta;
     onStreamText(streamed);
   }, await toolsFor(subagent), onStep);
-  const window = await contextWindowFor(model);
+  const window = await modelStore.contextWindowFor(model);
   let streamError: unknown;
   for await (const part of result.fullStream) {
     if (part.type === "error") streamError ??= part.error;
-    if (part.type === "finish-step") recordLlmUsage(part, window);
+    if (part.type === "finish-step") sessionUsageStore.record(part, window);
   }
   // An aborted stream just ends, so stop here instead of waiting on its response or starting the next phase.
   abort.throwIfAborted();
@@ -92,7 +92,7 @@ export const llmLoop = async (
     return await runLoop(messages, selection, onMessages, abort, onStreamText, onPhase);
   } finally {
     // A workflow covers one run; follow-up turns go through the normal routing.
-    clearActiveWorkflow();
+    activeWorkflowStore.clear();
     onPhase?.(null);
   }
 }
@@ -107,11 +107,11 @@ const runLoop = async (
 ): Promise<AgentResult> => {
   const models = resolveModels(selection);
   // A workflow arrives with its plan already seeded, so it goes straight to execution.
-  const state = getActiveWorkflow() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText);
+  const state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText);
 
   const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
     abort.throwIfAborted();
-    const compacted = await compactionHook(transcript, models.SUMMARIZE, await contextWindowFor(target));
+    const compacted = await compactionHook(transcript, models.SUMMARIZE, await modelStore.contextWindowFor(target));
     if (compacted !== transcript) onMessages(compacted);
     return compacted;
   };

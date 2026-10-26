@@ -7,7 +7,7 @@ import { mcpToolKey, type McpTool } from '../../../models/mcp';
 import { retryModelCall } from '../../utils';
 import { toModelMessages } from '../utils/fl0w-message';
 import { estimateTextTokens } from './compaction';
-import { recordLlmUsage } from './session-usage';
+import { sessionUsageStore } from '../../../store/session-usage-store';
 import {
   generateText,
   jsonSchema,
@@ -139,7 +139,7 @@ ${catalog}`;
 
   try {
     const generation = await runStructured();
-    recordLlmUsage(generation);
+    sessionUsageStore.record(generation);
     return normalizeSelectedToolNames(generation.output, validKeys, maxToolCount);
   } catch { }
 
@@ -147,7 +147,7 @@ ${catalog}`;
     model: model,
     prompt: instructions + jsonPromptSuffix(maxToolCount),
   }));
-  recordLlmUsage(generation);
+  sessionUsageStore.record(generation);
   return parseToolSelectionJson(generation.text, validKeys, maxToolCount);
 };
 

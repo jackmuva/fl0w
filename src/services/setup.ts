@@ -26,7 +26,6 @@ export type StartupSyncOptions = {
   log?: (message: string) => void;
 };
 
-/** Sessions and workflows live on fl0w-work, so the TUI and headless runs need a signed-in user. */
 export async function requireLogin(): Promise<boolean> {
   if (await readFl0wAuth()) return true;
   console.error('Not logged in. Run `fl0w login` first.');
@@ -39,7 +38,6 @@ export async function runStartupSync(options: StartupSyncOptions = {}): Promise<
   log('Syncing config files...');
   const syncWarning = await syncOnStartup();
   watchLocalConfigWrites();
-  // pushes writes left over from earlier runs (offline, crashed, or still debouncing at exit)
   drainOutboxInBackground();
   return syncWarning;
 }

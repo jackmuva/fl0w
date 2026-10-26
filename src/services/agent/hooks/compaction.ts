@@ -4,7 +4,7 @@ import {
   TOOL_RESULT_MIN_KEEP,
   TOOL_TRUNCATE_STEPS,
 } from '../../../constants';
-import { recordLlmUsage } from './session-usage';
+import { sessionUsageStore } from '../../../store/session-usage-store';
 import type { Fl0wMessage } from '../../../models/agent';
 import { fl0wMessage } from '../utils/fl0w-message';
 import { TOOL_OUTPUT_FILE_PATTERN, toolOutputFileNotice } from '../default-tools/read-full-tool-output';
@@ -205,7 +205,7 @@ export const compactMessages = async (
         `Important: Keep the summary compact — it must be significantly shorter than the compaction context window of ${contextWindow} tokens. That window is used at a threshold of ${Math.round(COMPACTION_TOKEN_THRESHOLD * 100)}% (i.e. a budget of ${tokenLimit} tokens), and the summary is re-fed into the model alongside other retained messages. So it must comfortably fit within that limit. Optimize for a tight, information-dense summary — favor the user's goal, key decisions, important tool results, and progress over verbatim detail.`,
       prompt: transcript,
     });
-    recordLlmUsage(summaryResult);
+    sessionUsageStore.record(summaryResult);
     // Listed verbatim (not left to the LLM) so spilled outputs stay reachable across repeated compactions.
     const savedOutputs = [...new Set(messages.flatMap(({ message }) =>
       [...messageToText(message).matchAll(TOOL_OUTPUT_FILE_PATTERN)].map((match) => match[1] as string)))];
