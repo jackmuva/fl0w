@@ -62,7 +62,7 @@ Skills, MCPs, tools, and `AGENTS.md` can be toggled per session to keep the cont
 When signed in, fl0w syncs with your fl0w-work account so you can move between machines:
 
 - **Config files** — `mcp.json` and `auth.json` (encrypted at rest, versioned on the server). Changes push ~1 second after you edit them; the TUI and headless commands pull the latest at startup. If a file changed on both sides since the last sync, the newer copy wins (`~/.fl0w/sync-state.json`, mode 0600, records the last content both sides agreed on).
-- **Workflows and sessions** — stored on fl0w-work, not on this machine; `/sessions` and the workflow picker read from there. Saves are debounced (~2 seconds after the conversation settles) and pushed in the background. Until a push succeeds, it waits in `~/.fl0w/outbox/`, so nothing is lost while offline or if fl0w exits early, and it retries on the next run. `--remote` headless runs don't save sessions.
+- **Workflows and sessions** — stored on fl0w-work, not on this machine; `/sessions` and the workflow picker read from there. Saves are debounced (~2 seconds after the conversation settles) and pushed in the background. Until a push succeeds, it waits in `~/.fl0w/outbox/`, so nothing is lost while offline or if fl0w exits early, and it retries on the next run. Headless `fl0w session` and `fl0w workflow` runs do not persist through the CLI; fl0w-work passes the transcript with `--messages`.
 - **Skills and user tools** — uploaded when enabled in a session (mirrored under `~/.fl0w/skills` first for skills outside that tree).
 
 Use **`fl0w sync`** for a full manual sync (config files, every discovered skill, and every user tool in `~/.fl0w/tools`, plus pending session and workflow writes).
@@ -118,8 +118,7 @@ fl0w sync                  # manual full sync with fl0w-work
   ```
 
   `status` is `ok`, `error`, `stopped`, or `needs_input`. When the agent left an unanswered question, `status` is `needs_input` and the result includes `pendingQuestion` so you can reply in a follow-up `session` run.
-- **`--messages <path.json>`:** load prior messages (a JSON array of `Fl0wMessage`) from a file instead of the session saved on fl0w-work. Pair with `--remote` when another service owns the transcript.
-- **`--remote`:** do not read or save the session on fl0w-work (fl0w-work records remote runs itself). You still get a `sessionId` in the result (in-memory for the run); pass prior turns with `--messages`.
+- **`--messages <path.json>`:** load prior messages (a JSON array of `Fl0wMessage`) from a file. Headless commands do not read or write session transcripts on fl0w-work; the caller passes prior turns this way on each run.
 - **Exit codes:** `0` success, `1` error or stopped, `2` ended waiting on input (`needs_input`).
 - OAuth MCP servers must already be authorized: run `fl0w` interactively once, or copy `~/.fl0w/auth.json` (MCP credentials live under its `mcp` key). Unauthorized servers log a warning and the run continues without them.
 
@@ -128,15 +127,14 @@ fl0w sync                  # manual full sync with fl0w-work
 Run a saved workflow unattended.
 
 ```bash
-fl0w workflow <workflow-id> [--input "extra instructions"] [--session <session-id>] [--messages <path.json>] [--remote]
+fl0w workflow <workflow-id> [--input "extra instructions"] [--session <session-id>] [--messages <path.json>]
 ```
 
 | Flag | Short | Description |
 | --- | --- | --- |
 | `--input` | `-i` | Extra instructions appended to the workflow prompt (e.g. webhook payload). |
-| `--session` | `-s` | Session to use. Continues an existing session's messages, or creates one with that id if missing. Omit to start a new session every run. |
-| `--messages` | `-m` | Prior messages JSON file, used instead of the session saved on fl0w-work. |
-| `--remote` | — | Run without persisting messages or capabilities locally. |
+| `--session` | `-s` | Stable session id for this run (fl0w-work records the transcript). Omit for a new id each run. |
+| `--messages` | `-m` | Prior messages JSON file; fl0w-work should pass the transcript on continuation runs. |
 
 - The positional argument is a workflow **id** stored on fl0w-work (same records the TUI saves with `/generate`).
 - Workflow runs are unattended: they inject a system instruction to avoid clarifying questions, and the agent isn't offered the `ask_question` tool at all. It assumes, says so, and continues.
@@ -168,17 +166,16 @@ Each line is JSON, for example:
 Send a message and run (or continue) an arbitrary agent session.
 
 ```bash
-fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--messages <path.json>] [--remote]
+fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--messages <path.json>]
 ```
 
 | Argument / flag | Short | Description |
 | --- | --- | --- |
-| `session-id` | — | Optional. Continue this session, or create it with that id if it does not exist. Omit for a new random id. |
-| `--input` | `-i` | User message for this turn. **Required** when the session is new or has no saved messages. |
+| `session-id` | — | Optional. Stable id for this run (fl0w-work records the transcript). Omit for a new random id. |
+| `--input` | `-i` | User message for this turn. **Required** when `--messages` is omitted or empty. |
 | `--answers` | `-a` | Answers the session's pending question (`needs_input`): JSON keyed by question id, e.g. `{"q1":{"optionId":"yes"}}` or `{"q1":{"customText":"..."}}`. Without it, `--input` answers a pending question as free text. |
-| `--capabilities` | `-c` | JSON [capability selection](#headless-capability-selection) for this run. Saved on the session when set (not when `--remote`). If omitted, uses capabilities already stored on the session, or empty. |
-| `--messages` | `-m` | Prior messages JSON file, used instead of the session saved on fl0w-work. |
-| `--remote` | — | Run without persisting messages or capabilities locally. |
+| `--capabilities` | `-c` | JSON [capability selection](#headless-capability-selection) for this run. If omitted, uses empty selection. |
+| `--messages` | `-m` | Prior messages JSON file; fl0w-work should pass the transcript on each continuation run. |
 
 Unlike a workflow, a session can ask questions. When the agent stops on one, the result line reports `needs_input` with a `pendingQuestion` and the process exits `2`; answer it in a follow-up run with `--answers` (or `--input` for free text).
 

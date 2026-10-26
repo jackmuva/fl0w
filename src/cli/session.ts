@@ -2,8 +2,7 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import type { CapabilityKind, CapabilitySelection, Fl0wMessage } from '../models/agent';
 import type { ModelSelection } from '../models/ai-model';
-import type { SessionRecord, StoredSession } from '../models/session';
-import { getSession, saveSession } from '../services/session/session-repo';
+import type { SessionRecord } from '../models/session';
 import { createDraftSession, emptyModelSelection, parseModelsJson } from '../services/session/session-record';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/config';
 import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/ask-question';
@@ -14,7 +13,7 @@ import { mcpClient } from '../services/mcp/mcp-client';
 import { finishHeadlessRun } from '../services/setup';
 import { requireLogin, runStartupSync } from '../services/setup';
 
-const USAGE = 'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--models \'{"EXECUTE":"<model>"}\'] [--messages <path.json>] [--remote]';
+const USAGE = 'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--models \'{"EXECUTE":"<model>"}\'] [--messages <path.json>]';
 
 const CAPABILITY_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 
@@ -68,7 +67,6 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
       models: { type: 'string' },
       answers: { type: 'string', short: 'a' },
       messages: { type: 'string', short: 'm' },
-      remote: { type: 'boolean', default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -113,26 +111,16 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     }
   }
 
-  const remote = values.remote === true;
   if (!(await requireLogin())) return 1;
   const syncWarning = await runStartupSync({ log: console.error });
   if (syncWarning) console.error(syncWarning);
 
   const workspace = resolve(process.cwd());
 
-  // --remote runs are recorded by fl0w-work itself, which passes the transcript with --messages
-  let stored: StoredSession | null = null;
-  if (sessionIdArg && !remote) {
-    try {
-      stored = await getSession(sessionIdArg);
-    } catch (error) {
-      console.error(`Could not load session ${sessionIdArg}: ${error instanceof Error ? error.message : String(error)}`);
-      return 1;
-    }
-  }
-  let session: SessionRecord = stored ?? createDraftSession(workspace, sessionIdArg);
+  // Headless runs are recorded by fl0w-work itself, which passes the transcript with --messages
+  let session: SessionRecord = createDraftSession(workspace, sessionIdArg);
 
-  const saved = messagesFromCli ?? stored?.messages ?? [];
+  const saved = messagesFromCli ?? [];
   const pendingAsk = findPendingAskQuestion(saved);
   if (answers && !pendingAsk) {
     console.error('--answers given but the session has no pending question');
@@ -184,7 +172,6 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     messages,
     models: session.models,
     sessionId: session.id,
-    onMessages: remote ? undefined : (next) => { session = saveSession(session, next); },
   });
 
   await mcpClient.close();

@@ -2,8 +2,7 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import type { Fl0wMessage } from '../models/agent';
 import type { WorkflowRecord } from '../models/workflow';
-import type { SessionRecord, StoredSession } from '../models/session';
-import { getSession, saveSession } from '../services/session/session-repo';
+import type { SessionRecord } from '../models/session';
 import { createDraftSession, emptyModelSelection } from '../services/session/session-record';
 import { getWorkflow } from '../services/workflow/workflow-repo';
 import { applyCapabilitySelection } from '../services/agent/config';
@@ -23,9 +22,8 @@ const HEADLESS_INSTRUCTIONS = [
 ].join(' ');
 
 const USAGE =
-  'Usage: fl0w workflow <workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>] [--remote]';
+  'Usage: fl0w workflow <workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>]';
 
-/** Runs a saved workflow without the TUI. Streams JSON lines to stdout and returns the exit code. */
 export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -33,7 +31,6 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
       input: { type: 'string', short: 'i' },
       session: { type: 'string', short: 's' },
       messages: { type: 'string', short: 'm' },
-      remote: { type: 'boolean', default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -67,32 +64,21 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     }
   }
 
-  const remote = values.remote === true;
   const syncWarning = await runStartupSync({ log: console.error });
   if (syncWarning) console.error(syncWarning);
 
   const workspace = resolve(process.cwd());
   const sessionIdArg = values.session?.trim() || undefined;
 
-  // --remote runs are recorded by fl0w-work itself, which passes the transcript with --messages
-  let stored: StoredSession | null = null;
-  if (sessionIdArg && !remote) {
-    try {
-      stored = await getSession(sessionIdArg);
-    } catch (error) {
-      console.error(`Could not load session ${sessionIdArg}: ${error instanceof Error ? error.message : String(error)}`);
-      return 1;
-    }
-  }
-  // the workflow's capabilities and models are saved with the session's next save
-  const base = stored ?? createDraftSession(workspace, sessionIdArg);
-  let session: SessionRecord = {
+  // Headless runs are recorded by fl0w-work itself, which passes the transcript with --messages
+  const base = createDraftSession(workspace, sessionIdArg);
+  const session: SessionRecord = {
     ...base,
     capabilities: workflow.requiredCapabilities,
     models: workflow.models ?? base.models ?? emptyModelSelection(),
   };
 
-  const saved = messagesFromCli ?? stored?.messages ?? [];
+  const saved = messagesFromCli ?? [];
 
   console.error('Connecting MCPs...');
   try {
@@ -120,7 +106,6 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     messages,
     models: session.models,
     sessionId: session.id,
-    onMessages: remote ? undefined : (next) => { session = saveSession(session, next); },
   });
 
   await mcpClient.close();
