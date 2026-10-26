@@ -338,7 +338,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     await runAgentLoop(nextMessages)
   }
 
-  const inputDisabled = status === "working" || capabilityPickerOpen || generating || sessionPickerOpen || workflowPickerOpen;
+  const inputDisabled = status === "working" || capabilityPickerOpen || generating || sessionPickerOpen || generateSessionPickerOpen || workflowPickerOpen;
   const chatPlaceholder = pendingWorkflow
     ? `Add instructions for "${pendingWorkflow.title}"…`
     : "What would you like to do"
