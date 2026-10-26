@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionListEntry, SessionRecord, StoredSession } from '../../models/session';
 import { deleteSession, getSession, listSessions, saveSession } from '../../services/session/session-repo';
 import { createDraftSession } from '../../services/session/session-record';
+import { applyCapabilitySelection } from '../../services/agent/config';
 import type { ModelSelection } from '../../models/ai-model';
 
 type SetMessagesAction = Fl0wMessage[] | ((previous: Fl0wMessage[]) => Fl0wMessage[]);
@@ -86,6 +87,8 @@ export const useSessionPersistence = (
   }, [flushSave]);
 
   const applySessionCapabilities = useCallback(async (selection: CapabilitySelection) => {
+    // The agents read the module-level selection, so apply it even when the session record already matches.
+    await applyCapabilitySelection(selection);
     if (JSON.stringify(sessionRef.current.capabilities) === JSON.stringify(selection)) return;
     setSession({ ...sessionRef.current, capabilities: selection });
     dirtyRef.current = true;

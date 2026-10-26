@@ -63,6 +63,8 @@ const runPhase = async (
     if (part.type === "error") streamError ??= part.error;
     if (part.type === "finish-step") recordLlmUsage(part, window);
   }
+  // An aborted stream just ends, so stop here instead of waiting on its response or starting the next phase.
+  abort.throwIfAborted();
   let produced: Awaited<AgentResult["response"]>["messages"];
   try {
     ({ messages: produced } = await result.response);
@@ -108,6 +110,7 @@ const runLoop = async (
   const state = getActiveWorkflow() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText);
 
   const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
+    abort.throwIfAborted();
     const compacted = await compactionHook(transcript, models.SUMMARIZE, await contextWindowFor(target));
     if (compacted !== transcript) onMessages(compacted);
     return compacted;

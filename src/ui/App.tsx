@@ -34,7 +34,7 @@ import { useCopyOnSelection } from "./hooks/useCopyOnSelection"
 import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
 import { resolveUserMessage } from "./lib/input-completion/at-files"
-import type { CapabilityCatalog, CapabilitySelection, SubagentType } from "../models/agent"
+import type { CapabilityCatalog, CapabilitySelection, Fl0wMessage, SubagentType } from "../models/agent"
 import type { ModelMetadata, ModelSelection } from "../models/ai-model"
 import { ConfigDialog } from "./components/session/ConfigDialog"
 
@@ -258,6 +258,29 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     setPendingWorkflow(null)
   })
 
+  // Status must leave "working" however the run ends; a Ctrl+C abort is a normal stop, not a failure.
+  const runAgentLoop = async (nextMessages: Fl0wMessage[]) => {
+    const runAbort = new AbortController()
+    runAbortRef.current = runAbort
+    try {
+      await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, setActivePhase)
+      setStatus("ready")
+    } catch (error) {
+      if (runAbort.signal.aborted) {
+        setStatus("ready")
+      } else {
+        setMessages((previous) => [
+          ...previous,
+          fl0wMessage({ role: "assistant", content: `Run failed: ${errorText(error)}` }),
+        ])
+        setStatus("error")
+      }
+    } finally {
+      setStreamingText(null)
+      runAbortRef.current = null
+    }
+  }
+
   const handleSubmit = async (text: string) => {
     if (status === "working" || generating) return
 
@@ -282,15 +305,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
       ]
       setMessages(nextMessages)
 
-      const runAbort = new AbortController()
-      runAbortRef.current = runAbort
-      try {
-        await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, setActivePhase);
-        setStreamingText(null);
-        setStatus("ready");
-      } finally {
-        runAbortRef.current = null
-      }
+      await runAgentLoop(nextMessages)
       return
     }
 
@@ -301,15 +316,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     const nextMessages = [...messages, fl0wMessage(userMessage)]
     setMessages(nextMessages)
 
-    const runAbort = new AbortController()
-    runAbortRef.current = runAbort
-    try {
-      await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, setActivePhase)
-      setStreamingText(null);
-      setStatus("ready");
-    } finally {
-      runAbortRef.current = null
-    }
+    await runAgentLoop(nextMessages)
   }
 
   const handleAskQuestionSubmit = async (answersText: string) => {
@@ -328,15 +335,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     const nextMessages = [...messages, toolResult]
     setMessages(nextMessages)
 
-    const runAbort = new AbortController()
-    runAbortRef.current = runAbort
-    try {
-      await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, setActivePhase)
-      setStreamingText(null);
-      setStatus("ready");
-    } finally {
-      runAbortRef.current = null
-    }
+    await runAgentLoop(nextMessages)
   }
 
   const inputDisabled = status === "working" || capabilityPickerOpen || generating || sessionPickerOpen || workflowPickerOpen;
@@ -466,7 +465,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
         <ConfigDialog
           models={models}
           catalog={capabilityCatalog}
-          initialSelection={getCapabilitySelection() ?? emptyCapabilitySelection()}
+          initialSelection={getCapabilitySelection() ?? session.capabilities ?? emptyCapabilitySelection()}
           initialModels={session.models ?? null}
           onConfirm={handleConfigConfirm}
           onDismiss={() => setConfigPickerOpen(false)}

@@ -9,6 +9,7 @@ export const routingAgent = async (messages: Fl0wMessage[], model: string, abort
   );
   const result = await experimental_decide({
     model,
+    abortSignal: abort,
     state: [{ type: 'json', value: state }],
     questions: {
       agent: {
