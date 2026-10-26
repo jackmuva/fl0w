@@ -8,7 +8,6 @@ export const HEADLESS_COMMANDS = ["workflow", "capabilities", "session"];
 
 export const HEADLESS = HEADLESS_COMMANDS.includes(Bun.argv[2] ?? "");
 
-/** `fl0w workflow` runs unattended, so it never asks the user questions; `fl0w session` may. */
 export const WORKFLOW_RUN = (Bun.argv[2] ?? "") === "workflow";
 
 export const ACCOUNT_COMMANDS = ["login", "logout", "whoami"]
@@ -17,7 +16,6 @@ export const APP_CONFIG_PATH = join(FL0W_HOME, 'config.json');
 
 export const MCP_CONFIG_PATH = join(FL0W_HOME, 'mcp.json');
 
-/** Headless runs give up on an MCP server that hasn't initialized by then, e.g. one waiting on a browser sign-in. */
 export const HEADLESS_MCP_CONNECT_TIMEOUT_MS = 5_000;
 
 export const USER_TOOLS_DIR = join(FL0W_HOME, 'tools');
@@ -28,7 +26,6 @@ export const WORKSPACE_DIR = join(FL0W_HOME, 'workspace');
 
 export const sessionWorkspacePath = (sessionId: string): string => join(WORKSPACE_DIR, sessionId);
 
-/** Fallback per phase when a session hasn't picked a model (new sessions store ""). */
 export const DEFAULT_MODELS: ModelSelection = {
   ROUTER: 'typesafe-ai/jev',
   DISCOVERY: 'deepseek/deepseek-v4.1-flash',
@@ -41,8 +38,7 @@ export const DEFAULT_TOOL_OUTPUT_MAX_CHARS = 20_000;
 
 export let TOOL_OUTPUT_MAX_CHARS = DEFAULT_TOOL_OUTPUT_MAX_CHARS;
 
-/** Used when listModels doesn't report a model's context window. */
-export const DEFAULT_CONTEXT_WINDOW = 200_000;
+export const DEFAULT_CONTEXT_WINDOW = 1_000_000;
 
 export const COMPACTION_TOKEN_THRESHOLD = 0.75;
 
@@ -60,7 +56,6 @@ export const TOOL_RESULT_MIN_KEEP = 120;
 
 export const USER_TOOL_SERVER = 'user';
 
-/** Session and workflow writes waiting to be pushed to fl0w-work, one JSON file per pending write. */
 export const OUTBOX_DIR = join(FL0W_HOME, 'outbox');
 
 export const FL0W_API_URL = 'https://www.fl0w.work';

@@ -41,7 +41,6 @@ Headless exit codes (workflow and session): 0 success, 1 error or stopped, 2 end
 Config and data live in FL0W_HOME (default ~/.fl0w). See README.md for setup.`);
 };
 
-/** Prints usage help. Accepts trailing -h / --help (e.g. \`fl0w help -h\`). */
 export const runHelpCommand = async (argv: string[]): Promise<number> => {
   for (const arg of argv) {
     if (HELP_FLAGS.has(arg)) continue;

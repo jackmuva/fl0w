@@ -8,14 +8,7 @@ import { findLatestSessionWithMessages } from './services/session/session-repo';
 import { createDraftSession } from './services/session/session-record';
 import { listWorkflows } from './services/workflow/workflow-repo';
 
-export async function runTui({ syncWarning }: { syncWarning: string | null }): Promise<void> {
-  const { createCliRenderer } = await import('@opentui/core');
-  const { createRoot } = await import('@opentui/react');
-  const { App } = await import('./ui/App');
-  const { disposeAppClipboard, initAppClipboard } = await import('./ui/lib/clipboard/app-clipboard');
-
-  let initialMessage: null | string = syncWarning;
-
+const loadMcp = async (initialMessage: string): Promise<string> => {
   console.log('Connecting MCPs...');
   try {
     await mcpClient.loadConfig();
@@ -24,13 +17,21 @@ export async function runTui({ syncWarning }: { syncWarning: string | null }): P
       .filter((status) => !status.connected)
       .map((status) => `[mcp] ${status.server} not connected: ${status.error}`);
     if (mcpConnectErrors.length > 0) {
-      initialMessage = [initialMessage, ...mcpConnectErrors].filter(Boolean).join('\n');
+      return [initialMessage, ...mcpConnectErrors].filter(Boolean).join('\n');
     }
+    return initialMessage;
   } catch (e) {
-    initialMessage = [initialMessage, `Error with MCP process: ${e}`].filter(Boolean).join('\n');
+    return [initialMessage, `Error with MCP process: ${e}`].filter(Boolean).join('\n');
   }
+}
 
+const loadWorkspace = async (initialMessage: string): Promise<{
+  initialMessage: string,
+  initialSession: StoredSession,
+  initialWorkflows: WorkflowRecord[],
+}> => {
   console.log('Loading sessions and workflows...');
+  let message = initialMessage;
   const workspace = process.cwd();
   let initialSession: StoredSession = { ...createDraftSession(workspace), messages: [] };
   let initialWorkflows: WorkflowRecord[] = [];
@@ -40,8 +41,27 @@ export async function runTui({ syncWarning }: { syncWarning: string | null }): P
     initialWorkflows = workflows;
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
-    initialMessage = [initialMessage, `Could not load sessions and workflows from fl0w-work: ${reason}`].filter(Boolean).join('\n');
+    message = [initialMessage, `Could not load sessions and workflows from fl0w-work: ${reason}`].filter(Boolean).join('\n');
   }
+
+  return {
+    initialMessage: message,
+    initialSession,
+    initialWorkflows
+  }
+}
+
+export async function runTui({ syncWarning }: { syncWarning: string | null }): Promise<void> {
+  const { createCliRenderer } = await import('@opentui/core');
+  const { createRoot } = await import('@opentui/react');
+  const { App } = await import('./ui/App');
+  const { disposeAppClipboard, initAppClipboard } = await import('./ui/lib/clipboard/app-clipboard');
+
+  let initialMessage: string = syncWarning ?? "";
+  initialMessage = await loadMcp(initialMessage);
+
+  const { initialMessage: newMessage, initialSession, initialWorkflows } = await loadWorkspace(initialMessage);
+  initialMessage = newMessage;
 
   await loadUserTools();
   const capabilityCatalog = await buildCapabilityCatalog();

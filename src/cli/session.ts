@@ -14,8 +14,7 @@ import { mcpClient } from '../services/mcp/mcp-client';
 import { finishHeadlessRun } from '../services/setup';
 import { requireLogin, runStartupSync } from '../services/setup';
 
-const USAGE =
-  'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--models \'{"EXECUTE":"<model>"}\'] [--messages <path.json>] [--remote]';
+const USAGE = 'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--models \'{"EXECUTE":"<model>"}\'] [--messages <path.json>] [--remote]';
 
 const CAPABILITY_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 
@@ -162,8 +161,6 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   if (capabilitiesFromCli) session = { ...session, capabilities };
   if (modelsFromCli) session = { ...session, models: { ...(session.models ?? emptyModelSelection()), ...modelsFromCli } };
 
-  // a pending question is answered with its tool-result (as the TUI's question box does), otherwise the loop stops
-  // on it again; without --answers, --input is the free-text answer
   const inputIsAnswer = Boolean(pendingAsk && !answers && input);
   const answerText = pendingAsk && answers ? formatAskQuestionAnswers(pendingAsk.input.questions, answers) : inputIsAnswer ? input : null;
   const nextMessages: Fl0wMessage[] = [];
@@ -195,5 +192,4 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   return status === 'needs_input' ? 2 : 1;
 };
 
-export const runSessionCli = async (argv: string[]): Promise<number> =>
-  finishHeadlessRun(await runSessionCommand(argv));
+export const runSessionCli = async (argv: string[]): Promise<number> => finishHeadlessRun(await runSessionCommand(argv));
