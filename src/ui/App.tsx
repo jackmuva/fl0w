@@ -13,17 +13,17 @@ import { listAllTools } from "../services/agent/utils/tools"
 import { buildWorkflowPlanMessages, buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { deleteWorkflow, listWorkflows, saveWorkflow } from "../store/workflow-store"
-import { flushOutbox } from "../services/sync/outbox"
-import { flushPendingSkillMirrorsInBackground } from "../services/skills/mirror-enabled-skills"
+import { outboxStore } from "../services/sync/outbox"
+import { syncSkillService } from "../services/sync/sync-skills"
 import type { WorkflowRecord } from "../models/workflow"
 import type { SessionListEntry, StoredSession } from "../models/session"
 import { useSessionPersistence } from "./hooks/useSessionPersistence"
 import { buildPlanProgress, buildToolCallInputMap, type PlanProgress } from "./lib/format/message"
-import { PlanSidebar, PLAN_SIDEBAR_MIN_TERMINAL_WIDTH } from "./components/plan/PlanSidebar"
+import { PlanSidebar, PLAN_SIDEBAR_MIN_TERMINAL_WIDTH } from "./components/plan-sidebar/PlanSidebar"
 import { Transcript } from "./components/transcript/Transcript"
-import { CompletionOverlayDialog } from "./components/input/CompletionOverlayDialog"
-import { SessionSelectionDialog } from "./components/session/SessionSelectionDialog"
-import { WorkflowSelectionDialog } from "./components/workflow/WorkflowSelectionDialog"
+import { CompletionOverlayDialog } from "./components/input/CompletionOverlay"
+import { SessionSelectionDialog } from "./components/dialogs/SessionSelectionDialog"
+import { WorkflowSelectionDialog } from "./components/dialogs/WorkflowSelectionDialog"
 import { ChatInput } from "./components/input/ChatInput"
 import { ClarifyQuestionBox } from "./components/primitives/ClarifyQuestionBox"
 import { ContextCostStatusBar } from "./components/primitives/ContextCostStatusBar"
@@ -34,7 +34,7 @@ import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
 import { resolveUserMessage } from "./lib/input-completion/at-files"
 import type { CapabilityCatalog, CapabilitySelection, Fl0wMessage, ModelMetadata, ModelSelection, SubagentType } from "../models/agent"
-import { ConfigDialog } from "./components/session/ConfigDialog"
+import { ConfigDialog } from "./components/dialogs/ConfigDialog"
 import { activeWorkflowStore } from "../store/active-workflow-store"
 
 type AppProps = {
@@ -97,7 +97,6 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     return () => {
       cancelled = true
     }
-    // Only re-sync when switching sessions; /configure opens the picker without changing session id.
   }, [applySessionCapabilities, capabilityCatalog, session.id])
   const { width, height } = useTerminalDimensions()
   const { contextPercent, sessionCostUsd, lastInputTokens } = useProviderMetadata(session.id)
@@ -144,25 +143,22 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     setConfigPickerOpen(!isCatalogEmpty(capabilityCatalog) || models.length > 0)
   }, [capabilityCatalog, models])
 
-  const slashCommandHandlers = useMemo(
-    () => ({
-      clearSession: () => {
-        clearSession()
-        openConfigPicker()
-      },
-      resumeSession: () => {
-        void refreshSessions().then(() => setSessionPickerOpen(true))
-      },
-      configureCapabilities: openConfigPicker,
-      generateWorkflow: () => {
-        void refreshSessions().then(() => setGenerateSessionPickerOpen(true))
-      },
-      runWorkflow: () => {
-        void refreshWorkflows().then(() => setWorkflowPickerOpen(true))
-      },
-    }),
-    [clearSession, openConfigPicker, refreshSessions, refreshWorkflows],
-  )
+  const slashCommandHandlers = useMemo(() => ({
+    clearSession: () => {
+      clearSession()
+      openConfigPicker()
+    },
+    resumeSession: () => {
+      void refreshSessions().then(() => setSessionPickerOpen(true))
+    },
+    configureCapabilities: openConfigPicker,
+    generateWorkflow: () => {
+      void refreshSessions().then(() => setGenerateSessionPickerOpen(true))
+    },
+    runWorkflow: () => {
+      void refreshWorkflows().then(() => setWorkflowPickerOpen(true))
+    },
+  }), [clearSession, openConfigPicker, refreshSessions, refreshWorkflows],);
 
   const handleConfigConfirm = useCallback(async (selection: { capabilities: CapabilitySelection, models: ModelSelection }) => {
     await applySessionModels(selection.models)
@@ -246,9 +242,9 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
       if (status === "working" || generating) {
         runAbortRef.current?.abort()
       } else {
-        flushPendingSkillMirrorsInBackground()
+        syncSkillService.flushPendingSkillMirrorsInBackground()
         // anything still unsent stays in the outbox for the next run
-        void flushOutbox()
+        void outboxStore.flushOutbox()
         renderer.destroy()
       }
       return
@@ -257,7 +253,6 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     setPendingWorkflow(null)
   })
 
-  // Status must leave "working" however the run ends; a Ctrl+C abort is a normal stop, not a failure.
   const runAgentLoop = async (nextMessages: Fl0wMessage[]) => {
     const runAbort = new AbortController()
     runAbortRef.current = runAbort

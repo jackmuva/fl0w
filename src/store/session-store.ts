@@ -1,17 +1,17 @@
 import { rmSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { sessionWorkspacePath } from '../../constants';
-import type { Fl0wMessage } from '../../models/agent';
-import type { SessionListEntry, SessionRecord, StoredSession } from '../../models/session';
-import { getRemoteSession, listRemoteSessions } from '../remote-api/sync-api';
-import { enqueue, pendingOps } from '../sync/outbox';
-import { deriveTitle, nextUpdatedAt } from './session-record';
+import { sessionWorkspacePath } from '../constants';
+import type { Fl0wMessage } from '../models/agent';
+import type { SessionListEntry, SessionRecord, StoredSession } from '../models/session';
+import { getRemoteSession, listRemoteSessions } from '../services/remote-api/sync-api';
+import { outboxStore } from '../services/sync/outbox';
+import { deriveTitle, nextUpdatedAt } from '../services/session-record';
 
 /** Saves and deletes not yet pushed, so reads see this device's latest writes. */
 const pendingSessions = () => {
   const saved = new Map<string, StoredSession>();
   const deleted = new Set<string>();
-  for (const op of pendingOps()) {
+  for (const op of outboxStore.pendingOps()) {
     if (op.kind === 'session') saved.set(op.session.id, op.session);
     else if (op.kind === 'delete-session') deleted.add(op.id);
   }
@@ -66,12 +66,12 @@ export function saveSession(session: SessionRecord, messages: Fl0wMessage[]): Se
     title: deriveTitle(conversation) ?? session.title,
     updatedAt: nextUpdatedAt(session.updatedAt),
   };
-  if (conversation.length > 0) enqueue({ kind: 'session', session: { ...saved, messages: conversation } });
+  if (conversation.length > 0) outboxStore.enqueue({ kind: 'session', session: { ...saved, messages: conversation } });
   return saved;
 }
 
 /** Queues the delete on fl0w-work and removes the session's local workspace folder. */
 export function deleteSession(id: string): void {
-  enqueue({ kind: 'delete-session', id });
+  outboxStore.enqueue({ kind: 'delete-session', id });
   if (/^[\w-]+$/.test(id)) rmSync(sessionWorkspacePath(id), { recursive: true, force: true });
 }

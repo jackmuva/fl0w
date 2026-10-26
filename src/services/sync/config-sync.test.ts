@@ -16,7 +16,7 @@ mock.module('../../constants', () => ({
 const { APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH } = await import('../../constants');
 // these tests write config files; never let them reach the real ~/.fl0w
 if (![APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('config-sync test is not isolated');
-const { flushPendingPushes, notifyLocalWrite, syncConfigFiles, syncOnStartup, watchLocalConfigWrites } = await import('./config-sync');
+const { configSyncStore } = await import('./config-sync');
 
 type Row = { version: number, updatedAt: string, content: unknown };
 let server: Map<string, Row>;
@@ -76,20 +76,20 @@ afterEach(async () => {
 describe('syncConfigFiles', () => {
   test('skips when not signed in', async () => {
     await write('auth.json', {});
-    expect(await syncConfigFiles()).toBeNull();
+    expect(await configSyncStore.syncConfigFiles()).toBeNull();
     expect(requests).toEqual([]);
   });
 
   test('signed out: local config writes never call fl0w-work', async () => {
     await write('auth.json', {});
     await write('config.json', { llmModel: 'local' });
-    const stopWatching = watchLocalConfigWrites();
+    const stopWatching = configSyncStore.watchLocalConfigWrites();
     try {
-      expect(await syncOnStartup()).toBeNull();
+      expect(await configSyncStore.syncOnStartup()).toBeNull();
       // config.json is local-only; only mcp.json and auth.json sync
       await write('config.json', { llmModel: 'local-2' });
-      notifyLocalWrite(join(home, 'config.json'));
-      await flushPendingPushes();
+      configSyncStore.notifyLocalWrite(join(home, 'config.json'));
+      await configSyncStore.flushPendingPushes();
       expect(requests).toEqual([]);
       expect(await Bun.file(join(home, 'sync-state.json')).exists()).toBe(false);
     } finally {
@@ -98,22 +98,22 @@ describe('syncConfigFiles', () => {
   });
 
   test('first sign-in with nothing on the server just inserts every synced file', async () => {
-    const results = await syncConfigFiles();
+    const results = await configSyncStore.syncConfigFiles();
     expect(Object.values(results ?? {}).some((r) => r instanceof Error)).toBe(false);
     expect(requests.filter((r) => r.startsWith('PUT'))).toHaveLength(2);
     expect([...server.values()].map((r) => r.version)).toEqual([1, 1]);
-    expect(await syncOnStartup()).toBeNull();
+    expect(await configSyncStore.syncOnStartup()).toBeNull();
   });
 
   test('local config.json stays on this device and is never uploaded', async () => {
     await write('config.json', { llmModel: 'local', sync: true });
-    await syncConfigFiles();
+    await configSyncStore.syncConfigFiles();
     expect(server.has('config.json')).toBe(false);
     expect(await read('config.json')).toEqual({ llmModel: 'local', sync: true });
   });
 
   test('first sync pushes local files that the server lacks', async () => {
-    expect(await syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'pushed' });
+    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'pushed' });
     expect(server.get('mcp.json')?.content).toEqual({ mcpServers: {} });
     // the fl0w login stays on this device
     expect(server.get('auth.json')?.content).toEqual({});
@@ -124,7 +124,7 @@ describe('syncConfigFiles', () => {
     server.set('mcp.json', { version: 3, updatedAt: new Date(0).toISOString(), content: { mcpServers: { remote: { url: 'remote' } } } });
     server.set('auth.json', { version: 1, updatedAt: new Date(0).toISOString(), content: { mcp: { linear: { tokens: { access_token: 't' } } } } });
 
-    const results = await syncConfigFiles();
+    const results = await configSyncStore.syncConfigFiles();
     expect(results?.['mcp.json']).toBe('pulled');
     expect(await read('mcp.json')).toEqual({ mcpServers: { remote: { url: 'remote' } } });
     // auth.json gains the remote MCP tokens and keeps this device's login without pushing it
@@ -134,14 +134,14 @@ describe('syncConfigFiles', () => {
   });
 
   test('a login refresh during sync does not outrank MCP tokens added on fl0w-work', async () => {
-    await syncConfigFiles();
+    await configSyncStore.syncConfigFiles();
     const linear = { mcp: { linear: { tokens: { access_token: 't' } } } };
     server.set('auth.json', { version: 2, updatedAt: new Date(Date.now() - 60_000).toISOString(), content: linear });
     // what getAccessToken() writes when the token is near expiry
     const refreshed = { ...fl0wLogin, accessToken: 'a2' };
     await write('auth.json', { fl0w: refreshed });
 
-    expect((await syncConfigFiles())?.['auth.json']).toBe('pulled');
+    expect((await configSyncStore.syncConfigFiles())?.['auth.json']).toBe('pulled');
     expect(await read('auth.json')).toEqual({ fl0w: refreshed, ...linear });
     expect(server.get('auth.json')).toMatchObject({ version: 2, content: linear });
   });
@@ -149,37 +149,37 @@ describe('syncConfigFiles', () => {
   test('scrubs a fl0w login an older fl0w-cli pushed', async () => {
     server.set('auth.json', { version: 1, updatedAt: new Date(0).toISOString(), content: { fl0w: { ...fl0wLogin, accessToken: 'old' } } });
 
-    expect((await syncConfigFiles())?.['auth.json']).toBe('pushed');
+    expect((await configSyncStore.syncConfigFiles())?.['auth.json']).toBe('pushed');
     expect(await read('auth.json')).toEqual({ fl0w: fl0wLogin });
     expect(server.get('auth.json')).toMatchObject({ version: 2, content: {} });
   });
 
   test('later syncs only download changed files and push local edits', async () => {
-    await syncConfigFiles();
+    await configSyncStore.syncConfigFiles();
     requests = [];
 
     await write('mcp.json', { mcpServers: { demo: { url: 'https://demo' } } });
-    expect(await syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'unchanged' });
+    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'unchanged' });
     expect(requests.filter((r) => r.startsWith('GET /api/sync/config-files/'))).toEqual([]);
     expect(server.get('mcp.json')).toMatchObject({ version: 2, content: { mcpServers: { demo: { url: 'https://demo' } } } });
   });
 
   test('pulls a remote change when the local file is untouched', async () => {
-    await syncConfigFiles();
+    await configSyncStore.syncConfigFiles();
     server.set('mcp.json', { version: 2, updatedAt: new Date().toISOString(), content: { mcpServers: { from: { url: 'web' } } } });
 
-    expect((await syncConfigFiles())?.['mcp.json']).toBe('pulled');
+    expect((await configSyncStore.syncConfigFiles())?.['mcp.json']).toBe('pulled');
     expect(await read('mcp.json')).toEqual({ mcpServers: { from: { url: 'web' } } });
   });
 
   test('retries once against the latest version when another device pushes first', async () => {
     await write('mcp.json', { mcpServers: { base: { url: 'base' } } });
-    await syncConfigFiles();
+    await configSyncStore.syncConfigFiles();
     await write('mcp.json', { mcpServers: { base: { url: 'base' }, local: { url: 'local' } } });
     await backdate('mcp.json');
     conflictOnce = 'mcp.json';
 
-    expect((await syncConfigFiles())?.['mcp.json']).toBe('pulled');
+    expect((await configSyncStore.syncConfigFiles())?.['mcp.json']).toBe('pulled');
     const expected = { mcpServers: { raced: { url: 'raced' } } };
     expect(await read('mcp.json')).toEqual(expected);
     expect(server.get('mcp.json')?.content).toEqual(expected);
@@ -187,19 +187,19 @@ describe('syncConfigFiles', () => {
 
   test('syncs when sync-state base or remote content is null', async () => {
     await write('mcp.json', { mcpServers: { local: { url: 'local' } } });
-    await syncConfigFiles();
+    await configSyncStore.syncConfigFiles();
     await write('sync-state.json', {
       userId: 'u1',
       files: { 'mcp.json': { version: 1, updatedAt: new Date().toISOString(), base: null } },
     });
 
-    expect((await syncConfigFiles())?.['mcp.json']).not.toBeInstanceOf(Error);
+    expect((await configSyncStore.syncConfigFiles())?.['mcp.json']).not.toBeInstanceOf(Error);
     expect(await read('mcp.json')).toEqual({ mcpServers: { local: { url: 'local' } } });
   });
 
   test('leaves an invalid local file alone and reports it', async () => {
     await writeFile(join(home, 'mcp.json'), '{ not json');
-    const results = await syncConfigFiles();
+    const results = await configSyncStore.syncConfigFiles();
     expect(results?.['mcp.json']).toBeInstanceOf(Error);
     expect(await Bun.file(join(home, 'mcp.json')).text()).toBe('{ not json');
     expect(results?.['auth.json']).toBe('pushed');

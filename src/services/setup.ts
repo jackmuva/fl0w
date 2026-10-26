@@ -1,8 +1,7 @@
-import { flushPendingSkillMirrors } from './skills/mirror-enabled-skills';
-import { flushPendingPushes } from './sync/config-sync';
-import { syncOnStartup, watchLocalConfigWrites } from './sync/config-sync';
-import { drainOutboxInBackground, flushOutbox } from './sync/outbox';
-import { readFl0wAuth } from './auth/token';
+import { syncSkillService } from './sync/sync-skills';
+import { configSyncStore } from './sync/config-sync';
+import { outboxStore } from './sync/outbox';
+import { authService } from './auth/auth-service';
 import { mkdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -27,7 +26,7 @@ export type StartupSyncOptions = {
 };
 
 export async function requireLogin(): Promise<boolean> {
-  if (await readFl0wAuth()) return true;
+  if (await authService.readFl0wAuth()) return true;
   console.error('Not logged in. Run `fl0w login` first.');
   return false;
 }
@@ -36,14 +35,14 @@ export async function runStartupSync(options: StartupSyncOptions = {}): Promise<
   const log = options.log ?? console.log;
 
   log('Syncing config files...');
-  const syncWarning = await syncOnStartup();
-  watchLocalConfigWrites();
-  drainOutboxInBackground();
+  const syncWarning = await configSyncStore.syncOnStartup();
+  configSyncStore.watchLocalConfigWrites();
+  outboxStore.drainOutboxInBackground();
   return syncWarning;
 }
 
 export async function finishHeadlessRun(code: number): Promise<number> {
-  void flushPendingSkillMirrors();
-  await Promise.all([flushPendingPushes(), flushOutbox()]);
+  void syncSkillService.flushPendingSkillMirrors();
+  await Promise.all([configSyncStore.flushPendingPushes(), outboxStore.flushOutbox()]);
   return code;
 }

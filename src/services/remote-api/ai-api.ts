@@ -1,5 +1,5 @@
 import type { ModelMetadata } from "../../models/agent";
-import { asErrorBody, fail, readResponseJson, request } from "./utils";
+import { asErrorBody, fail, readResponseJson, request } from "./api-utils";
 
 export async function listModels(): Promise<ModelMetadata[]> {
   const res = await request('/cli/ai/models');

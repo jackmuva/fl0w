@@ -1,9 +1,9 @@
 import { readdir } from 'node:fs/promises';
 import { USER_TOOLS_DIR } from '../../../constants';
 import type { CapabilitySelection } from '../../../models/agent';
-import { readFl0wAuth } from '../../auth/token';
+import { authService } from '../../auth/auth-service';
 import { listRemoteTools, putToolBundle } from '../../remote-api/sync-api';
-import { MAX_SKILL_BUNDLE_BYTES, packFiles, type PackedSkill } from '../../skills/sync-skills';
+import { MAX_SKILL_BUNDLE_BYTES, packFiles, type PackedSkill } from '../../sync/sync-skills';
 import { getUserToolSourceFile } from './loader';
 
 // secrets that might sit next to the tools locally and must never leave the machine
@@ -42,7 +42,7 @@ export async function syncEnabledTools(selection: CapabilitySelection): Promise<
       return file ? [{ name, file }] : [];
     });
     if (local.length === 0) return {};
-    if (!(await readFl0wAuth()) ) return null;
+    if (!(await authService.readFl0wAuth())) return null;
 
     const remote = new Map((await listRemoteTools()).map((tool) => [tool.name, tool.contentHash]));
     const results: ToolSyncResults = {};

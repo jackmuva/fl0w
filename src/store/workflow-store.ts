@@ -1,15 +1,15 @@
 import type { CapabilitySelection, ModelSelection } from '../models/agent';
 import { isWorkflowRecord, type WorkflowRecord, type WorkflowStep } from '../models/workflow';
 import { getRemoteWorkflow, listRemoteWorkflows } from '../services/remote-api/sync-api';
-import { nowIso } from '../services/session/session-record';
-import { enqueue, pendingOps } from '../services/sync/outbox';
+import { nowIso } from '../services/session-record';
+import { outboxStore } from '../services/sync/outbox';
 import { normalizeWorkflowSteps } from '../services/workflow/generate';
 
 /** Creates and deletes not yet pushed, so reads see this device's latest writes. */
 const pendingWorkflows = () => {
   const created = new Map<string, WorkflowRecord>();
   const deleted = new Set<string>();
-  for (const op of pendingOps()) {
+  for (const op of outboxStore.pendingOps()) {
     if (op.kind === 'workflow' && isWorkflowRecord(op.workflow)) created.set(op.workflow.id, op.workflow);
     else if (op.kind === 'delete-workflow') deleted.add(op.id);
   }
@@ -55,10 +55,10 @@ export function saveWorkflow(input: {
     createdAt: now,
     updatedAt: now,
   };
-  enqueue({ kind: 'workflow', workflow });
+  outboxStore.enqueue({ kind: 'workflow', workflow });
   return workflow;
 }
 
 export function deleteWorkflow(id: string): void {
-  enqueue({ kind: 'delete-workflow', id });
+  outboxStore.enqueue({ kind: 'delete-workflow', id });
 }

@@ -15,38 +15,11 @@ import type {
   McpToolResult,
 } from '../../models/mcp';
 import { HEADLESS, HEADLESS_MCP_CONNECT_TIMEOUT_MS, MCP_CONFIG_PATH } from '../../constants';
-import { syncConfigFiles } from '../sync/config-sync';
+import { configSyncStore } from '../sync/config-sync';
 
 const CLIENT_INFO = { name: 'fl0w', version: '0.1.0' };
 
 const AUTH_FAILURE = /401|unauthorized|token/i;
-
-const isAuthOrConnectionFailure = (error: unknown): boolean => {
-  if (error instanceof UnauthorizedError) return true;
-  const message = error instanceof Error ? error.message : String(error);
-  return AUTH_FAILURE.test(message);
-};
-
-const formatToolError = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
-
-const isHttpConfig = (config: McpServerConfig): config is HttpServerConfig => 'url' in config;
-
-const createStdioTransport = (config: StdioServerConfig): Transport =>
-  new StdioClientTransport({
-    command: config.command,
-    args: config.args,
-    env: { ...(process.env as Record<string, string>), ...config.env },
-    // pipe server logs so they don't draw over the TUI
-    stderr: 'pipe',
-  });
-
-const createHttpTransport = (config: HttpServerConfig, authProvider?: FileOAuthProvider) => {
-  return new StreamableHTTPClientTransport(new URL(config.url), {
-    requestInit: { headers: config.headers },
-    authProvider,
-  });
-}
 
 type ContentPart = {
   type: string,
@@ -55,24 +28,6 @@ type ContentPart = {
   mimeType?: string,
   resource?: { uri?: string, text?: string, blob?: string },
 };
-
-const formatContent = (parts: ContentPart[]): string =>
-  parts.map((part) => {
-    switch (part.type) {
-      case 'text':
-        return part.text ?? '';
-      case 'resource':
-        if (part.resource?.text !== undefined) return part.resource.text;
-        if (part.resource?.blob !== undefined) {
-          return `[resource blob: ${part.resource.uri ?? 'unknown'}${part.mimeType ? ` (${part.mimeType})` : ''}]`;
-        }
-        return `[resource: ${part.resource?.uri ?? 'unknown'}]`;
-      case 'resource_link':
-        return `[resource link: ${part.uri ?? 'unknown'}]`;
-      default:
-        return `[${part.type}${part.mimeType ? `: ${part.mimeType}` : ''}]`;
-    }
-  }).join('\n');
 
 export type McpClientManagerOptions = {
   onAuthorize?: (server: string, url: URL) => void,
@@ -85,6 +40,56 @@ export class McpClientManager {
 
   constructor(private readonly options: McpClientManagerOptions = {}) { }
 
+  private isHttpConfig(config: McpServerConfig): config is HttpServerConfig {
+    return 'url' in config;
+  }
+
+  private createStdioTransport(config: StdioServerConfig): Transport {
+    return new StdioClientTransport({
+      command: config.command,
+      args: config.args,
+      env: { ...(process.env as Record<string, string>), ...config.env },
+      // pipe server logs so they don't draw over the TUI
+      stderr: 'pipe',
+    });
+  }
+
+  private createHttpTransport(config: HttpServerConfig, authProvider?: FileOAuthProvider) {
+    return new StreamableHTTPClientTransport(new URL(config.url), {
+      requestInit: { headers: config.headers },
+      authProvider,
+    });
+  }
+
+  private formatContent(parts: ContentPart[]): string {
+    return parts.map((part) => {
+      switch (part.type) {
+        case 'text':
+          return part.text ?? '';
+        case 'resource':
+          if (part.resource?.text !== undefined) return part.resource.text;
+          if (part.resource?.blob !== undefined) {
+            return `[resource blob: ${part.resource.uri ?? 'unknown'}${part.mimeType ? ` (${part.mimeType})` : ''}]`;
+          }
+          return `[resource: ${part.resource?.uri ?? 'unknown'}]`;
+        case 'resource_link':
+          return `[resource link: ${part.uri ?? 'unknown'}]`;
+        default:
+          return `[${part.type}${part.mimeType ? `: ${part.mimeType}` : ''}]`;
+      }
+    }).join('\n');
+  }
+
+  private isAuthOrConnectionFailure(error: unknown): boolean {
+    if (error instanceof UnauthorizedError) return true;
+    const message = error instanceof Error ? error.message : String(error);
+    return AUTH_FAILURE.test(message);
+  }
+
+  private formatToolError(error: unknown) {
+    return error instanceof Error ? error.message : String(error);
+  }
+
   async loadConfig(path = MCP_CONFIG_PATH) {
     const file = Bun.file(path);
     this.config = (await file.exists())
@@ -96,9 +101,9 @@ export class McpClientManager {
   async connect(name: string, config: McpServerConfig) {
     await this.disconnect(name);
 
-    const client = isHttpConfig(config)
+    const client = this.isHttpConfig(config)
       ? await this.connectHttp(name, config)
-      : await this.connectClient(createStdioTransport(config));
+      : await this.connectClient(this.createStdioTransport(config));
     this.clients.set(name, client);
     this.toolCache = null;
     return client;
@@ -121,7 +126,7 @@ export class McpClientManager {
   async logout(name: string) {
     await this.disconnect(name);
     const config = this.config.mcpServers[name];
-    if (config && isHttpConfig(config)) await this.createAuthProvider(name, config)?.invalidateCredentials('all');
+    if (config && this.isHttpConfig(config)) await this.createAuthProvider(name, config)?.invalidateCredentials('all');
   }
 
   private async connectClient(transport: Transport) {
@@ -147,7 +152,7 @@ export class McpClientManager {
 
   private async connectHttp(name: string, config: HttpServerConfig) {
     const authProvider = this.createAuthProvider(name, config);
-    const transport = createHttpTransport(config, authProvider);
+    const transport = this.createHttpTransport(config, authProvider);
     try {
       return await this.connectClient(transport);
     } catch (error) {
@@ -156,7 +161,7 @@ export class McpClientManager {
       // the provider opened the browser; exchange the code, then reconnect with the new tokens
       const code = await authProvider.waitForAuthorizationCode();
       await transport.finishAuth(code);
-      return this.connectClient(createHttpTransport(config, authProvider));
+      return this.connectClient(this.createHttpTransport(config, authProvider));
     }
   }
 
@@ -216,13 +221,13 @@ export class McpClientManager {
   ): Promise<McpToolResult> {
     const result = await client.callTool({ name: tool, arguments: args });
     const content = 'content' in result
-      ? formatContent(result.content as ContentPart[])
+      ? this.formatContent(result.content as ContentPart[])
       : JSON.stringify(result.toolResult);
     return { server, tool, isError: Boolean(result.isError), content };
   }
 
   private async refreshServerFromSync(server: string): Promise<boolean> {
-    const results = await syncConfigFiles();
+    const results = await configSyncStore.syncConfigFiles();
     if (results === null) return false;
     const errors = Object.values(results).filter((r): r is Error => r instanceof Error);
     if (errors.length) console.error(`[mcp] Config sync: ${errors.map((e) => e.message).join('; ')}`);
@@ -261,15 +266,15 @@ export class McpClientManager {
     try {
       return await this.invokeCallTool(client, server, tool, args);
     } catch (error) {
-      if (!isAuthOrConnectionFailure(error) || !(await this.refreshServerFromSync(server))) {
-        return { server, tool, isError: true, content: formatToolError(error) };
+      if (!this.isAuthOrConnectionFailure(error) || !(await this.refreshServerFromSync(server))) {
+        return { server, tool, isError: true, content: this.formatToolError(error) };
       }
       const retryClient = this.clients.get(server);
       if (!retryClient) return unknownServer();
       try {
         return await this.invokeCallTool(retryClient, server, tool, args);
       } catch (retryError) {
-        return { server, tool, isError: true, content: formatToolError(retryError) };
+        return { server, tool, isError: true, content: this.formatToolError(retryError) };
       }
     }
   }

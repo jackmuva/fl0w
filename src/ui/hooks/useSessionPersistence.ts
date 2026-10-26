@@ -2,8 +2,8 @@ import type { CapabilitySelection, Fl0wMessage, ModelSelection } from '../../mod
 import { resolve } from 'node:path';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionListEntry, SessionRecord, StoredSession } from '../../models/session';
-import { deleteSession, getSession, listSessions, saveSession } from '../../services/session/session-repo';
-import { createDraftSession } from '../../services/session/session-record';
+import { deleteSession, getSession, listSessions, saveSession } from '../../store/session-store';
+import { createDraftSession } from '../../services/session-record';
 import { applyCapabilitySelection } from '../../services/agent/config';
 
 type SetMessagesAction = Fl0wMessage[] | ((previous: Fl0wMessage[]) => Fl0wMessage[]);

@@ -18,10 +18,10 @@ mock.module('../../constants', () => ({
 }));
 
 const { applyCapabilitySelection } = await import('./config');
-const { flushPendingSkillMirrors } = await import('../skills/mirror-enabled-skills');
+const { syncSkillService } = await import('../sync/sync-skills');
 
 afterEach(async () => {
-  await flushPendingSkillMirrors();
+  await syncSkillService.flushPendingSkillMirrors();
   await rm(tempRoot, { recursive: true, force: true });
 });
 
@@ -66,7 +66,7 @@ describe('applyCapabilitySelection', () => {
         userTools: [],
         agentsMd: [],
       });
-      await flushPendingSkillMirrors();
+      await syncSkillService.flushPendingSkillMirrors();
 
       expect(await readFile(join(fl0wSkillsDir, 'workspace-skill', 'SKILL.md'), 'utf8')).toContain('Body');
     } finally {

@@ -19,9 +19,9 @@ mock.module('../../constants', () => ({
 }));
 const { AUTH_PATH, OUTBOX_DIR } = await import('../../constants');
 if (!AUTH_PATH.startsWith(home)) throw new Error('outbox test is not isolated');
-const { enqueue, flushOutbox, pendingOps } = await import('./outbox');
-const { deleteSession, getSession, listSessions, saveSession } = await import('../session/session-repo');
-const { createDraftSession } = await import('../session/session-record');
+const { outboxStore } = await import('./outbox');
+const { deleteSession, getSession, listSessions, saveSession } = await import('../../store/session-store');
+const { createDraftSession } = await import('../session-record');
 const { deleteWorkflow, listWorkflows, saveWorkflow } = await import('../../store/workflow-store');
 
 let sessions: Map<string, StoredSession>;
@@ -99,7 +99,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await flushOutbox();
+  await outboxStore.flushOutbox();
   globalThis.fetch = realFetch;
   await rm(home, { recursive: true, force: true });
 });
@@ -111,7 +111,7 @@ describe('outbox', () => {
     session = saveSession(session, [userMessage('one'), userMessage('two')]);
     expect(outboxFiles()).toHaveLength(1);
 
-    await flushOutbox();
+    await outboxStore.flushOutbox();
 
     expect(requests).toEqual([`PUT sessions ${session.id}`]);
     expect(sessions.get(session.id)?.messages).toHaveLength(2);
@@ -121,7 +121,7 @@ describe('outbox', () => {
 
   test('does not push a session without a conversation', async () => {
     saveSession(createDraftSession('/work'), [{ message: { role: 'system', content: 'rules' } }]);
-    await flushOutbox();
+    await outboxStore.flushOutbox();
     expect(requests).toEqual([]);
   });
 
@@ -129,9 +129,9 @@ describe('outbox', () => {
     const session = saveSession(createDraftSession('/work'), [userMessage('hi')]);
     deleteSession(session.id);
     saveSession(session, [userMessage('hi'), userMessage('again')]);
-    expect(pendingOps()).toEqual([{ kind: 'delete-session', id: session.id }]);
+    expect(outboxStore.pendingOps()).toEqual([{ kind: 'delete-session', id: session.id }]);
 
-    await flushOutbox();
+    await outboxStore.flushOutbox();
 
     expect(requests).toEqual([`DELETE sessions ${session.id}`]);
     expect(outboxFiles()).toEqual([]);
@@ -140,11 +140,11 @@ describe('outbox', () => {
   test('keeps writes on disk while fl0w-work is unreachable and pushes them later', async () => {
     offline = true;
     const session = saveSession(createDraftSession('/work'), [userMessage('hi')]);
-    await flushOutbox();
+    await outboxStore.flushOutbox();
     expect(outboxFiles()).toHaveLength(1);
 
     offline = false;
-    await flushOutbox();
+    await outboxStore.flushOutbox();
 
     expect(sessions.has(session.id)).toBe(true);
     expect(outboxFiles()).toEqual([]);
@@ -155,7 +155,7 @@ describe('outbox', () => {
     sessions.set(session.id, { ...session, updatedAt: '2999-01-01T00:00:00.000Z', messages: [userMessage('newer')] });
     saveSession(session, [userMessage('older')]);
 
-    await flushOutbox();
+    await outboxStore.flushOutbox();
 
     expect(sessions.get(session.id)?.messages).toEqual([userMessage('newer')]);
     expect(outboxFiles()).toEqual([]);
@@ -164,7 +164,7 @@ describe('outbox', () => {
   test('stays on disk without pushing when signed out', async () => {
     await rm(join(home, 'auth.json'));
     saveSession(createDraftSession('/work'), [userMessage('hi')]);
-    await flushOutbox();
+    await outboxStore.flushOutbox();
     expect(requests).toEqual([]);
     expect(outboxFiles()).toHaveLength(1);
   });
@@ -172,7 +172,7 @@ describe('outbox', () => {
   test('removes a corrupt outbox file instead of retrying it forever', async () => {
     await mkdir(OUTBOX_DIR, { recursive: true });
     await writeFile(join(OUTBOX_DIR, 'session-bad.json'), '{not json');
-    await flushOutbox();
+    await outboxStore.flushOutbox();
     expect(outboxFiles()).toEqual([]);
   });
 });
@@ -214,12 +214,12 @@ describe('workflows', () => {
     const saved = saveWorkflow(workflowInput('Report'));
     expect((await listWorkflows()).map(({ id }) => id)).toEqual([saved.id]);
 
-    await flushOutbox();
+    await outboxStore.flushOutbox();
     expect(workflows.get(saved.id)?.title).toBe('Report');
 
     deleteWorkflow(saved.id);
     expect(await listWorkflows()).toEqual([]);
-    await flushOutbox();
+    await outboxStore.flushOutbox();
     expect(workflows.size).toBe(0);
   });
 });

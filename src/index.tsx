@@ -1,6 +1,25 @@
+import { createGateway } from '@ai-sdk/gateway';
+import { FL0W_API_URL } from "./constants";
+import { authService } from "./services/auth/auth-service";
+
+const fl0wModelProvider = createGateway({
+  baseURL: `${FL0W_API_URL}/api/cli/ai`,
+  // Placeholder so the provider skips its env/OIDC key lookup; fetch sets the real bearer token.
+  apiKey: 'fl0w',
+  fetch: Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
+    const send = async (force: boolean) => {
+      const headers = new Headers(init?.headers);
+      headers.set('authorization', `Bearer ${await authService.getAccessToken({ force })}`);
+      return fetch(input, { ...init, headers });
+    };
+    const res = await send(false);
+    return res.status === 401 ? send(true) : res;
+  }, { preconnect: fetch.preconnect }),
+});
+
 globalThis.AI_SDK_LOG_WARNINGS = false
-import { fl0wModelProvider } from "./services/auth/token"
 globalThis.AI_SDK_DEFAULT_PROVIDER = fl0wModelProvider
+
 import { ensureFl0wHome } from "./services/setup"
 
 await ensureFl0wHome()
@@ -18,7 +37,7 @@ switch (command) {
   case "login":
   case "logout":
   case "whoami": {
-    const { runAccountCommand } = await import("./services/auth/commands")
+    const { runAccountCommand } = await import("./cli/auth")
     process.exit(await runAccountCommand(command))
   }
   case "sync": {

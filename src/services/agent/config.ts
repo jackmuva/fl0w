@@ -2,7 +2,7 @@ import type { CapabilityCatalog, CapabilityKind, CapabilitySelection, Fl0wMessag
 import type { McpTool } from "../../models/mcp";
 import { mcpToolKey } from "../../models/mcp";
 import { frontLoadMessages, listSkills } from "./hooks/front-load";
-import { scheduleMirrorEnabledSkills } from "../skills/mirror-enabled-skills";
+import { syncSkillService } from "../sync/sync-skills";
 import { fl0wMessage } from "./utils/fl0w-message";
 import { syncEnabledToolsInBackground } from "./user-tools/sync-tools";
 
@@ -48,7 +48,7 @@ export const applyCapabilitySelection = async (
 ): Promise<Fl0wMessage[]> => {
   setCapabilitySelection(next);
   const messages = await frontLoadMessages();
-  scheduleMirrorEnabledSkills(next, listSkills());
+  syncSkillService.scheduleMirrorEnabledSkills(next, listSkills());
   void syncEnabledToolsInBackground(next);
   return messages.map((message) => fl0wMessage(message));
 };

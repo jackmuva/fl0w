@@ -13,7 +13,7 @@ import {
 } from "../../lib/format/message"
 import { filetypeFromPath } from "../../lib/format/message"
 import { HighlightedCode } from "./HighlightedCode"
-import { syntaxStyle } from "../../syntax-style"
+import { syntaxStyle } from "../../lib/syntax-style"
 import {
   AGENT_BORDER_COLOR,
   MessageFrame,

@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import type { CapabilityKind, CapabilitySelection, Fl0wMessage, ModelSelection } from '../models/agent';
 import type { SessionRecord } from '../models/session';
-import { createDraftSession, emptyModelSelection, parseModelsJson } from '../services/session/session-record';
+import { createDraftSession, emptyModelSelection, parseModelsJson } from '../services/session-record';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/config';
 import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/ask-question';
 import { runHeadlessTurn } from './cli-output';

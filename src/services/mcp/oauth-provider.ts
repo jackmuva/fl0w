@@ -6,29 +6,21 @@ import type {
 } from '@modelcontextprotocol/sdk/shared/auth.js';
 import type { OAuthDiscoveryState } from '@modelcontextprotocol/sdk/client/auth.js';
 import type { CliOutput } from '../../models/agent';
-import type { McpServerAuth } from '../../models/auth';
+import type { AuthFile, McpServerAuth } from '../../models/auth';
 import type { OAuthOptions } from '../../models/mcp';
 import { HEADLESS } from '../../constants';
-import { readAuthFile, updateAuthFile } from '../auth/auth-store';
-import { callbackUrl, listenForAuthCode } from '../auth/callback-server';
+import { authService } from '../auth/auth-service';
+import { callbackUrl, listenForAuthCode } from './callback-server';
 import { openBrowser } from '../utils';
 
 const DEFAULT_CALLBACK_PORT = 33418;
 
-const reportedAuthRequired = new Set<string>();
-
 /** Tells whoever runs headless fl0w (fl0w-work) which server to re-authorize; once per server per process. */
-const reportAuthRequired = (server: string, serverUrl: string) => {
-  if (reportedAuthRequired.has(server)) return;
-  reportedAuthRequired.add(server);
-  const line: CliOutput = { type: 'mcp_auth_required', server, serverUrl };
-  console.log(JSON.stringify(line));
-};
-
 export class FileOAuthProvider implements OAuthClientProvider {
   private readonly port: number;
   private readonly currentState = crypto.randomUUID();
   private pendingCode: Promise<string> | null = null;
+  private reportedAuthRequired = new Set<string>();
 
   constructor(
     private readonly serverName: string,
@@ -77,9 +69,16 @@ export class FileOAuthProvider implements OAuthClientProvider {
     await this.write({ tokens, codeVerifier: undefined });
   }
 
+  reportAuthRequired(server: string, serverUrl: string) {
+    if (this.reportedAuthRequired.has(server)) return;
+    this.reportedAuthRequired.add(server);
+    const line: CliOutput = { type: 'mcp_auth_required', server, serverUrl };
+    console.log(JSON.stringify(line));
+  };
+
   async redirectToAuthorization(authorizationUrl: URL) {
     if (HEADLESS) {
-      reportAuthRequired(this.serverName, this.serverUrl);
+      this.reportAuthRequired(this.serverName, this.serverUrl);
       throw new Error(`MCP server "${this.serverName}" needs authorization; authorize it in fl0w-work or interactive fl0w`);
     }
     // listen before opening the browser so a fast redirect can't be missed
@@ -108,7 +107,10 @@ export class FileOAuthProvider implements OAuthClientProvider {
 
   async invalidateCredentials(scope: 'all' | 'client' | 'tokens' | 'verifier' | 'discovery') {
     if (scope === 'all') {
-      await updateAuthFile(({ mcp: { [this.serverName]: _, ...mcp } = {}, ...file }) => ({ ...file, mcp }));
+      await authService.updateAuthFile((file: AuthFile) => {
+        const { [this.serverName]: _, ...mcp } = file.mcp ?? {};
+        return { ...file, mcp };
+      });
       return;
     }
     const key = ({
@@ -129,7 +131,7 @@ export class FileOAuthProvider implements OAuthClientProvider {
   }
 
   private async read(): Promise<McpServerAuth> {
-    return this.current((await readAuthFile()).mcp?.[this.serverName]);
+    return this.current((await authService.readAuthFile()).mcp?.[this.serverName]);
   }
 
   private current(stored: McpServerAuth | undefined): McpServerAuth {
@@ -139,7 +141,7 @@ export class FileOAuthProvider implements OAuthClientProvider {
   }
 
   private async write(update: Partial<McpServerAuth>) {
-    await updateAuthFile((file) => {
+    await authService.updateAuthFile((file: AuthFile) => {
       const next = { ...this.current(file.mcp?.[this.serverName]), ...update, serverUrl: this.serverUrl };
       return { ...file, mcp: { ...file.mcp, [this.serverName]: next } };
     });

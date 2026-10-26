@@ -19,11 +19,7 @@ mock.module('../../constants', () => ({
   APP_CONFIG_PATH: join(fl0wHome, 'config.json'),
 }));
 
-const {
-  flushPendingSkillMirrors,
-  mirrorEnabledSkills,
-  scheduleMirrorEnabledSkills,
-} = await import('./mirror-enabled-skills');
+const { syncSkillService } = await import('./sync-skills');
 
 afterEach(async () => {
   await rm(tempRoot, { recursive: true, force: true });
@@ -61,7 +57,7 @@ describe('mirrorEnabledSkills', () => {
       path: skillPath,
     }];
 
-    const result = await mirrorEnabledSkills({
+    const result = await syncSkillService.mirrorEnabledSkills({
       ...emptyCapabilitySelection(),
       skills: ['demo-skill'],
     }, catalog);
@@ -84,7 +80,7 @@ describe('mirrorEnabledSkills', () => {
       path: skillPath,
     }];
 
-    const result = await mirrorEnabledSkills({
+    const result = await syncSkillService.mirrorEnabledSkills({
       ...emptyCapabilitySelection(),
       skills: ['local-skill'],
     }, catalog);
@@ -102,15 +98,15 @@ describe('mirrorEnabledSkills', () => {
     }];
     const selection = { ...emptyCapabilitySelection(), skills: ['refresh-skill'] as string[] };
 
-    await mirrorEnabledSkills(selection, catalog);
+    await syncSkillService.mirrorEnabledSkills(selection, catalog);
     await writeSkill(externalSkills, 'refresh-skill', 'refresh-skill', 'Version two');
-    await mirrorEnabledSkills(selection, catalog);
+    await syncSkillService.mirrorEnabledSkills(selection, catalog);
 
     expect(await readFile(join(fl0wSkillsDir, 'refresh-skill', 'SKILL.md'), 'utf8')).toContain('Version two');
   });
 
   test('records missing enabled skill names', async () => {
-    const result = await mirrorEnabledSkills({
+    const result = await syncSkillService.mirrorEnabledSkills({
       ...emptyCapabilitySelection(),
       skills: ['ghost-skill'],
     }, []);
@@ -127,9 +123,9 @@ describe('mirrorEnabledSkills', () => {
     }];
     const selection = { ...emptyCapabilitySelection(), skills: ['debounced-skill'] as string[] };
 
-    scheduleMirrorEnabledSkills(selection, catalog);
+    syncSkillService.scheduleMirrorEnabledSkills(selection, catalog);
     await expect(readFile(join(fl0wSkillsDir, 'debounced-skill', 'SKILL.md'), 'utf8')).rejects.toThrow();
-    await flushPendingSkillMirrors();
+    await syncSkillService.flushPendingSkillMirrors();
     expect(await readFile(join(fl0wSkillsDir, 'debounced-skill', 'SKILL.md'), 'utf8')).toContain('Debounced');
   });
 
@@ -141,8 +137,8 @@ describe('mirrorEnabledSkills', () => {
       path: skillPath,
     }];
 
-    await mirrorEnabledSkills({ ...emptyCapabilitySelection(), skills: ['keep-skill'] }, catalog);
-    await mirrorEnabledSkills(emptyCapabilitySelection(), catalog);
+    await syncSkillService.mirrorEnabledSkills({ ...emptyCapabilitySelection(), skills: ['keep-skill'] }, catalog);
+    await syncSkillService.mirrorEnabledSkills(emptyCapabilitySelection(), catalog);
 
     expect(await readFile(join(fl0wSkillsDir, 'keep-skill', 'SKILL.md'), 'utf8')).toContain('Keep me');
   });

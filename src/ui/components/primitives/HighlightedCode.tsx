@@ -1,4 +1,4 @@
-import { syntaxStyle } from "../../syntax-style"
+import { syntaxStyle } from "../../lib/syntax-style"
 
 type HighlightedCodeProps = {
   content: string

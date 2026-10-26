@@ -17,7 +17,7 @@ mock.module('../../constants', () => ({
 }));
 const { AUTH_PATH } = await import('../../constants');
 if (!AUTH_PATH.startsWith(home)) throw new Error('skill-sync test is not isolated');
-const { packSkill, syncEnabledSkills } = await import('./sync-skills');
+const { syncSkillService } = await import('./sync-skills');
 
 let server: Map<string, { contentHash: string, size: number, bundle: Uint8Array }>;
 let requests: string[];
@@ -70,12 +70,12 @@ describe('packSkill', () => {
   test('content hash is stable across runs and changes with content', async () => {
     const skill = await writeSkill('demo', { 'SKILL.md': 'steps', 'scripts/run.sh': 'echo hi' });
     const dir = join(skillsDir, 'demo');
-    const first = await packSkill(dir);
+    const first = await syncSkillService.packSkill(dir);
     await Bun.sleep(1100); // the tarball embeds second-resolution mtimes; the hash must not
-    expect((await packSkill(dir)).contentHash).toBe(first.contentHash);
+    expect((await syncSkillService.packSkill(dir)).contentHash).toBe(first.contentHash);
 
     await writeFile(skill.path, 'new steps');
-    expect((await packSkill(dir)).contentHash).not.toBe(first.contentHash);
+    expect((await syncSkillService.packSkill(dir)).contentHash).not.toBe(first.contentHash);
   });
 
   test('excludes secrets, node_modules, and .git, and round-trips the rest', async () => {
@@ -88,7 +88,7 @@ describe('packSkill', () => {
       'node_modules/dep/index.js': 'x',
       '.git/HEAD': 'ref',
     });
-    const packed = await packSkill(join(skillsDir, 'demo'));
+    const packed = await syncSkillService.packSkill(join(skillsDir, 'demo'));
     expect(packed.files).toEqual(['SKILL.md', 'ref/notes.md']);
 
     const unpacked = await new Bun.Archive(packed.bundle).files();
@@ -100,7 +100,7 @@ describe('packSkill', () => {
 describe('syncEnabledSkills', () => {
   test('does nothing when signed out', async () => {
     const skill = await writeSkill('demo', { 'SKILL.md': 'steps' });
-    expect(await syncEnabledSkills(selection('demo'), [skill])).toBeNull();
+    expect(await syncSkillService.syncEnabledSkills(selection('demo'), [skill])).toBeNull();
     expect(requests).toEqual([]);
   });
 
@@ -109,15 +109,15 @@ describe('syncEnabledSkills', () => {
     const demo = await writeSkill('demo', { 'SKILL.md': 'steps' });
     const other = await writeSkill('other', { 'SKILL.md': 'other steps' });
 
-    expect(await syncEnabledSkills(selection('demo'), [demo, other])).toEqual({ demo: 'pushed' });
+    expect(await syncSkillService.syncEnabledSkills(selection('demo'), [demo, other])).toEqual({ demo: 'pushed' });
     expect([...server.keys()]).toEqual(['demo']);
 
     requests = [];
-    expect(await syncEnabledSkills(selection('demo'), [demo, other])).toEqual({ demo: 'unchanged' });
+    expect(await syncSkillService.syncEnabledSkills(selection('demo'), [demo, other])).toEqual({ demo: 'unchanged' });
     expect(requests).toEqual(['GET /api/sync/skills']);
 
     await writeFile(demo.path, 'edited steps');
-    expect(await syncEnabledSkills(selection('demo'), [demo, other])).toEqual({ demo: 'pushed' });
+    expect(await syncSkillService.syncEnabledSkills(selection('demo'), [demo, other])).toEqual({ demo: 'pushed' });
   });
 
   test('reports a skill whose mirror folder is missing without failing the rest', async () => {
@@ -125,7 +125,7 @@ describe('syncEnabledSkills', () => {
     const demo = await writeSkill('demo', { 'SKILL.md': 'steps' });
     const ghost: SkillSummary = { name: 'ghost', description: '', path: join(home, 'elsewhere', 'ghost', 'SKILL.md') };
 
-    const results = await syncEnabledSkills(selection('ghost', 'demo'), [demo, ghost]);
+    const results = await syncSkillService.syncEnabledSkills(selection('ghost', 'demo'), [demo, ghost]);
     expect(results?.demo).toBe('pushed');
     expect(results?.ghost).toBeInstanceOf(Error);
   });

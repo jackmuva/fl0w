@@ -1,5 +1,5 @@
 import { FL0W_API_URL } from "../../constants";
-import { getAccessToken } from "../auth/token";
+import { authService } from "../auth/auth-service";
 
 export const REQUEST_TIMEOUT_MS = 5_000;
 // skill/tool bundles and long sessions are up to a few MB, which a slow uplink won't send in 5s
@@ -8,7 +8,7 @@ export const UPLOAD_TIMEOUT_MS = 60_000;
 export async function request(path: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const send = async (force: boolean) => fetch(`${FL0W_API_URL}/api${path}`, {
     ...init,
-    headers: { 'content-type': 'application/json', ...init.headers, authorization: `Bearer ${await getAccessToken({ force })}` },
+    headers: { 'content-type': 'application/json', ...init.headers, authorization: `Bearer ${await authService.getAccessToken({ force })}` },
     signal: AbortSignal.timeout(timeoutMs),
   });
   const res = await send(false);

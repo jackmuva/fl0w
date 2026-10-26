@@ -1,4 +1,4 @@
-import { syntaxStyle } from "../../syntax-style"
+import { syntaxStyle } from "../../lib/syntax-style"
 import type { ToolViewProps } from "../../../models/ui"
 import { MessageFrame } from "./MessageFrame"
 

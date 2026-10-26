@@ -2,7 +2,7 @@ import type { JsonObject, RemoteFile, RemoteFileMeta, RemoteSkillMeta, RemoteToo
 import type { SessionListEntry, StoredSession } from '../../models/session';
 import { isWorkflowRecord, type WorkflowRecord } from '../../models/workflow';
 import { normalizeWorkflowSteps } from '../workflow/generate';
-import { UPLOAD_TIMEOUT_MS, request, readResponseJson, asErrorBody, fail } from './utils';
+import { UPLOAD_TIMEOUT_MS, request, readResponseJson, asErrorBody, fail } from './api-utils';
 
 export class SyncConflictError extends Error {
   constructor(readonly filename: SyncFilename) {

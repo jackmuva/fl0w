@@ -3,11 +3,10 @@ import { discoverSkills } from '../agent/hooks/front-load';
 import { emptyCapabilitySelection } from '../agent/config';
 import { listUserTools, loadUserTools } from '../agent/user-tools/loader';
 import { syncEnabledTools, type ToolSyncResults } from '../agent/user-tools/sync-tools';
-import { mirrorEnabledSkills } from '../skills/mirror-enabled-skills';
-import { syncEnabledSkills, type SkillSyncResults } from '../skills/sync-skills';
-import { readFl0wAuth } from '../auth/token';
-import { syncConfigFiles, type SyncResults } from './config-sync';
-import { flushOutbox, pendingOps } from './outbox';
+import { syncSkillService, type SkillSyncResults } from './sync-skills';
+import { authService } from '../auth/auth-service';
+import { configSyncStore, type SyncResults } from './config-sync';
+import { outboxStore } from './outbox';
 
 export type FullSyncSkipReason = 'not-signed-in' | 'sync-disabled';
 
@@ -30,11 +29,11 @@ export async function runFullSync(): Promise<FullSyncResult> {
     tools: null,
   };
 
-  if (!(await readFl0wAuth())) return { ...empty, skipped: 'not-signed-in' };
+  if (!(await authService.readFl0wAuth())) return { ...empty, skipped: 'not-signed-in' };
 
-  const config = await syncConfigFiles();
-  await flushOutbox();
-  const pendingWrites = pendingOps().length;
+  const config = await configSyncStore.syncConfigFiles();
+  await outboxStore.flushOutbox();
+  const pendingWrites = outboxStore.pendingOps().length;
 
   const catalog = await discoverSkills();
   await loadUserTools();
@@ -43,8 +42,8 @@ export async function runFullSync(): Promise<FullSyncResult> {
     skills: catalog.map((skill) => skill.name),
     userTools: listUserTools().map((tool) => tool.name),
   };
-  await mirrorEnabledSkills(selection, catalog);
-  const skills = await syncEnabledSkills(selection, catalog);
+  await syncSkillService.mirrorEnabledSkills(selection, catalog);
+  const skills = await syncSkillService.syncEnabledSkills(selection, catalog);
   const tools = await syncEnabledTools(selection);
 
   return { skipped: null, config, pendingWrites, skills, tools };

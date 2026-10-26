@@ -8,7 +8,7 @@ import {
   type PlanProgress,
 } from "../../lib/format/message"
 import { GREEN_FG, MessageFrame } from "../primitives/MessageFrame"
-import { PLAN_PENDING_FG, PLAN_STEP_FG, PLAN_STEP_GLYPH, planStepStates } from "../plan/plan-style"
+import { PLAN_PENDING_FG, PLAN_STEP_FG, PLAN_STEP_GLYPH, planStepStates } from "../plan-sidebar/plan-style"
 
 const ERROR_FG = "#f7768e"
 
