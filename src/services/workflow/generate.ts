@@ -8,6 +8,8 @@ import {
 } from 'ai';
 import { recordLlmUsage } from '../agent/hooks/session-usage';
 import type { Fl0wMessage } from '../../models/agent';
+import type { StoredSession } from '../../models/session';
+import { emptyCapabilitySelection } from '../agent/config';
 import { mcpToolKey, type McpTool } from '../../models/mcp';
 import { extractToolCalls, hasConversationContent } from './extract-tool-calls';
 import {
@@ -16,6 +18,9 @@ import {
   DEFAULT_MARK_STEP_COMPLETE_TOOL,
 } from '../agent/default-tools/utils';
 import type { GeneratedWorkflow, WorkflowStep, WorkflowToolCall } from '../../models/workflow';
+
+/** What the model writes; the source session supplies the rest of a GeneratedWorkflow. */
+type GeneratedPlanSteps = Pick<GeneratedWorkflow, 'title' | 'goal' | 'steps'>;
 
 export type WorkflowToolCatalogEntry = Pick<McpTool, 'server' | 'name' | 'description'>;
 
@@ -244,7 +249,7 @@ export const mergePlanAndInstructions = (
   plan: GeneratedPlan,
   instructions: GeneratedStepInstructions,
   tools: WorkflowToolCatalogEntry[],
-): GeneratedWorkflow => {
+): GeneratedPlanSteps => {
   const knownTools = new Set(tools.map(mcpToolKey));
   const byIndex = new Map(instructions.steps.map((step) => [step.index, step]));
 
@@ -348,12 +353,13 @@ ${context}`,
     validateGeneratedInstructions,
   );
 
+/** The workflow keeps the source session's capabilities and models, so its runs use what the session used. */
 export const generateWorkflowFromSession = async (
-  messages: Fl0wMessage[],
+  source: StoredSession,
   model: string,
   tools: WorkflowToolCatalogEntry[],
 ): Promise<GeneratedWorkflow> => {
-  const conversation = messages.filter(({ message }) => message.role !== 'system');
+  const conversation = source.messages.filter(({ message }) => message.role !== 'system');
   if (!hasConversationContent(conversation)) {
     throw new WorkflowGenerationError('Selected session has no conversation to generate a workflow from');
   }
@@ -372,5 +378,9 @@ export const generateWorkflowFromSession = async (
   const context = buildSessionContext(conversation);
   const plan = await generateWorkflowPlan(context, model);
   const instructions = await generateStepInstructions(context, plan, stepTools, model);
-  return mergePlanAndInstructions(plan, instructions, stepTools);
+  return {
+    ...mergePlanAndInstructions(plan, instructions, stepTools),
+    requiredCapabilities: source.capabilities ?? emptyCapabilitySelection(),
+    models: source.models ?? null,
+  };
 };

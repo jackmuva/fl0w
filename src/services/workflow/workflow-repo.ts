@@ -1,4 +1,5 @@
 import type { CapabilitySelection } from '../../models/agent';
+import type { ModelSelection } from '../../models/ai-model';
 import { isWorkflowRecord, type WorkflowRecord, type WorkflowStep } from '../../models/workflow';
 import { getRemoteWorkflow, listRemoteWorkflows } from '../remote-api/sync-api';
 import { nowIso } from '../session/session-record';
@@ -41,6 +42,7 @@ export function saveWorkflow(input: {
   goal: string;
   steps: WorkflowStep[];
   requiredCapabilities: CapabilitySelection;
+  models: ModelSelection | null;
 }): WorkflowRecord {
   const now = nowIso();
   const workflow: WorkflowRecord = {
@@ -50,6 +52,7 @@ export function saveWorkflow(input: {
     goal: input.goal.trim(),
     steps: normalizeWorkflowSteps(input.steps),
     requiredCapabilities: input.requiredCapabilities,
+    models: input.models,
     createdAt: now,
     updatedAt: now,
   };

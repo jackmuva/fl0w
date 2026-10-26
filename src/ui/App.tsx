@@ -1,6 +1,6 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { llmLoop } from "../services/agent/llm-loop"
+import { llmLoop, resolveModels } from "../services/agent/llm-loop"
 import {
   getCapabilitySelection,
   emptyCapabilitySelection,
@@ -200,15 +200,8 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     try {
       const source = await loadSession(sessionId)
       if (!source) throw new WorkflowGenerationError("The selected session is no longer on fl0w-work")
-      //TODO: Fix
-      const generated = await generateWorkflowFromSession(source.messages, session.models?.EXECUTE ?? "", await listAllTools())
-      const saved = saveWorkflow({
-        sourceSessionId: sessionId,
-        title: generated.title,
-        goal: generated.goal,
-        steps: generated.steps,
-        requiredCapabilities: source.capabilities ?? emptyCapabilitySelection(),
-      })
+      const generated = await generateWorkflowFromSession(source, resolveModels(session.models).EXECUTE, await listAllTools())
+      const saved = saveWorkflow({ sourceSessionId: sessionId, ...generated })
       setWorkflows((current) => [saved, ...current])
       const content = `Workflow saved: ${saved.title}`
       setMessages((previous) => [

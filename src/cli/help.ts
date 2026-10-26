@@ -21,17 +21,20 @@ Headless commands (agent output as JSON lines on stdout; MCP progress on stderr)
       Run a saved workflow unattended. Use --session to run in an existing session or create one with that id.
       --messages loads prior messages from a JSON file instead of the session saved on fl0w-work.
       --remote runs without saving the session to fl0w-work.
+      The run uses the models saved with the workflow (from the session it was generated from).
 
   fl0w capabilities
       List discoverable skills, MCP tools, user tools, and AGENTS.md (JSON lines).
 
-  fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--messages <path.json>] [--remote]
+  fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--models '<json>'] [--messages <path.json>] [--remote]
       Run or continue a session. Omit session-id to create a new session.
       --messages loads prior messages ([{"message":{...},"frame"?:...}]) from a JSON file instead of the session saved on fl0w-work.
       --remote runs without saving the session to fl0w-work.
       --answers answers the session's pending question: {"<question-id>":{"optionId":"<id>"}} or {"<question-id>":{"customText":"..."}}.
       Without --answers, --input answers a pending question as free text.
       --capabilities sets CapabilitySelection: {"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}
+      --models sets the model per phase: {"ROUTER":"<model>","DISCOVERY":"<model>","PLAN":"<model>","EXECUTE":"<model>","SUMMARIZE":"<model>"}.
+      Phases left out keep the session's choice; "" uses the default.
 
 Headless exit codes (workflow and session): 0 success, 1 error or stopped, 2 ended waiting on input.
 

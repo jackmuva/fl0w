@@ -1,9 +1,10 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import type { CapabilityKind, CapabilitySelection, Fl0wMessage } from '../models/agent';
+import type { ModelSelection } from '../models/ai-model';
 import type { SessionRecord, StoredSession } from '../models/session';
 import { getSession, saveSession } from '../services/session/session-repo';
-import { createDraftSession } from '../services/session/session-record';
+import { createDraftSession, emptyModelSelection, parseModelsJson } from '../services/session/session-record';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/config';
 import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/ask-question';
 import { runHeadlessTurn } from './cli-output';
@@ -14,7 +15,7 @@ import { finishHeadlessRun } from '../services/setup';
 import { requireLogin, runStartupSync } from '../services/setup';
 
 const USAGE =
-  'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--messages <path.json>] [--remote]';
+  'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--models \'{"EXECUTE":"<model>"}\'] [--messages <path.json>] [--remote]';
 
 const CAPABILITY_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 
@@ -65,6 +66,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     options: {
       input: { type: 'string', short: 'i' },
       capabilities: { type: 'string', short: 'c' },
+      models: { type: 'string' },
       answers: { type: 'string', short: 'a' },
       messages: { type: 'string', short: 'm' },
       remote: { type: 'boolean', default: false },
@@ -81,6 +83,15 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     capabilitiesFromCli = parseCapabilitiesJson(values.capabilities);
     if (!capabilitiesFromCli) {
       console.error('Invalid --capabilities JSON: expected CapabilitySelection with string arrays for skills, mcpServers, userTools, agentsMd');
+      return 1;
+    }
+  }
+
+  let modelsFromCli: Partial<ModelSelection> | null = null;
+  if (values.models) {
+    modelsFromCli = parseModelsJson(values.models);
+    if (!modelsFromCli) {
+      console.error('Invalid --models JSON: expected {"<phase>": "<model>"} with phases ROUTER, DISCOVERY, PLAN, EXECUTE, SUMMARIZE');
       return 1;
     }
   }
@@ -149,6 +160,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
     ?? emptyCapabilitySelection();
   // saved with the session's next save
   if (capabilitiesFromCli) session = { ...session, capabilities };
+  if (modelsFromCli) session = { ...session, models: { ...(session.models ?? emptyModelSelection()), ...modelsFromCli } };
 
   // a pending question is answered with its tool-result (as the TUI's question box does), otherwise the loop stops
   // on it again; without --answers, --input is the free-text answer

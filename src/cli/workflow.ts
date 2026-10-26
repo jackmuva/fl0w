@@ -4,7 +4,7 @@ import type { Fl0wMessage } from '../models/agent';
 import type { WorkflowRecord } from '../models/workflow';
 import type { SessionRecord, StoredSession } from '../models/session';
 import { getSession, saveSession } from '../services/session/session-repo';
-import { createDraftSession } from '../services/session/session-record';
+import { createDraftSession, emptyModelSelection } from '../services/session/session-record';
 import { getWorkflow } from '../services/workflow/workflow-repo';
 import { applyCapabilitySelection } from '../services/agent/config';
 import { runHeadlessTurn } from './cli-output';
@@ -84,8 +84,13 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
       return 1;
     }
   }
-  // the workflow's capabilities are saved with the session's next save
-  let session: SessionRecord = { ...(stored ?? createDraftSession(workspace, sessionIdArg)), capabilities: workflow.requiredCapabilities };
+  // the workflow's capabilities and models are saved with the session's next save
+  const base = stored ?? createDraftSession(workspace, sessionIdArg);
+  let session: SessionRecord = {
+    ...base,
+    capabilities: workflow.requiredCapabilities,
+    models: workflow.models ?? base.models ?? emptyModelSelection(),
+  };
 
   const saved = messagesFromCli ?? stored?.messages ?? [];
 

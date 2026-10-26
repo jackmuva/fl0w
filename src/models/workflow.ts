@@ -1,4 +1,5 @@
 import type { CapabilitySelection } from './agent';
+import type { ModelSelection } from './ai-model';
 
 /** A tool the step should call; `tool` is the `server/name` key, parameters may hold {{placeholder}} values. */
 export type WorkflowToolCall = {
@@ -21,11 +22,13 @@ export type WorkflowRecord = {
   goal: string;
   steps: WorkflowStep[];
   requiredCapabilities: CapabilitySelection;
+  /** The source session's models; null for workflows saved before models were stored, which run on the defaults. */
+  models: ModelSelection | null;
   createdAt: string;
   updatedAt: string;
 };
 
-export type GeneratedWorkflow = Pick<WorkflowRecord, 'title' | 'goal' | 'steps'>;
+export type GeneratedWorkflow = Pick<WorkflowRecord, 'title' | 'goal' | 'steps' | 'requiredCapabilities' | 'models'>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

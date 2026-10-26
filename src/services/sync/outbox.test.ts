@@ -84,6 +84,7 @@ const workflowInput = (title: string) => ({
   goal: 'goal',
   steps: [{ index: 1, description: 'd', instructions: 'i' }],
   requiredCapabilities: { skills: [], mcpServers: [], userTools: [], agentsMd: [] },
+  models: null,
 });
 
 beforeEach(async () => {

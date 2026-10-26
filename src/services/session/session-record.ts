@@ -23,6 +23,25 @@ export const emptyModelSelection = (): ModelSelection => ({
   SUMMARIZE: '',
 });
 
+const MODEL_PHASES = Object.keys(emptyModelSelection()) as (keyof ModelSelection)[];
+
+/** `--models` JSON: a model id per phase; phases left out keep the session's choice. */
+export const parseModelsJson = (raw: string): Partial<ModelSelection> | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const models: Partial<ModelSelection> = {};
+  for (const [phase, model] of Object.entries(parsed)) {
+    if (!MODEL_PHASES.includes(phase as keyof ModelSelection) || typeof model !== 'string') return null;
+    models[phase as keyof ModelSelection] = model;
+  }
+  return models;
+};
+
 /** First user text, cut to 80 characters. */
 export const deriveTitle = (messages: Fl0wMessage[]): string | null => {
   const firstUser = messages.find(({ message }) => message.role === 'user')?.message;
