@@ -50,6 +50,8 @@ export const DEFAULT_MAX_ITERATIONS = 50;
 
 export let MAX_ITERATIONS = DEFAULT_MAX_ITERATIONS;
 
+export const PLAN_CHECK_MAX_RETRIES = 2;
+
 export const TOOL_TRUNCATE_STEPS = [12_000, 8_000, 4_000, 2_000, 800, 400];
 
 export const TOOL_RESULT_MIN_KEEP = 120;

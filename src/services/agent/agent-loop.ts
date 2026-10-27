@@ -1,6 +1,6 @@
 import { NoOutputGeneratedError, type ModelMessage, type ToolSet } from "ai";
 import type { Fl0wMessage, ModelSelection, SubagentType } from "../../models/agent";
-import { DEFAULT_MODELS } from "../../constants";
+import { DEFAULT_MODELS, PLAN_CHECK_MAX_RETRIES } from "../../constants";
 import { discoveryAgent } from "./subagents/discovery-agent";
 import { planAgent } from "./subagents/plan-agent";
 import { executeAgent } from "./subagents/execution-agent";
@@ -8,6 +8,7 @@ import { fl0wMessage, type AgentResult } from "./utils/message-utils";
 import { routingAgent } from "./subagents/routing-agent";
 import { summaryAgent } from "./subagents/summarize-agent";
 import { compactionHook } from "./hooks/compaction";
+import { planCheckHook } from "./hooks/plan-check";
 import { modelStore } from "../../store/model-store";
 import { toolsFor } from "./toolpacks";
 import { sessionUsageStore } from "../../store/session-usage-store";
@@ -62,7 +63,6 @@ const runPhase = async (
     if (part.type === "error") streamError ??= part.error;
     if (part.type === "finish-step") sessionUsageStore.record(part, window);
   }
-  // An aborted stream just ends, so stop here instead of waiting on its response or starting the next phase.
   abort.throwIfAborted();
   let produced: Awaited<AgentResult["response"]>["messages"];
   try {
@@ -78,58 +78,52 @@ const runPhase = async (
   return { result, transcript };
 };
 
-export const llmLoop = async (
+export const agentLoop = async (
   messages: Fl0wMessage[],
   selection: ModelSelection | null,
   onMessages: (messages: Fl0wMessage[]) => void,
   abort: AbortSignal,
   onStreamText: (text: string | null) => void,
-  // Reports which subagent phase is running (null once the loop ends) so the UI can collapse finished phases.
   onPhase?: (subagent: SubagentType | null) => void,
 ): Promise<AgentResult> => {
   try {
-    return await runLoop(messages, selection, onMessages, abort, onStreamText, onPhase);
+    const models = resolveModels(selection);
+    const state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText);
+
+    const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
+      abort.throwIfAborted();
+      const compacted = await compactionHook(transcript, models.SUMMARIZE, await modelStore.contextWindowFor(target));
+      if (compacted !== transcript) onMessages(compacted);
+      return compacted;
+    };
+
+    let transcript = messages;
+    let result: AgentResult;
+    if (state === "discovery") {
+      transcript = await compact(transcript, models.DISCOVERY);
+      ({ result, transcript } = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort, onPhase));
+      if (findPendingAskQuestion(transcript)) return result;
+    }
+
+    if (state === "discovery" || state === "plan") {
+      transcript = await compact(transcript, models.PLAN);
+      ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort, onPhase));
+    }
+
+    transcript = await compact(transcript, models.EXECUTE);
+    ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
+    for (let attempt = 0; attempt < PLAN_CHECK_MAX_RETRIES; attempt++) {
+      if (findPendingAskQuestion(transcript)) break;
+      const reminder = planCheckHook(transcript);
+      if (!reminder) break;
+      transcript = [...transcript, reminder];
+      onMessages(transcript);
+      transcript = await compact(transcript, models.EXECUTE);
+      ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
+    }
+    return (await runPhase("SUMMARY", summaryAgent, models.SUMMARIZE, onMessages, onStreamText, transcript, abort, onPhase)).result;
   } finally {
-    // A workflow covers one run; follow-up turns go through the normal routing.
     activeWorkflowStore.clear();
     onPhase?.(null);
   }
-}
-
-const runLoop = async (
-  messages: Fl0wMessage[],
-  selection: ModelSelection | null,
-  onMessages: (messages: Fl0wMessage[]) => void,
-  abort: AbortSignal,
-  onStreamText: (text: string | null) => void,
-  onPhase?: (subagent: SubagentType | null) => void,
-): Promise<AgentResult> => {
-  const models = resolveModels(selection);
-  // A workflow arrives with its plan already seeded, so it goes straight to execution.
-  const state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText);
-
-  const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
-    abort.throwIfAborted();
-    const compacted = await compactionHook(transcript, models.SUMMARIZE, await modelStore.contextWindowFor(target));
-    if (compacted !== transcript) onMessages(compacted);
-    return compacted;
-  };
-
-  let transcript = messages;
-  let result: AgentResult;
-  if (state === "discovery") {
-    transcript = await compact(transcript, models.DISCOVERY);
-    ({ result, transcript } = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort, onPhase));
-    // ask_question has no execute step: hand control back to the UI until the user answers.
-    if (findPendingAskQuestion(transcript)) return result;
-  }
-
-  if (state === "discovery" || state === "plan") {
-    transcript = await compact(transcript, models.PLAN);
-    ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort, onPhase));
-  }
-
-  transcript = await compact(transcript, models.EXECUTE);
-  ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
-  return (await runPhase("SUMMARY", summaryAgent, models.SUMMARIZE, onMessages, onStreamText, transcript, abort, onPhase)).result;
 }

@@ -50,13 +50,15 @@ conversational agent that plans, executes, and distills tasks into reusable work
 - **Skills** — discovered in `<workspace>/.agents/skills`, `~/.cursor/skills-cursor`, `~/.claude/skills`,
   and `FL0W_HOME/skills`; loaded via the `load_skill` tool.
 - **User tools** — `userToolLoader.loadUserTools()` registers custom tools from `FL0W_HOME/tools` in the `user` namespace (`services/external-tools/user-tool-service.ts`).
-- **Agent loop** — `llmLoop()` in `src/services/agent/agent-loop.ts`. `routingAgent` (the `ROUTER`
+- **Agent loop** — `agentLoop()` in `src/services/agent/agent-loop.ts`. `routingAgent` (the `ROUTER`
   decision model, `experimental_decide`) picks `discovery`/`plan`/`execute` per turn; the turn then runs
   DISCOVERY (skipped unless routed there; returns early on a pending `ask_question`), PLAN, EXECUTE, and a
   closing SUMMARY phase, each a subagent in `services/agent/subagents/` with its own model and tool
   allowlist (`toolpacks.ts`). `compactionHook` rewrites the transcript before each phase once it exceeds
   `COMPACTION_TOKEN_THRESHOLD` of that phase model's context window.
-- **Streaming** — `llmLoop` options take `onStreamText`, a live preview of assistant text as it generates
+  After EXECUTE, `planCheckHook` (`hooks/plan-check.ts`) re-runs EXECUTE with a reminder listing plan steps
+  never marked via `mark_step_complete`, up to `PLAN_CHECK_MAX_RETRIES` (2) times.
+- **Streaming** — `agentLoop` options take `onStreamText`, a live preview of assistant text as it generates
   (`null` once committed), and `onPhase`, the running subagent (`null` at end). The TUI renders them
   below the transcript; headless `session`/`workflow` print them as `stream_delta`/`stream_end` and
   `phase` JSON lines (`cli/cli-output.ts` `runHeadlessTurn`).
@@ -97,7 +99,7 @@ src/
    `user` namespace tools; `buildCapabilityCatalog()` and `loadModels()` feed the `/configure` dialog.
 4. `@opentui/core` boots and `<App />` renders the session. Applying a capability selection seeds
    front-load messages (workspace instructions, enabled `AGENTS.md`, skills catalog).
-5. Each turn, `llmLoop()` runs ROUTING → optional DISCOVERY (a pending `ask_question` ends the turn
+5. Each turn, `agentLoop()` runs ROUTING → optional DISCOVERY (a pending `ask_question` ends the turn
    with `needs_input`) → PLAN → EXECUTE → SUMMARY, compacting before each phase.
 6. Headless turns go through `runHeadlessTurn()` (`cli/cli-output.ts`), printing
    snapshot/message/stream/phase/result JSON lines; `fl0w session` exits `2` on `needs_input`.

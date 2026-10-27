@@ -1,6 +1,6 @@
 import type { CliOuputStatus, CliOutput, Fl0wMessage, ModelSelection, SubagentType } from '../models/agent';
 import { findPendingAskQuestion } from '../services/agent/utils/question-utils';
-import { llmLoop } from '../services/agent/agent-loop';
+import { agentLoop } from '../services/agent/agent-loop';
 import { modelStore } from '../store/model-store';
 import { contextPercentOf, sessionUsageStore, type SessionUsageState } from '../store/session-usage-store';
 
@@ -80,7 +80,7 @@ export const runHeadlessTurn = async ({ messages, models, sessionId, onMessages 
   const unsubscribeUsage = sessionUsageStore.subscribe(() => printUsage(sessionUsageStore.get()));
 
   await modelStore.loadModels();
-  const run = await llmLoop(messages, models, (next) => {
+  const run = await agentLoop(messages, models, (next) => {
     latest = next;
     printTranscript(next);
     onMessages?.(next);

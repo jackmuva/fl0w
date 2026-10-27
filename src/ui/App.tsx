@@ -1,6 +1,6 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { llmLoop, resolveModels } from "../services/agent/agent-loop"
+import { agentLoop, resolveModels } from "../services/agent/agent-loop"
 import {
   getCapabilitySelection,
   emptyCapabilitySelection,
@@ -257,7 +257,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      await llmLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, setActivePhase)
+      await agentLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, setActivePhase)
       setStatus("ready")
     } catch (error) {
       if (runAbort.signal.aborted) {

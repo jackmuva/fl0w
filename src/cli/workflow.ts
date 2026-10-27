@@ -99,7 +99,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
     fl0wMessage(buildWorkflowUserMessage(workflow, values.input ?? '')),
     ...buildWorkflowPlanMessages(workflow).map((message) => fl0wMessage(message)),
   ];
-  // set after applyCapabilitySelection so the seeded front-load messages don't capture it; llmLoop clears it
+  // set after applyCapabilitySelection so the seeded front-load messages don't capture it; agentLoop clears it
   activeWorkflowStore.set(workflow, values.input ?? '');
 
   const status = await runHeadlessTurn({
