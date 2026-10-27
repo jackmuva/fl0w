@@ -5,7 +5,7 @@ import {
 import type { Fl0wMessage } from '../../../models/agent';
 import { mcpToolKey, type McpTool } from '../../../models/mcp';
 import { retryModelCall } from '../../utils';
-import { toModelMessages } from '../utils/fl0w-message';
+import { toModelMessages } from '../utils/message-utils';
 import { estimateTextTokens } from './compaction';
 import { sessionUsageStore } from '../../../store/session-usage-store';
 import {

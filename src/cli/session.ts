@@ -3,12 +3,12 @@ import { resolve } from 'node:path';
 import type { CapabilityKind, CapabilitySelection, Fl0wMessage, ModelSelection } from '../models/agent';
 import type { SessionRecord } from '../models/session';
 import { createDraftSession, emptyModelSelection, parseModelsJson } from '../services/session-record';
-import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/agent/config';
-import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/ask-question';
+import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/capabilities';
+import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/question-utils';
 import { runHeadlessTurn } from './cli-output';
-import { fl0wMessage } from '../services/agent/utils/fl0w-message';
-import { loadUserTools } from '../services/agent/user-tools/loader';
-import { mcpClient } from '../services/mcp/mcp-client';
+import { fl0wMessage } from '../services/agent/utils/message-utils';
+import { userToolLoader } from '../services/external-tools/user-tool-service';
+import { mcpClient } from '../services/external-tools/mcp-client';
 import { finishHeadlessRun } from '../services/setup';
 import { requireLogin, runStartupSync } from '../services/setup';
 
@@ -139,7 +139,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   } catch (e) {
     console.error(`Error with MCP process: ${e}`);
   }
-  await loadUserTools();
+  await userToolLoader.loadUserTools();
 
   const capabilities = capabilitiesFromCli
     ?? session.capabilities

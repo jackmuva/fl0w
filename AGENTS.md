@@ -14,7 +14,7 @@ conversational agent that plans, executes, and distills tasks into reusable work
   `FL0W_HOME` (`~/.fl0w`) with `mcp.json`, `tools/`, `skills/`, and `workspace/`.
 - **Models** — each session carries a `ModelSelection` (`models/ai-model.ts`) over five phases:
   `ROUTER` (a decision model), `DISCOVERY`, `PLAN`, `EXECUTE`, `SUMMARIZE` (text models). Unset
-  phases fall back to `DEFAULT_MODELS` via `resolveModels()` in `llm-loop.ts`; the TUI's
+  phases fall back to `DEFAULT_MODELS` via `resolveModels()` in `agent-loop.ts`; the TUI's
   `/configure` dialog edits the selection. The model list and per-model context windows come
   from fl0w-work's `/api/cli/ai/models` route (`services/model-registry.ts` → `remote-api/ai-api.ts`
   `listModels()`); metadata includes per-model context windows and input token prices. `contextWindowFor()`
@@ -30,7 +30,7 @@ conversational agent that plans, executes, and distills tasks into reusable work
   sync with fl0w-work: reconciled at startup (`syncOnStartup()`, 8s timeout) and pushed ~1s after local
   writes (`watchLocalConfigWrites()`); `sync-state.json` (0600) records the last agreed content, and the
   newer copy wins when both sides changed. Enabled skills and user tools upload separately
-  (`services/skills/`, `services/agent/user-tools/sync-tools.ts`); `fl0w sync` runs `runFullSync()`
+  (`services/sync/sync-skills.ts`, `services/sync/sync-tools.ts`); `fl0w sync` runs `runFullSync()`
   (`services/sync/full-sync.ts`): config files, outbox flush, then every local skill and tool.
 - **MCP** — servers auto-connect at startup (with OAuth); failure is non-fatal (UI warning).
   On auth/connection tool-call failures, syncs config and reconnects once.
@@ -38,9 +38,10 @@ conversational agent that plans, executes, and distills tasks into reusable work
   catalog seed the conversation (`services/agent/hooks/front-load.ts`); a running workflow adds its
   step instructions (`activeWorkflowStore.set()`).
 - **Capabilities** — skills, MCP servers, `AGENTS.md`, and user tools are discoverable/toggleable.
-  `buildCapabilityCatalog()` lives in `services/capabilities.ts` (also backs `fl0w capabilities`);
-  the active selection lives in `services/agent/config.ts`.
-- **Tool output cap** — `executeNamedTool` (`services/agent/utils/tools.ts`) truncates results over
+  `services/capabilities.ts` builds the catalog (also backs `fl0w capabilities`), holds the active
+  selection (`getCapabilitySelection` / `applyCapabilitySelection`), and gates tools via
+  `isCapabilityEnabled` / `isMcpToolEnabled`.
+- **Tool output cap** — `executeNamedTool` (`services/agent/utils/tool-utils.ts`) truncates results over
   `TOOL_OUTPUT_MAX_CHARS` (20,000) and writes the full text to `FL0W_HOME/workspace/<sessionId>/`;
   the model reads it back via `default/read_full_tool_output`.
   Compaction lists every saved file in its summary; deleting a session removes its workspace folder.
@@ -48,8 +49,8 @@ conversational agent that plans, executes, and distills tasks into reusable work
 - **Workflows** — sessions distill into reusable workflows (`/generate`, `/workflow`; headless `fl0w workflow`).
 - **Skills** — discovered in `<workspace>/.agents/skills`, `~/.cursor/skills-cursor`, `~/.claude/skills`,
   and `FL0W_HOME/skills`; loaded via the `load_skill` tool.
-- **User tools** — `loadUserTools()` registers custom tools from `FL0W_HOME/tools` in the `user` namespace.
-- **Agent loop** — `llmLoop()` in `src/services/agent/llm-loop.ts`. `routingAgent` (the `ROUTER`
+- **User tools** — `userToolLoader.loadUserTools()` registers custom tools from `FL0W_HOME/tools` in the `user` namespace (`services/external-tools/user-tool-service.ts`).
+- **Agent loop** — `llmLoop()` in `src/services/agent/agent-loop.ts`. `routingAgent` (the `ROUTER`
   decision model, `experimental_decide`) picks `discovery`/`plan`/`execute` per turn; the turn then runs
   DISCOVERY (skipped unless routed there; returns early on a pending `ask_question`), PLAN, EXECUTE, and a
   closing SUMMARY phase, each a subagent in `services/agent/subagents/` with its own model and tool
@@ -72,15 +73,15 @@ src/
 ├── cli/               # Headless commands (help, sync, session, workflow) + JSON-lines output
 ├── models/            # agent, ai-model, auth, mcp, session, sync, ui, workflow types
 ├── services/          # Business logic
-│   ├── agent/         # llm-loop, subagents, toolpacks, config, hooks, default-tools, user-tools, utils
+│   ├── agent/         # agent-loop, subagents, toolpacks, hooks, default-tools, user-tools, utils
 │   ├── auth/          # login/logout/whoami, token.ts, auth-store, callback-server
-│   ├── mcp/           # mcp-client, oauth-provider
+│   ├── external-tools/ # mcp-client, oauth-provider, user-tool-service, callback-server
 │   ├── remote-api/    # fl0w-work HTTP: ai-api (model list), sync-api
 │   ├── session/       # session records + fl0w-work session repo
 │   ├── skills/        # skill mirroring + sync with fl0w-work
 │   ├── sync/          # config-file sync, full-sync, outbox, sync-state
 │   ├── workflow/      # generate & extract tool calls
-│   ├── capabilities.ts     # capability catalog + `fl0w capabilities`
+│   ├── capabilities.ts     # catalog, selection, `fl0w capabilities`
 │   ├── model-registry.ts   # fl0w-work model list cache + contextWindowFor
 │   └── setup.ts            # ensureFl0wHome, requireLogin, startup sync, headless teardown
 └── ui/                # App, hooks, lib, components
@@ -92,7 +93,7 @@ src/
    `sync`, `workflow`, `session`, and `capabilities` up front. Bare `fl0w` requires login
    (`requireLogin()`) and reconciles config with fl0w-work (`runStartupSync()`) before booting the TUI.
 2. `tui.tsx` runs `mcpClient.loadConfig()` + `connectAll()` (optional OAuth); failures warn, never crash.
-3. The latest workspace session and all workflows load from fl0w-work; `loadUserTools()` registers
+3. The latest workspace session and all workflows load from fl0w-work; `userToolLoader.loadUserTools()` registers
    `user` namespace tools; `buildCapabilityCatalog()` and `loadModels()` feed the `/configure` dialog.
 4. `@opentui/core` boots and `<App />` renders the session. Applying a capability selection seeds
    front-load messages (workspace instructions, enabled `AGENTS.md`, skills catalog).
@@ -114,12 +115,12 @@ src/
 ## Agent Instructions
 
 - **Read before editing** — understand `src/index.tsx`, `src/tui.tsx`, `src/services/setup.ts`,
-  and `src/services/mcp/mcp-client.ts` before touching startup, config, or connection logic;
-  `src/services/agent/llm-loop.ts` before touching the agent runtime.
+  and `src/services/external-tools/mcp-client.ts` before touching startup, config, or connection logic;
+  `src/services/agent/agent-loop.ts` before touching the agent runtime.
 - **Runtime constants** — plain exports in `src/constants.ts`; per-session models resolve via
   `resolveModels()` against `DEFAULT_MODELS`, not config files.
 - **Failure-tolerant** — never crash on missing MCP config; surface UI warnings.
 - **Capability types** — import `CapabilityCatalog`/`CapabilityKind`/`CapabilitySelection`
-  from `src/models/agent.ts`; the catalog is built in `src/services/capabilities.ts`.
+  from `src/models/agent.ts`; catalog and active selection live in `src/services/capabilities.ts`.
 - **Graceful shutdown** — MCP-touching code must respect the clean-close-on-exit path.
 - **Verify** — after changes run `bun run lint` and confirm `bun dev` boots.

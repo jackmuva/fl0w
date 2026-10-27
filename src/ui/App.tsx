@@ -1,15 +1,15 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { llmLoop, resolveModels } from "../services/agent/llm-loop"
+import { llmLoop, resolveModels } from "../services/agent/agent-loop"
 import {
   getCapabilitySelection,
   emptyCapabilitySelection,
   isCatalogEmpty,
   mergeCapabilitySelection,
-} from "../services/agent/config"
-import { findPendingAskQuestion } from "../services/agent/utils/ask-question"
-import { fl0wMessage } from "../services/agent/utils/fl0w-message"
-import { listAllTools } from "../services/agent/utils/tools"
+} from "../services/capabilities"
+import { findPendingAskQuestion } from "../services/agent/utils/question-utils"
+import { fl0wMessage } from "../services/agent/utils/message-utils"
+import { listAllTools } from "../services/agent/utils/tool-utils"
 import { buildWorkflowPlanMessages, buildWorkflowUserMessage } from "../services/workflow/build-message"
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { deleteWorkflow, listWorkflows, saveWorkflow } from "../store/workflow-store"

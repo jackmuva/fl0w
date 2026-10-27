@@ -2,7 +2,7 @@ import { cp, mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { FL0W_SKILLS_DIR } from '../../constants';
 import type { CapabilitySelection } from '../../models/agent';
-import type { SkillSummary } from '../agent/hooks/front-load';
+import type { SkillSummary } from '../external-tools/skill-service';
 import { authService } from '../auth/auth-service';
 import { listRemoteSkills, putSkillBundle } from '../remote-api/sync-api';
 

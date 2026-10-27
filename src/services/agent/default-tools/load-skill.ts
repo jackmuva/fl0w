@@ -1,5 +1,5 @@
 import { jsonSchema, tool } from 'ai';
-import { loadSkillContent, listSkills } from '../hooks/front-load';
+import { skillService } from '../../external-tools/skill-service';
 
 export type LoadSkillInput = {
   name: string;
@@ -33,12 +33,12 @@ export const executeLoadSkill = async ({ name }: LoadSkillInput): Promise<string
     return 'Error: skill name is required';
   }
 
-  const available = listSkills().map((skill) => skill.name);
+  const available = skillService.listSkills().map((skill) => skill.name);
   if (available.length === 0) {
     return 'No skills are configured.';
   }
 
-  const content = await loadSkillContent(trimmed);
+  const content = await skillService.loadSkillContent(trimmed);
   if (content === null) {
     return `Unknown skill "${trimmed}". Available skills: ${available.join(', ')}`;
   }

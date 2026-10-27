@@ -4,14 +4,14 @@ import { DEFAULT_MODELS } from "../../constants";
 import { discoveryAgent } from "./subagents/discovery-agent";
 import { planAgent } from "./subagents/plan-agent";
 import { executeAgent } from "./subagents/execution-agent";
-import { fl0wMessage, type AgentResult } from "./utils/fl0w-message";
+import { fl0wMessage, type AgentResult } from "./utils/message-utils";
 import { routingAgent } from "./subagents/routing-agent";
 import { summaryAgent } from "./subagents/summarize-agent";
 import { compactionHook } from "./hooks/compaction";
 import { modelStore } from "../../store/model-store";
 import { toolsFor } from "./toolpacks";
 import { sessionUsageStore } from "../../store/session-usage-store";
-import { findPendingAskQuestion } from "./utils/ask-question";
+import { findPendingAskQuestion } from "./utils/question-utils";
 import { activeWorkflowStore } from "../../store/active-workflow-store";
 
 export type Phase = (

@@ -3,7 +3,7 @@ import { rm } from 'node:fs/promises';
 import { sessionWorkspacePath, TOOL_OUTPUT_MAX_CHARS } from '../../../constants';
 import type { McpToolResult } from '../../../models/mcp';
 import { executeReadFullToolOutput, TOOL_OUTPUT_FILE_PATTERN } from './read-full-tool-output';
-import { capToolOutput } from '../utils/tools';
+import { capToolOutput } from '../utils/tool-utils';
 
 const sessionId = `test-${crypto.randomUUID()}`;
 

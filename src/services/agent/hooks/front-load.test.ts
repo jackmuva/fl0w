@@ -2,17 +2,14 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { FL0W_HOME } from '../../../constants';
-import { setCapabilitySelection } from '../config';
+import { setCapabilitySelection } from '../../capabilities';
 import type { WorkflowRecord } from '../../../models/workflow';
 import { activeWorkflowStore } from '../../../store/active-workflow-store';
+import { skillService } from '../../external-tools/skill-service';
 import {
   AGENTS_MD_FILENAME,
   discoverAgentsMd,
-  discoverSkills,
   frontLoadMessages,
-  getSkillsDirs,
-  listSkills,
-  loadSkillContent,
 } from './front-load';
 
 const tempRoot = join(import.meta.dir, '__fixtures__', 'skills-front-load');
@@ -48,16 +45,16 @@ describe('frontLoadMessages skills', () => {
     expect(String(catalog?.content)).toContain('Use for demo tasks.');
     expect(String(catalog?.content)).not.toContain('Follow these detailed steps.');
 
-    const content = await loadSkillContent('demo-skill');
+    const content = await skillService.loadSkillContent('demo-skill');
     expect(content).toContain('Follow these detailed steps.');
   });
 
   test('getSkillsDirs includes the workspace skills directory first', () => {
-    expect(getSkillsDirs(tempRoot)[0]).toBe(join(tempRoot, '.agents', 'skills'));
+    expect(skillService.getSkillsDirs(tempRoot)[0]).toBe(join(tempRoot, '.agents', 'skills'));
   });
 
   test('getSkillsDirs lists FL0W_HOME/skills last', () => {
-    const dirs = getSkillsDirs(tempRoot);
+    const dirs = skillService.getSkillsDirs(tempRoot);
     expect(dirs[dirs.length - 1]).toBe(join(FL0W_HOME, 'skills'));
   });
 
@@ -72,7 +69,7 @@ describe('frontLoadMessages skills', () => {
       );
     }
 
-    const skills = await discoverSkills([join(tempRoot, 'skills'), join(tempRoot, 'fl0w-skills')]);
+    const skills = await skillService.discoverSkills([join(tempRoot, 'skills'), join(tempRoot, 'fl0w-skills')]);
     expect(skills).toEqual([{
       name: 'shared-skill',
       description: 'From workspace.',
@@ -89,11 +86,11 @@ describe('frontLoadMessages skills', () => {
     );
 
     setCapabilitySelection({ skills: ['workspace-skill'], mcpServers: [], userTools: [], agentsMd: [] });
-    const messages = await frontLoadMessages(tempRoot, { skillsDirs: getSkillsDirs(tempRoot) });
+    const messages = await frontLoadMessages(tempRoot, { skillsDirs: skillService.getSkillsDirs(tempRoot) });
     const catalog = messages.map((message) => String(message.content)).join('\n');
 
     expect(catalog).toContain('Workspace-local skill.');
-    expect(await loadSkillContent('workspace-skill')).toContain('Body');
+    expect(await skillService.loadSkillContent('workspace-skill')).toContain('Body');
   });
 
   test('discovers skills from a custom directory', async () => {
@@ -104,7 +101,7 @@ describe('frontLoadMessages skills', () => {
       '# Lint Helper\nRun lint before committing.',
     );
 
-    const skills = await discoverSkills([join(tempRoot, 'custom')]);
+    const skills = await skillService.discoverSkills([join(tempRoot, 'custom')]);
     expect(skills).toEqual([{
       name: 'lint-helper',
       description: 'Run lint before committing.',
@@ -130,8 +127,8 @@ describe('frontLoadMessages skills', () => {
 
     expect(catalog).toContain('kept-skill description');
     expect(catalog).not.toContain('dropped-skill description');
-    expect(listSkills().map((skill) => skill.name)).toEqual(['kept-skill']);
-    expect(await loadSkillContent('dropped-skill')).toBeNull();
+    expect(skillService.listSkills().map((skill) => skill.name)).toEqual(['kept-skill']);
+    expect(await skillService.loadSkillContent('dropped-skill')).toBeNull();
   });
 });
 

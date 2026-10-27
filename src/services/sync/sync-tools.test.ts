@@ -1,12 +1,12 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import * as constants from '../../../constants';
+import * as constants from '../../constants';
 
 // constants may already be loaded by other test files, so patch the module instead of setting FL0W_HOME
 const home = join(import.meta.dir, '__fixtures__', 'tool-sync');
 const toolsDir = join(home, 'tools');
-mock.module('../../../constants', () => ({
+mock.module('../../constants', () => ({
   ...constants,
   FL0W_API_URL: 'https://fl0w.test',
   FL0W_HOME: home,
@@ -14,10 +14,10 @@ mock.module('../../../constants', () => ({
   APP_CONFIG_PATH: join(home, 'config.json'),
   AUTH_PATH: join(home, 'auth.json'),
 }));
-const { AUTH_PATH } = await import('../../../constants');
+const { AUTH_PATH } = await import('../../constants');
 if (!AUTH_PATH.startsWith(home)) throw new Error('tool-sync test is not isolated');
-const { loadUserTools } = await import('./loader');
-const { packUserTool, syncEnabledTools } = await import('./sync-tools');
+const { userToolLoader } = await import('../external-tools/user-tool-service');
+const { syncToolService } = await import('./sync-tools');
 
 let server: Map<string, { contentHash: string, size: number, bundle: Uint8Array }>;
 let requests: string[];
@@ -59,7 +59,7 @@ beforeAll(async () => {
   await writeFile(join(toolsDir, 'stocks.ts'), toolSource('stocks'));
   await writeFile(join(toolsDir, '_cert.pem'), 'pem');
   await writeFile(join(toolsDir, '.env'), 'TOKEN=x');
-  await loadUserTools(toolsDir);
+  await userToolLoader.loadUserTools(toolsDir);
 });
 
 afterAll(async () => {
@@ -80,7 +80,7 @@ afterEach(() => {
 
 describe('packUserTool', () => {
   test('bundles the tool file with the _-prefixed helpers, not other tools or secrets', async () => {
-    const packed = await packUserTool('weather.ts');
+    const packed = await syncToolService.packUserTool('weather.ts');
     expect(packed.files).toEqual(['_helpers.ts', 'weather.ts']);
 
     const unpacked = await new Bun.Archive(packed.bundle).files();
@@ -91,28 +91,28 @@ describe('packUserTool', () => {
 
 describe('syncEnabledTools', () => {
   test('does nothing when signed out', async () => {
-    expect(await syncEnabledTools(selection('weather'))).toBeNull();
+    expect(await syncToolService.syncEnabledTools(selection('weather'))).toBeNull();
     expect(requests).toEqual([]);
   });
 
   test('makes no request when no enabled tool is loaded', async () => {
     await writeJson('auth.json', { fl0w: fl0wLogin });
-    expect(await syncEnabledTools(selection('ghost'))).toEqual({});
+    expect(await syncToolService.syncEnabledTools(selection('ghost'))).toEqual({});
     expect(requests).toEqual([]);
   });
 
   test('uploads enabled tools by exported name once and skips them while unchanged', async () => {
     await writeJson('auth.json', { fl0w: fl0wLogin });
 
-    expect(await syncEnabledTools(selection('weather'))).toEqual({ weather: 'pushed' });
+    expect(await syncToolService.syncEnabledTools(selection('weather'))).toEqual({ weather: 'pushed' });
     expect([...server.keys()]).toEqual(['weather']);
 
     requests = [];
-    expect(await syncEnabledTools(selection('weather'))).toEqual({ weather: 'unchanged' });
+    expect(await syncToolService.syncEnabledTools(selection('weather'))).toEqual({ weather: 'unchanged' });
     expect(requests).toEqual(['GET /api/sync/tools']);
 
     // a helper change re-uploads the tools that may import it
     await writeFile(join(toolsDir, '_helpers.ts'), 'export const greet = (who: string) => `hello ${who}`;\n');
-    expect(await syncEnabledTools(selection('weather', 'stocks'))).toEqual({ weather: 'pushed', stocks: 'pushed' });
+    expect(await syncToolService.syncEnabledTools(selection('weather', 'stocks'))).toEqual({ weather: 'pushed', stocks: 'pushed' });
   });
 });

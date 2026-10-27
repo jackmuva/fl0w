@@ -1,6 +1,6 @@
 import type { CliOuputStatus, CliOutput, Fl0wMessage, ModelSelection, SubagentType } from '../models/agent';
-import { findPendingAskQuestion } from '../services/agent/utils/ask-question';
-import { llmLoop } from '../services/agent/llm-loop';
+import { findPendingAskQuestion } from '../services/agent/utils/question-utils';
+import { llmLoop } from '../services/agent/agent-loop';
 import { modelStore } from '../store/model-store';
 import { contextPercentOf, sessionUsageStore, type SessionUsageState } from '../store/session-usage-store';
 

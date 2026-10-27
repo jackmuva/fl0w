@@ -6,7 +6,7 @@ import {
 } from 'ai';
 import type { Fl0wMessage } from '../../models/agent';
 import type { StoredSession } from '../../models/session';
-import { emptyCapabilitySelection } from '../agent/config';
+import { emptyCapabilitySelection } from '../capabilities';
 import { mcpToolKey, type McpTool } from '../../models/mcp';
 import {
   DEFAULT_ASK_QUESTION_TOOL,

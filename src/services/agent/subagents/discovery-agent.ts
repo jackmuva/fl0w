@@ -1,7 +1,7 @@
 import { isStepCount, streamText, type ModelMessage, type ToolSet } from "ai";
 import { MAX_ITERATIONS } from "../../../constants";
 import type { Fl0wMessage } from "../../../models/agent";
-import { toModelMessages, type AgentResult } from "../utils/fl0w-message";
+import { toModelMessages, type AgentResult } from "../utils/message-utils";
 import { frontLoadInstructions } from "../hooks/front-load";
 
 export const discoveryAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolSet | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {

@@ -1,76 +1,18 @@
 import type { ModelMessage } from 'ai';
-import { readdir, readFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import { join, resolve } from 'path';
-import { FL0W_HOME } from '../../../constants';
+import { skillService } from '../../external-tools/skill-service';
 import type { WorkflowRecord } from '../../../models/workflow';
 import {
   activeWorkflowStore,
   type ActiveWorkflow,
 } from '../../../store/active-workflow-store';
-import { isCapabilityEnabled } from '../config';
+import { isCapabilityEnabled } from '../../capabilities';
 import { DEFAULT_MARK_STEP_COMPLETE_TOOL } from '../default-tools/utils';
 
 export const AGENTS_MD_FILENAME = 'AGENTS.md';
-export const SKILL_FILENAME = 'SKILL.md';
-
-export type SkillSummary = {
-  name: string;
-  description: string;
-  path: string;
-};
-
-export const getSkillsDirs = (cwd = process.cwd()): string[] => [
-  join(resolve(cwd), '.agents', 'skills'),
-  join(homedir(), '.cursor', 'skills-cursor'),
-  join(homedir(), '.claude', 'skills'),
-  join(FL0W_HOME, 'skills'),
-];
-
-let skillRegistry = new Map<string, SkillSummary>();
 
 export type { ActiveWorkflow };
 export { activeWorkflowStore };
-
-const parseFrontmatter = (content: string): Record<string, string> => {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  const body = match?.[1];
-  if (!body) return {};
-
-  const fields: Record<string, string> = {};
-  for (const line of body.split('\n')) {
-    const separator = line.indexOf(':');
-    if (separator === -1) continue;
-    const key = line.slice(0, separator).trim();
-    const value = line.slice(separator + 1).trim();
-    if (key) fields[key] = value;
-  }
-  return fields;
-};
-
-const fallbackDescription = (content: string): string => {
-  const withoutFrontmatter = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
-  for (const line of withoutFrontmatter.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    return trimmed;
-  }
-  return 'No description provided';
-};
-
-const parseSkillFile = async (skillPath: string, dirName: string): Promise<SkillSummary | null> => {
-  const file = Bun.file(skillPath);
-  if (!(await file.exists())) return null;
-
-  const content = (await file.text()).trim();
-  if (!content) return null;
-
-  const frontmatter = parseFrontmatter(content);
-  const name = frontmatter.name?.trim() || dirName;
-  const description = frontmatter.description?.trim() || fallbackDescription(content);
-
-  return { name, description, path: skillPath };
-};
 
 export const discoverAgentsMd = async (
   rootDir = process.cwd(),
@@ -86,57 +28,6 @@ export const discoverAgentsMd = async (
     name: AGENTS_MD_FILENAME,
     description: 'Workspace agent instructions loaded at session start',
   }];
-};
-
-export const discoverSkills = async (dirs = getSkillsDirs(), fl0wOnly: boolean = false): Promise<SkillSummary[]> => {
-  const byName = new Map<string, SkillSummary>();
-
-  for (const dir of dirs) {
-    if (fl0wOnly && dir !== join(FL0W_HOME, 'skills')) continue;
-
-    let entries: string[];
-    try {
-      entries = await readdir(dir);
-    } catch {
-      continue;
-    }
-
-    for (const entry of entries.sort()) {
-      const skillPath = join(dir, entry, SKILL_FILENAME);
-      const summary = await parseSkillFile(skillPath, entry);
-      if (!summary || byName.has(summary.name)) continue;
-      byName.set(summary.name, summary);
-    }
-  }
-
-  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
-};
-
-export const listSkills = (): SkillSummary[] => [...skillRegistry.values()];
-
-export const loadSkillContent = async (name: string): Promise<string | null> => {
-  const skill = skillRegistry.get(name);
-  if (!skill) return null;
-
-  const content = (await readFile(skill.path, 'utf8')).trim();
-  return content || null;
-};
-
-const formatSkillsCatalog = (skills: SkillSummary[]): string => {
-  const entries = skills
-    .map((skill) =>
-      `<agent_skill fullPath="${skill.path}">\n${skill.description}\n</agent_skill>`,
-    )
-    .join('\n\n');
-
-  return [
-    '<available_skills>',
-    'Skills are special instructions for specific tasks. Only read a skill when it is relevant.',
-    'When a skill applies, call the load_skill tool with the skill name before following it.',
-    '',
-    entries,
-    '</available_skills>',
-  ].join('\n');
 };
 
 const formatWorkflowStep = (step: WorkflowRecord['steps'][number]): string => {
@@ -183,11 +74,11 @@ export const frontLoadMessages = async (rootDir = process.cwd(), options?: { ski
     }
   }
 
-  const skills = (await discoverSkills(options?.skillsDirs ?? getSkillsDirs(rootDir)))
+  const skills = (await skillService.discoverSkills(options?.skillsDirs ?? skillService.getSkillsDirs(rootDir)))
     .filter((skill) => isCapabilityEnabled('skills', skill.name));
-  skillRegistry = new Map(skills.map((skill) => [skill.name, skill]));
+  skillService.setActiveSkills(skills);
   if (skills.length > 0) {
-    messages.push({ role: 'system', content: formatSkillsCatalog(skills) });
+    messages.push({ role: 'system', content: skillService.formatSkillsCatalog(skills) });
   }
 
   const workflow = activeWorkflowStore.get();

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { DEFAULT_MODELS } from '../../constants';
-import { resolveModels } from './llm-loop';
+import { resolveModels } from './agent-loop';
 
 describe('resolveModels', () => {
   test('falls back to defaults when no selection is stored', () => {

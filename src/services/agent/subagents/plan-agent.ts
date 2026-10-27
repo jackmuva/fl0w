@@ -2,7 +2,7 @@ import { isStepCount, streamText, type ModelMessage, type ToolSet } from "ai";
 import type { Fl0wMessage } from "../../../models/agent";
 import { frontLoadInstructions } from "../hooks/front-load";
 import { MAX_ITERATIONS } from "../../../constants";
-import { toModelMessages, type AgentResult } from "../utils/fl0w-message";
+import { toModelMessages, type AgentResult } from "../utils/message-utils";
 
 export const planAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolSet | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
   const systemPrompt = `You are a planning agent. Based on the as-needed background research and problem clarification, use the default/create_plan tool to map a plan for an execution-focused agent to complete step-by-step. Give each step a 1-based \`index\` and a concise \`description\`; the execution agent marks steps complete by index.`;

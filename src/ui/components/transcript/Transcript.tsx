@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import type { Fl0wMessage, SubagentType } from "../../../models/agent"
-import { fl0wMessage } from "../../../services/agent/utils/fl0w-message"
+import { fl0wMessage } from "../../../services/agent/utils/message-utils"
 import type { PlanProgress } from "../../lib/format/message"
 import { groupTranscript, isPhaseSubagent } from "../../lib/format/segments"
 import { MessageContent } from "../primitives/MessageContent"

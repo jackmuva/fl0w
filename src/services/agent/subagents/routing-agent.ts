@@ -1,6 +1,6 @@
 import { experimental_decide, type JSONValue } from 'ai';
 import type { Fl0wMessage } from '../../../models/agent';
-import { findLastUserAndSummaryMessages } from '../utils/fl0w-message';
+import { findLastUserAndSummaryMessages } from '../utils/message-utils';
 import { sessionUsageStore } from '../../../store/session-usage-store';
 
 export const routingAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void): Promise<"discovery" | "plan" | "execute"> => {

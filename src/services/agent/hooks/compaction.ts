@@ -6,7 +6,7 @@ import {
 } from '../../../constants';
 import { sessionUsageStore } from '../../../store/session-usage-store';
 import type { Fl0wMessage } from '../../../models/agent';
-import { fl0wMessage } from '../utils/fl0w-message';
+import { fl0wMessage } from '../utils/message-utils';
 import { TOOL_OUTPUT_FILE_PATTERN, toolOutputFileNotice } from '../default-tools/read-full-tool-output';
 
 const KEEP_ASSISTANT_MESSAGE = 4;

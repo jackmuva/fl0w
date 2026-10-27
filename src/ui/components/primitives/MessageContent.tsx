@@ -2,7 +2,7 @@ import type { ModelMessage } from "ai"
 import type { Fl0wMessage } from "../../../models/agent"
 import { parseUserAttachments } from "../../lib/input-completion/at-files"
 import { parseWorkflowPrompt } from "../../../services/workflow/build-message"
-import { ASK_QUESTION_ACTION } from "../../../services/agent/utils/tools"
+import { ASK_QUESTION_ACTION } from "../../../services/agent/utils/tool-utils"
 import { renderToolCall, renderToolResult } from "../../tool-renderers"
 import {
   formatMessageContent,

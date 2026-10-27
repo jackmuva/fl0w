@@ -1,12 +1,12 @@
 import { jsonSchema, tool, type generateText } from "ai";
 import { mcpToolKey, type McpTool, type McpToolResult } from "../../../models/mcp";
 import { sessionWorkspacePath, TOOL_OUTPUT_MAX_CHARS, WORKFLOW_RUN } from "../../../constants";
-import { mcpClient } from "../../mcp/mcp-client";
-import { isCapabilityEnabled, isMcpToolEnabled } from "../config";
+import { mcpClient } from "../../external-tools/mcp-client";
+import { isCapabilityEnabled, isMcpToolEnabled } from "../../capabilities";
 import { executeDefaultTool, getDefaultTool, isDefaultToolKey, listDefaultTools } from "../default-tools";
 import { DEFAULT_ASK_QUESTION_TOOL, DEFAULT_CREATE_PLAN_TOOL, defaultToolKey, READ_FULL_TOOL_OUTPUT_TOOL } from "../default-tools/utils";
-import { listSkills } from "../hooks/front-load";
-import { executeUserTool, isUserToolKey, listUserTools } from "../user-tools/loader";
+import { skillService } from "../../external-tools/skill-service";
+import { isUserToolKey, userToolLoader } from "../../external-tools/user-tool-service";
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { toolOutputFileNotice } from "../default-tools/read-full-tool-output";
@@ -43,11 +43,11 @@ export const describeToolCallGenerationFailure = (
 /** `unattended` (default: a `fl0w workflow` run) withholds ask_question, since nobody is there to answer it. */
 export const listAllTools = async (unattended = WORKFLOW_RUN) => [
   ...listDefaultTools().filter((entry) => {
-    if (entry.name === 'load_skill' && listSkills().length === 0) return false;
+    if (entry.name === 'load_skill' && skillService.listSkills().length === 0) return false;
     if (unattended && entry.name === 'ask_question') return false;
     return true;
   }),
-  ...listUserTools().filter((entry) => isCapabilityEnabled('userTools', entry.name)),
+  ...userToolLoader.listUserTools().filter((entry) => isCapabilityEnabled('userTools', entry.name)),
   ...(await mcpClient.listTools()).filter((entry) => isMcpToolEnabled(entry)),
 ];
 
@@ -107,7 +107,7 @@ export const executeNamedTool = async (
   const result = isDefaultToolKey(toolName)
     ? await executeDefaultTool(name, input)
     : isUserToolKey(toolName)
-      ? await executeUserTool(name, input)
+      ? await userToolLoader.executeUserTool(name, input)
       : await mcpClient.callTool(server, name, input);
   if (!context || UNCAPPED_TOOLS.has(toolName)) return result;
   return capToolOutput(result, context.toolCallId, context.sessionId);

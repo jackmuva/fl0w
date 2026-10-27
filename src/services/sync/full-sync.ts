@@ -1,8 +1,8 @@
 import type { CapabilitySelection } from '../../models/agent';
-import { discoverSkills } from '../agent/hooks/front-load';
-import { emptyCapabilitySelection } from '../agent/config';
-import { listUserTools, loadUserTools } from '../agent/user-tools/loader';
-import { syncEnabledTools, type ToolSyncResults } from '../agent/user-tools/sync-tools';
+import { skillService } from '../external-tools/skill-service';
+import { emptyCapabilitySelection } from '../capabilities';
+import { userToolLoader } from '../external-tools/user-tool-service';
+import { syncToolService, type ToolSyncResults } from './sync-tools';
 import { syncSkillService, type SkillSyncResults } from './sync-skills';
 import { authService } from '../auth/auth-service';
 import { configSyncStore, type SyncResults } from './config-sync';
@@ -35,16 +35,16 @@ export async function runFullSync(): Promise<FullSyncResult> {
   await outboxStore.flushOutbox();
   const pendingWrites = outboxStore.pendingOps().length;
 
-  const catalog = await discoverSkills();
-  await loadUserTools();
+  const catalog = await skillService.discoverSkills();
+  await userToolLoader.loadUserTools();
   const selection: CapabilitySelection = {
     ...emptyCapabilitySelection(),
     skills: catalog.map((skill) => skill.name),
-    userTools: listUserTools().map((tool) => tool.name),
+    userTools: userToolLoader.listUserTools().map((tool) => tool.name),
   };
   await syncSkillService.mirrorEnabledSkills(selection, catalog);
   const skills = await syncSkillService.syncEnabledSkills(selection, catalog);
-  const tools = await syncEnabledTools(selection);
+  const tools = await syncToolService.syncEnabledTools(selection);
 
   return { skipped: null, config, pendingWrites, skills, tools };
 }

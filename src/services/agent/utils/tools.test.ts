@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { listAllTools } from './tools';
+import { listAllTools } from './tool-utils';
 
 const toolNames = async (unattended: boolean) => (await listAllTools(unattended)).map((entry) => entry.name);
 

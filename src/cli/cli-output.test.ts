@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import type { CliOutput } from '../models/agent';
-import { fl0wMessage } from '../services/agent/utils/fl0w-message';
+import { fl0wMessage } from '../services/agent/utils/message-utils';
 import { createPhasePrinter, createStreamPrinter, createTranscriptPrinter, createUsagePrinter } from './cli-output';
 
 describe('createTranscriptPrinter', () => {

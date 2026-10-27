@@ -1,6 +1,6 @@
 import type { Fl0wMessage } from "../../../models/agent";
 import type { AskQuestionInput, AskQuestionItem } from "../default-tools/ask-question";
-import { ASK_QUESTION_ACTION } from "./tools";
+import { ASK_QUESTION_ACTION } from "./tool-utils";
 
 export type PendingAskQuestion = {
   toolCallId: string;

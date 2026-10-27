@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionListEntry, SessionRecord, StoredSession } from '../../models/session';
 import { deleteSession, getSession, listSessions, saveSession } from '../../store/session-store';
 import { createDraftSession } from '../../services/session-record';
-import { applyCapabilitySelection } from '../../services/agent/config';
+import { applyCapabilitySelection } from '../../services/capabilities';
 
 type SetMessagesAction = Fl0wMessage[] | ((previous: Fl0wMessage[]) => Fl0wMessage[]);
 

@@ -5,11 +5,11 @@ import type { WorkflowRecord } from '../models/workflow';
 import type { SessionRecord } from '../models/session';
 import { createDraftSession, emptyModelSelection } from '../services/session-record';
 import { getWorkflow } from '../store/workflow-store';
-import { applyCapabilitySelection } from '../services/agent/config';
+import { applyCapabilitySelection } from '../services/capabilities';
 import { runHeadlessTurn } from './cli-output';
-import { fl0wMessage } from '../services/agent/utils/fl0w-message';
-import { loadUserTools } from '../services/agent/user-tools/loader';
-import { mcpClient } from '../services/mcp/mcp-client';
+import { fl0wMessage } from '../services/agent/utils/message-utils';
+import { userToolLoader } from '../services/external-tools/user-tool-service';
+import { mcpClient } from '../services/external-tools/mcp-client';
 import { finishHeadlessRun } from '../services/setup';
 import { requireLogin, runStartupSync } from '../services/setup';
 import { buildWorkflowPlanMessages, buildWorkflowUserMessage } from '../services/workflow/build-message';
@@ -89,7 +89,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   } catch (e) {
     console.error(`Error with MCP process: ${e}`);
   }
-  await loadUserTools();
+  await userToolLoader.loadUserTools();
 
   const seed = await applyCapabilitySelection(workflow.requiredCapabilities);
   const messages: Fl0wMessage[] = [

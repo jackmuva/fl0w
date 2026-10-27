@@ -3,10 +3,8 @@ import type { SubagentType } from "../../models/agent";
 import type { McpTool } from "../../models/mcp";
 import { USER_TOOL_SERVER } from "../../constants";
 import { DEFAULT_TOOL_SERVER } from "./default-tools/utils";
-import { listAllTools, toAiSdkTools } from "./utils/tools";
+import { listAllTools, toAiSdkTools } from "./utils/tool-utils";
 
-// Which tools each subagent may call. Default tools are listed by bare name; `mcp` adds every enabled MCP tool.
-// `exclude` grants every tool except the listed default tools.
 type Toolpack = 'all' | { exclude: string[] } | { default: string[], mcp?: boolean };
 
 export const TOOLPACKS: Record<SubagentType, Toolpack> = {

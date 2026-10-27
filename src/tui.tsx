@@ -1,5 +1,5 @@
-import { loadUserTools } from './services/agent/user-tools/loader';
-import { mcpClient } from './services/mcp/mcp-client';
+import { userToolLoader } from './services/external-tools/user-tool-service';
+import { mcpClient } from './services/external-tools/mcp-client';
 import { buildCapabilityCatalog } from './services/capabilities';
 import { modelStore } from './store/model-store';
 import type { StoredSession } from './models/session';
@@ -63,7 +63,7 @@ export async function runTui({ syncWarning }: { syncWarning: string | null }): P
   const { initialMessage: newMessage, initialSession, initialWorkflows } = await loadWorkspace(initialMessage);
   initialMessage = newMessage;
 
-  await loadUserTools();
+  await userToolLoader.loadUserTools();
   const capabilityCatalog = await buildCapabilityCatalog();
   const models = [...(await modelStore.loadModels()).values()];
 

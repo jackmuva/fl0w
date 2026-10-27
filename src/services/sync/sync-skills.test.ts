@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as constants from '../../constants';
-import type { SkillSummary } from '../agent/hooks/front-load';
+import type { SkillSummary } from '../external-tools/skill-service';
 
 // constants may already be loaded by other test files, so patch the module instead of setting FL0W_HOME
 const home = join(import.meta.dir, '__fixtures__', 'skill-sync');
