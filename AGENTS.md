@@ -32,8 +32,8 @@ conversational agent that plans, executes, and distills tasks into reusable work
   writes are pushed ~1s later (`watchLocalConfigWrites()`), while manual config edits sync at startup or
   via `fl0w sync`. Local fl0w account tokens are excluded from the remote `auth.json`.
   `sync-state.json` (0600) records the last agreed content; when both copies changed, the newer file wins
-  (the fl0w account token remains local). Enabled skills and user tools upload separately
-  (`services/sync/sync-skills.ts`, `services/sync/sync-tools.ts`); `fl0w sync` runs `runFullSync()`
+  (the fl0w account token remains local). Every discovered skill (mirrored into `~/.fl0w/skills`) and user tool uploads in the background at
+  startup (`services/sync/sync-skills.ts`, `services/sync/sync-tools.ts`), regardless of workflow use; `fl0w sync` runs `runFullSync()`
   (`services/sync/full-sync.ts`): config files, outbox flush, then every local skill and tool.
 - **MCP** — servers auto-connect at startup (with OAuth); failure is non-fatal (UI warning).
   On auth/connection tool-call failures, syncs config and reconnects once.
@@ -69,7 +69,7 @@ conversational agent that plans, executes, and distills tasks into reusable work
   below the transcript; headless `session`/`workflow` print them as `stream_delta`/`stream_end` and
   `phase` JSON lines (`cli/cli-output.ts` `runHeadlessTurn`).
 - **Shutdown** — exit cleanup initiates closing MCP connections (headless commands explicitly await close); headless
-  commands end with `finishHeadlessRun()`, which starts pending skill mirroring and awaits config pushes
+  commands end with `finishHeadlessRun()`, which awaits config pushes
   and the durable outbox flush.
 
 ## Structure

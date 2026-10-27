@@ -1,4 +1,5 @@
 import { syncSkillService } from './sync/sync-skills';
+import { syncToolService } from './sync/sync-tools';
 import { configSyncStore } from './sync/config-sync';
 import { outboxStore } from './sync/outbox';
 import { authService } from './auth/auth-service';
@@ -38,11 +39,12 @@ export async function runStartupSync(options: StartupSyncOptions = {}): Promise<
   const syncWarning = await configSyncStore.syncOnStartup();
   configSyncStore.watchLocalConfigWrites();
   outboxStore.drainOutboxInBackground();
+  void syncSkillService.syncAllSkillsInBackground();
+  void syncToolService.syncAllToolsInBackground();
   return syncWarning;
 }
 
 export async function finishHeadlessRun(code: number): Promise<number> {
-  void syncSkillService.flushPendingSkillMirrors();
   await Promise.all([configSyncStore.flushPendingPushes(), outboxStore.flushOutbox()]);
   return code;
 }

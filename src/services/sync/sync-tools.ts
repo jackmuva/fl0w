@@ -1,6 +1,5 @@
 import { readdir } from 'node:fs/promises';
 import { USER_TOOLS_DIR } from '../../constants';
-import type { CapabilitySelection } from '../../models/agent';
 import { authService } from '../auth/auth-service';
 import { listRemoteTools, putToolBundle } from '../remote-api/sync-api';
 import { MAX_SKILL_BUNDLE_BYTES, packFiles, type PackedSkill } from './sync-skills';
@@ -19,9 +18,10 @@ class SyncToolService {
     return packFiles(dir, [file, ...helpers].sort());
   }
 
-  async syncEnabledTools(selection: CapabilitySelection): Promise<ToolSyncResults | null> {
+  async syncAllTools(): Promise<ToolSyncResults | null> {
     const run = this.syncQueue.then(async () => {
-      const local = selection.userTools.flatMap((name) => {
+      await userToolLoader.loadUserTools();
+      const local = userToolLoader.listUserTools().flatMap(({ name }) => {
         const file = userToolLoader.getUserToolSourceFile(name);
         return file ? [{ name, file }] : [];
       });
@@ -53,9 +53,9 @@ class SyncToolService {
     return run;
   }
 
-  async syncEnabledToolsInBackground(selection: CapabilitySelection): Promise<void> {
+  async syncAllToolsInBackground(): Promise<void> {
     try {
-      const results = await this.syncEnabledTools(selection);
+      const results = await this.syncAllTools();
       for (const [name, result] of Object.entries(results ?? {})) {
         if (result instanceof Error) console.warn(`Failed to sync tool "${name}" to fl0w-work: ${result.message}`);
       }

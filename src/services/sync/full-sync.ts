@@ -1,7 +1,3 @@
-import type { CapabilitySelection } from '../../models/agent';
-import { skillService } from '../external-tools/skill-service';
-import { emptyCapabilitySelection } from '../capabilities';
-import { userToolLoader } from '../external-tools/user-tool-service';
 import { syncToolService, type ToolSyncResults } from './sync-tools';
 import { syncSkillService, type SkillSyncResults } from './sync-skills';
 import { authService } from '../auth/auth-service';
@@ -35,16 +31,8 @@ export async function runFullSync(): Promise<FullSyncResult> {
   await outboxStore.flushOutbox();
   const pendingWrites = outboxStore.pendingOps().length;
 
-  const catalog = await skillService.discoverSkills();
-  await userToolLoader.loadUserTools();
-  const selection: CapabilitySelection = {
-    ...emptyCapabilitySelection(),
-    skills: catalog.map((skill) => skill.name),
-    userTools: userToolLoader.listUserTools().map((tool) => tool.name),
-  };
-  await syncSkillService.mirrorEnabledSkills(selection, catalog);
-  const skills = await syncSkillService.syncEnabledSkills(selection, catalog);
-  const tools = await syncToolService.syncEnabledTools(selection);
+  const skills = await syncSkillService.syncAllSkills();
+  const tools = await syncToolService.syncAllTools();
 
   return { skipped: null, config, pendingWrites, skills, tools };
 }

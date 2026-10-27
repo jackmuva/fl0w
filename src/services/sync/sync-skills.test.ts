@@ -51,8 +51,6 @@ const writeSkill = async (folder: string, files: Record<string, string>): Promis
   return { name: folder, description: `${folder} description`, path: join(dir, 'SKILL.md') };
 };
 
-const selection = (...skills: string[]) => ({ skills, mcpServers: [], userTools: [], agentsMd: [] });
-
 beforeEach(async () => {
   await rm(home, { recursive: true, force: true });
   await mkdir(home, { recursive: true });
@@ -97,27 +95,27 @@ describe('packSkill', () => {
   });
 });
 
-describe('syncEnabledSkills', () => {
+describe('syncSkills', () => {
   test('does nothing when signed out', async () => {
     const skill = await writeSkill('demo', { 'SKILL.md': 'steps' });
-    expect(await syncSkillService.syncEnabledSkills(selection('demo'), [skill])).toBeNull();
+    expect(await syncSkillService.syncSkills([skill])).toBeNull();
     expect(requests).toEqual([]);
   });
 
-  test('uploads enabled skills once and skips them while unchanged', async () => {
+  test('uploads every skill once and skips them while unchanged', async () => {
     await writeJson('auth.json', { fl0w: fl0wLogin });
     const demo = await writeSkill('demo', { 'SKILL.md': 'steps' });
     const other = await writeSkill('other', { 'SKILL.md': 'other steps' });
 
-    expect(await syncSkillService.syncEnabledSkills(selection('demo'), [demo, other])).toEqual({ demo: 'pushed' });
-    expect([...server.keys()]).toEqual(['demo']);
+    expect(await syncSkillService.syncSkills([demo, other])).toEqual({ demo: 'pushed', other: 'pushed' });
+    expect([...server.keys()].sort()).toEqual(['demo', 'other']);
 
     requests = [];
-    expect(await syncSkillService.syncEnabledSkills(selection('demo'), [demo, other])).toEqual({ demo: 'unchanged' });
+    expect(await syncSkillService.syncSkills([demo, other])).toEqual({ demo: 'unchanged', other: 'unchanged' });
     expect(requests).toEqual(['GET /api/sync/skills']);
 
     await writeFile(demo.path, 'edited steps');
-    expect(await syncSkillService.syncEnabledSkills(selection('demo'), [demo, other])).toEqual({ demo: 'pushed' });
+    expect(await syncSkillService.syncSkills([demo, other])).toEqual({ demo: 'pushed', other: 'unchanged' });
   });
 
   test('reports a skill whose mirror folder is missing without failing the rest', async () => {
@@ -125,7 +123,7 @@ describe('syncEnabledSkills', () => {
     const demo = await writeSkill('demo', { 'SKILL.md': 'steps' });
     const ghost: SkillSummary = { name: 'ghost', description: '', path: join(home, 'elsewhere', 'ghost', 'SKILL.md') };
 
-    const results = await syncSkillService.syncEnabledSkills(selection('ghost', 'demo'), [demo, ghost]);
+    const results = await syncSkillService.syncSkills([demo, ghost]);
     expect(results?.demo).toBe('pushed');
     expect(results?.ghost).toBeInstanceOf(Error);
   });

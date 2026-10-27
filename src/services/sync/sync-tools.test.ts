@@ -49,8 +49,6 @@ export const inputSchema = { type: 'object', properties: {} };
 export const execute = async () => greet('${name}');
 `;
 
-const selection = (...userTools: string[]) => ({ skills: [], mcpServers: [], userTools, agentsMd: [] });
-
 beforeAll(async () => {
   await rm(home, { recursive: true, force: true });
   await mkdir(toolsDir, { recursive: true });
@@ -89,30 +87,24 @@ describe('packUserTool', () => {
   });
 });
 
-describe('syncEnabledTools', () => {
+describe('syncAllTools', () => {
   test('does nothing when signed out', async () => {
-    expect(await syncToolService.syncEnabledTools(selection('weather'))).toBeNull();
+    expect(await syncToolService.syncAllTools()).toBeNull();
     expect(requests).toEqual([]);
   });
 
-  test('makes no request when no enabled tool is loaded', async () => {
-    await writeJson('auth.json', { fl0w: fl0wLogin });
-    expect(await syncToolService.syncEnabledTools(selection('ghost'))).toEqual({});
-    expect(requests).toEqual([]);
-  });
-
-  test('uploads enabled tools by exported name once and skips them while unchanged', async () => {
+  test('uploads every loaded tool by exported name once and skips them while unchanged', async () => {
     await writeJson('auth.json', { fl0w: fl0wLogin });
 
-    expect(await syncToolService.syncEnabledTools(selection('weather'))).toEqual({ weather: 'pushed' });
-    expect([...server.keys()]).toEqual(['weather']);
+    expect(await syncToolService.syncAllTools()).toEqual({ weather: 'pushed', stocks: 'pushed' });
+    expect([...server.keys()].sort()).toEqual(['stocks', 'weather']);
 
     requests = [];
-    expect(await syncToolService.syncEnabledTools(selection('weather'))).toEqual({ weather: 'unchanged' });
+    expect(await syncToolService.syncAllTools()).toEqual({ weather: 'unchanged', stocks: 'unchanged' });
     expect(requests).toEqual(['GET /api/sync/tools']);
 
     // a helper change re-uploads the tools that may import it
     await writeFile(join(toolsDir, '_helpers.ts'), 'export const greet = (who: string) => `hello ${who}`;\n');
-    expect(await syncToolService.syncEnabledTools(selection('weather', 'stocks'))).toEqual({ weather: 'pushed', stocks: 'pushed' });
+    expect(await syncToolService.syncAllTools()).toEqual({ weather: 'pushed', stocks: 'pushed' });
   });
 });

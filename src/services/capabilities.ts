@@ -6,9 +6,7 @@ import { userToolLoader } from './external-tools/user-tool-service';
 import { mcpClient } from './external-tools/mcp-client';
 import { runStartupSync,finishHeadlessRun } from './setup';
 import { frontLoadMessages } from "./agent/hooks/front-load";
-import { syncSkillService } from "./sync/sync-skills";
 import { fl0wMessage } from "./agent/utils/message-utils";
-import { syncToolService } from "./sync/sync-tools";
 
 const CATALOG_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 
@@ -99,8 +97,6 @@ export const applyCapabilitySelection = async (
 ): Promise<Fl0wMessage[]> => {
   setCapabilitySelection(next);
   const messages = await frontLoadMessages();
-  syncSkillService.scheduleMirrorEnabledSkills(next, skillService.listSkills());
-  void syncToolService.syncEnabledToolsInBackground(next);
   return messages.map((message) => fl0wMessage(message));
 };
 

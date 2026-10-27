@@ -2,7 +2,6 @@ import { afterEach, describe, expect, mock, test } from 'bun:test';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as constants from '../../constants';
-import { emptyCapabilitySelection } from '../capabilities';
 import type { SkillSummary } from '../external-tools/skill-service';
 
 const tempRoot = join(import.meta.dir, '__fixtures__', 'mirror-skills');
@@ -14,7 +13,6 @@ mock.module('../../constants', () => ({
   ...constants,
   FL0W_HOME: fl0wHome,
   FL0W_SKILLS_DIR: fl0wSkillsDir,
-  // signed out here, so the post-mirror skill sync never reaches the network
   AUTH_PATH: join(fl0wHome, 'auth.json'),
   APP_CONFIG_PATH: join(fl0wHome, 'config.json'),
 }));
@@ -46,8 +44,8 @@ const writeSkill = async (
   return join(dir, 'SKILL.md');
 };
 
-describe('mirrorEnabledSkills', () => {
-  test('copies enabled external skills into FL0W_HOME/skills', async () => {
+describe('mirrorSkills', () => {
+  test('copies external skills into FL0W_HOME/skills', async () => {
     const skillPath = await writeSkill(externalSkills, 'demo-skill', 'demo-skill', 'Steps', {
       'helper.txt': 'extra',
     });
@@ -57,15 +55,11 @@ describe('mirrorEnabledSkills', () => {
       path: skillPath,
     }];
 
-    const result = await syncSkillService.mirrorEnabledSkills({
-      ...emptyCapabilitySelection(),
-      skills: ['demo-skill'],
-    }, catalog);
+    const result = await syncSkillService.mirrorSkills(catalog);
 
     expect(result).toEqual({
       mirrored: ['demo-skill'],
       skipped: [],
-      missing: [],
       errors: [],
     });
     expect(await readFile(join(fl0wSkillsDir, 'demo-skill', 'SKILL.md'), 'utf8')).toContain('Steps');
@@ -80,66 +74,36 @@ describe('mirrorEnabledSkills', () => {
       path: skillPath,
     }];
 
-    const result = await syncSkillService.mirrorEnabledSkills({
-      ...emptyCapabilitySelection(),
-      skills: ['local-skill'],
-    }, catalog);
+    const result = await syncSkillService.mirrorSkills(catalog);
 
     expect(result.skipped).toEqual(['local-skill']);
     expect(result.mirrored).toEqual([]);
   });
 
-  test('overwrites an existing mirror on re-enable', async () => {
+  test('overwrites an existing mirror', async () => {
     const skillPath = await writeSkill(externalSkills, 'refresh-skill', 'refresh-skill', 'Version one');
     const catalog: SkillSummary[] = [{
       name: 'refresh-skill',
       description: 'refresh-skill description',
       path: skillPath,
     }];
-    const selection = { ...emptyCapabilitySelection(), skills: ['refresh-skill'] as string[] };
 
-    await syncSkillService.mirrorEnabledSkills(selection, catalog);
+    await syncSkillService.mirrorSkills(catalog);
     await writeSkill(externalSkills, 'refresh-skill', 'refresh-skill', 'Version two');
-    await syncSkillService.mirrorEnabledSkills(selection, catalog);
+    await syncSkillService.mirrorSkills(catalog);
 
     expect(await readFile(join(fl0wSkillsDir, 'refresh-skill', 'SKILL.md'), 'utf8')).toContain('Version two');
   });
 
-  test('records missing enabled skill names', async () => {
-    const result = await syncSkillService.mirrorEnabledSkills({
-      ...emptyCapabilitySelection(),
-      skills: ['ghost-skill'],
-    }, []);
+  test('mirrors every skill in the catalog', async () => {
+    const catalog: SkillSummary[] = await Promise.all(['one-skill', 'two-skill'].map(async (name) => ({
+      name,
+      description: `${name} description`,
+      path: await writeSkill(externalSkills, name, name, `${name} body`),
+    })));
 
-    expect(result.missing).toEqual(['ghost-skill']);
-  });
+    const result = await syncSkillService.mirrorSkills(catalog);
 
-  test('scheduleMirrorEnabledSkills debounces until flush', async () => {
-    const skillPath = await writeSkill(externalSkills, 'debounced-skill', 'debounced-skill', 'Debounced');
-    const catalog: SkillSummary[] = [{
-      name: 'debounced-skill',
-      description: 'debounced-skill description',
-      path: skillPath,
-    }];
-    const selection = { ...emptyCapabilitySelection(), skills: ['debounced-skill'] as string[] };
-
-    syncSkillService.scheduleMirrorEnabledSkills(selection, catalog);
-    await expect(readFile(join(fl0wSkillsDir, 'debounced-skill', 'SKILL.md'), 'utf8')).rejects.toThrow();
-    await syncSkillService.flushPendingSkillMirrors();
-    expect(await readFile(join(fl0wSkillsDir, 'debounced-skill', 'SKILL.md'), 'utf8')).toContain('Debounced');
-  });
-
-  test('does not remove mirrored skills when disabled', async () => {
-    const skillPath = await writeSkill(externalSkills, 'keep-skill', 'keep-skill', 'Keep me');
-    const catalog: SkillSummary[] = [{
-      name: 'keep-skill',
-      description: 'keep-skill description',
-      path: skillPath,
-    }];
-
-    await syncSkillService.mirrorEnabledSkills({ ...emptyCapabilitySelection(), skills: ['keep-skill'] }, catalog);
-    await syncSkillService.mirrorEnabledSkills(emptyCapabilitySelection(), catalog);
-
-    expect(await readFile(join(fl0wSkillsDir, 'keep-skill', 'SKILL.md'), 'utf8')).toContain('Keep me');
+    expect(result.mirrored.sort()).toEqual(['one-skill', 'two-skill']);
   });
 });
