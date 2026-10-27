@@ -62,9 +62,9 @@ export const runSyncCommand = async (argv: string[]): Promise<number> => {
     if (HELP_FLAGS.has(arg)) {
       console.log(`Usage: fl0w sync
 
-Pull and push config (config.json, mcp.json, auth.json), skills, and user tools with fl0w-work, and push any
-session and workflow writes still waiting in ~/.fl0w/outbox (fl0w-work is where sessions and workflows live).
-Requires \`fl0w login\` and sync enabled in config.json (default on).`);
+Pull and push mcp.json and auth.json, skills, and user tools with fl0w-work, and push any
+session and workflow writes still waiting in ~/.fl0w/outbox (fl0w-work is where TUI sessions and workflows live).
+Requires \`fl0w login\`.`);
       return 0;
     }
     console.error(`Unknown option for sync: ${arg}`);

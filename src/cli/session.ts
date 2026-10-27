@@ -105,7 +105,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   if (values.messages) {
     messagesFromCli = await Bun.file(values.messages).json().catch(() => null) as Fl0wMessage[] | null;
     if (!Array.isArray(messagesFromCli)) {
-      console.error(`Invalid --messages file: expected a JSON array of {"message":{...},"frame"?:...} at ${values.messages}`);
+      console.error(`Invalid --messages file: expected a JSON array of {"message":{...},"subagent"?:...} at ${values.messages}`);
       return 1;
     }
   }

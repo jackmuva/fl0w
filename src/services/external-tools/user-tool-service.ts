@@ -86,7 +86,7 @@ class UserToolLoader {
     }
 
     if (this.entries.length > 0) {
-      console.log(`[user-tools] loaded ${this.entries.length} tool(s) from ${dir}: ${this.entries.map((e) => e.name).join(', ')}`);
+      console.error(`[user-tools] loaded ${this.entries.length} tool(s) from ${dir}: ${this.entries.map((e) => e.name).join(', ')}`);
     }
     if (this.loadErrors.length > 0) {
       console.error(`[user-tools] ${this.loadErrors.length} error(s):\n${this.loadErrors.map((e) => `  - ${e}`).join('\n')}`);
