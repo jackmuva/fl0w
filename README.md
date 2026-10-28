@@ -17,7 +17,7 @@ curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | bas
 Specific version:
 
 ```bash
-FL0W_VERSION=v0.1.79 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | bash
+FL0W_VERSION=v0.1.80 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | bash
 ```
 
 Windows (PowerShell):
@@ -214,11 +214,11 @@ bun run build:all # release binaries for all platforms
 Create and push a new version tag (the release workflow picks it up):
 
 ```bash
-git tag -a v0.1.79 -m "v0.1.79"
-git push origin v0.1.79
+git tag -a v0.1.80 -m "v0.1.80"
+git push origin v0.1.80
 ```
 
-Replace `v0.1.79` with the version you are releasing.
+Replace `v0.1.80` with the version you are releasing.
 
 ## Project Structure
 
