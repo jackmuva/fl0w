@@ -1,24 +1,27 @@
-import { cp, mkdir, readdir, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, readdir, rm, rmdir } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { FL0W_SKILLS_DIR } from '../../constants';
-import { skillService, type SkillSummary } from '../external-tools/skill-service';
+import type { BundleBase } from '../../models/sync';
+import { SKILL_FILENAME, skillService, type SkillSummary } from '../external-tools/skill-service';
 import { authService } from '../auth/auth-service';
-import { listRemoteSkills, putSkillBundle } from '../remote-api/sync-api';
+import { deleteRemoteSkill, getSkillBundle, listRemoteSkills, putSkillBundle } from '../remote-api/sync-api';
+import { bundleStateStore } from './state/bundle-state';
+import {
+  packFiles,
+  removeBundleFiles,
+  syncBundle,
+  type BundleSide,
+  type BundleSyncResult,
+  type LocalBundle,
+  type PackedSkill,
+} from './bundle-sync';
 
-/** Matches fl0w-work's limit, which sits under Vercel's 4.5 MB request body cap. */
-export const MAX_SKILL_BUNDLE_BYTES = 4 * 1024 * 1024;
+export { MAX_SKILL_BUNDLE_BYTES, packFiles, type PackedSkill } from './bundle-sync';
 
 const IGNORED_NAMES = new Set(['.git', 'node_modules', '.DS_Store']);
 const IGNORED_PATTERNS = [/^\.env(\..*)?$/, /\.pem$/, /\.key$/];
 
 const isIgnored = (name: string) => IGNORED_NAMES.has(name) || IGNORED_PATTERNS.some((p) => p.test(name));
-
-export type PackedSkill = {
-  /** sha256 over sorted paths + file bytes; stable across runs, unlike the tarball (which embeds mtimes). */
-  contentHash: string;
-  bundle: Uint8Array<ArrayBuffer>;
-  files: string[];
-};
 
 export type MirrorSkillsResult = {
   mirrored: string[];
@@ -26,21 +29,8 @@ export type MirrorSkillsResult = {
   errors: Array<{ name: string; error: string }>;
 };
 
-export type SkillSyncResult = 'unchanged' | 'pushed' | Error;
+export type SkillSyncResult = BundleSyncResult;
 export type SkillSyncResults = Record<string, SkillSyncResult>;
-
-/** Packs `files` (paths relative to `dir`) into a .tar.gz with a content hash; shared with user tool sync. */
-export async function packFiles(dir: string, files: string[]): Promise<PackedSkill> {
-  const contents: Record<string, Uint8Array> = {};
-  const hasher = new Bun.CryptoHasher('sha256');
-  for (const file of files) {
-    const bytes = new Uint8Array(await readFile(join(dir, file)));
-    contents[file] = bytes;
-    hasher.update(`${file}\0${new Bun.CryptoHasher('sha256').update(bytes).digest('hex')}\n`);
-  }
-  const bundle = await new Bun.Archive(contents, { compress: 'gzip' }).bytes();
-  return { contentHash: hasher.digest('hex'), bundle, files };
-}
 
 class SyncSkillService {
   private syncQueue: Promise<unknown> = Promise.resolve();
@@ -79,31 +69,35 @@ class SyncSkillService {
     return packFiles(dir, await this.listSkillFiles(dir));
   }
 
+  /**
+   * Syncs every skill in `catalog`, on fl0w-work, or synced before, both ways. Changes from fl0w-work land in the
+   * skill's own folder (e.g. ~/.claude/skills/<name>), then its ~/.fl0w/skills mirror is refreshed.
+   */
   async syncSkills(catalog: SkillSummary[]): Promise<SkillSyncResults | null> {
     const run = this.syncQueue.then(async () => {
-      if (catalog.length === 0) return {};
-      if (!(await authService.readFl0wAuth())) return null;
+      const auth = await authService.readFl0wAuth();
+      if (!auth) return null;
 
-      const remote = new Map((await listRemoteSkills()).map((skill) => [skill.name, skill.contentHash]));
+      const remote = new Map((await listRemoteSkills()).map((skill) => [skill.name, skill]));
+      const bases = await bundleStateStore.read(auth.user.id, 'skills');
+      const local = new Map(catalog.map((skill) => [skill.name, skill]));
+      const names = [...new Set([...local.keys(), ...remote.keys(), ...Object.keys(bases)])].sort();
       const results: SkillSyncResults = {};
 
-      for (const skill of catalog) {
-        const { name } = skill;
+      for (const name of names) {
         try {
-          const packed = await this.packSkill(this.mirroredDir(skill));
-          if (remote.get(name) === packed.contentHash) {
-            results[name] = 'unchanged';
-            continue;
-          }
-          if (packed.bundle.byteLength > MAX_SKILL_BUNDLE_BYTES) {
-            throw new Error(`Skill "${name}" is ${packed.bundle.byteLength} bytes compressed; the sync limit is ${MAX_SKILL_BUNDLE_BYTES}`);
-          }
-          await putSkillBundle(name, packed.contentHash, packed.bundle);
-          results[name] = 'pushed';
+          const located = await this.locate(local.get(name), bases[name]);
+          const outcome = await syncBundle(this.side, name, located, remote.get(name) ?? null, bases[name]);
+          if (outcome.base) bases[name] = outcome.base;
+          else delete bases[name];
+          if (outcome.result === 'deleted' && located) await this.dropMirror(located.dir);
+          else if (outcome.changedLocally) await this.refreshMirror(outcome.changedLocally.dir);
+          results[name] = outcome.result;
         } catch (error) {
           results[name] = error instanceof Error ? error : new Error(String(error));
         }
       }
+      await bundleStateStore.write(auth.user.id, 'skills', bases);
       return results;
     });
     this.syncQueue = run.catch(() => { });
@@ -120,7 +114,7 @@ class SyncSkillService {
     try {
       const results = await this.syncAllSkills();
       for (const [name, result] of Object.entries(results ?? {})) {
-        if (result instanceof Error) console.warn(`Failed to sync skill "${name}" to fl0w-work: ${result.message}`);
+        if (result instanceof Error) console.warn(`Failed to sync skill "${name}" with fl0w-work: ${result.message}`);
       }
     } catch (error) {
       console.warn(`Skill sync with fl0w-work failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -139,9 +133,50 @@ class SyncSkillService {
     return target === base || target.startsWith(`${base}/`);
   }
 
-  private mirroredDir(skill: SkillSummary): string {
-    const skillDir = dirname(resolve(skill.path));
+  private readonly side: BundleSide = {
+    kind: 'skills',
+    label: 'Skill',
+    get: getSkillBundle,
+    put: putSkillBundle,
+    remove: deleteRemoteSkill,
+    place: (name) => this.localSkill(join(FL0W_SKILLS_DIR, name)),
+    removeLocal: async (local, files) => {
+      await removeBundleFiles(local.dir, files);
+      await rmdir(local.dir).catch(() => { });
+    },
+  };
+
+  private localSkill(dir: string): LocalBundle {
+    return { dir, listFiles: () => this.listSkillFiles(dir) };
+  }
+
+  /**
+   * Where a skill lives on this device: the folder it was last synced in, else where discovery found it. Null when it
+   * never existed here; a LocalBundle with no files when it was deleted here (a leftover mirror doesn't count).
+   */
+  private async locate(skill: SkillSummary | undefined, base: BundleBase | undefined): Promise<LocalBundle | null> {
+    const found = skill ? dirname(resolve(skill.path)) : undefined;
+    if (!base) return found ? this.localSkill(found) : null;
+    if (await Bun.file(join(base.dir, SKILL_FILENAME)).exists()) return this.localSkill(base.dir);
+    if (found && found !== this.mirrorDir(base.dir)) return this.localSkill(found);
+    return { dir: base.dir, listFiles: async () => null };
+  }
+
+  private mirrorDir(skillDir: string): string {
     return this.isUnderFl0wSkills(skillDir) ? skillDir : join(FL0W_SKILLS_DIR, basename(skillDir));
+  }
+
+  /** Re-copies a skill from outside ~/.fl0w/skills into its mirror after sync changed it. */
+  private async refreshMirror(skillDir: string): Promise<void> {
+    if (this.isUnderFl0wSkills(skillDir)) return;
+    const dest = this.mirrorDir(skillDir);
+    await rm(dest, { recursive: true, force: true });
+    if (await Bun.file(join(skillDir, SKILL_FILENAME)).exists()) await cp(skillDir, dest, { recursive: true, force: true });
+  }
+
+  /** A deleted skill's mirror would otherwise be found, and synced, as a new skill. */
+  private async dropMirror(skillDir: string): Promise<void> {
+    if (!this.isUnderFl0wSkills(skillDir)) await rm(this.mirrorDir(skillDir), { recursive: true, force: true });
   }
 
   private async listSkillFiles(dir: string, prefix = ''): Promise<string[]> {

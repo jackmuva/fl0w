@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import type { CapabilityKind, CapabilitySelection, Fl0wMessage, ModelSelection } from '../models/agent';
 import type { SessionRecord } from '../models/session';
-import { createDraftSession, emptyModelSelection, parseModelsJson } from '../services/session-record';
+import { createDraftSession, emptyModelSelection } from '../services/service-utils';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/capabilities';
 import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/question-utils';
 import { runHeadlessTurn } from './cli-output';
@@ -15,6 +15,26 @@ import { requireLogin, runStartupSync } from '../services/setup';
 const USAGE = 'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--models \'{"EXECUTE":"<model>"}\'] [--messages <path.json>]';
 
 const CAPABILITY_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
+
+const MODEL_PHASES = Object.keys(emptyModelSelection()) as (keyof ModelSelection)[];
+
+const parseModelsJson = (raw: string): Partial<ModelSelection> | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const models: Partial<ModelSelection> = {};
+  for (const [phase, model] of Object.entries(parsed)) {
+    if (!MODEL_PHASES.includes(phase as keyof ModelSelection) || typeof model !== 'string') return null;
+    models[phase as keyof ModelSelection] = model;
+  }
+  return models;
+};
+
+
 
 const parseCapabilitiesJson = (raw: string): CapabilitySelection | null => {
   let parsed: unknown;

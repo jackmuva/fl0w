@@ -1,5 +1,6 @@
 import { experimental_decide, type JSONValue } from 'ai';
 import type { Fl0wMessage } from '../../../models/agent';
+import { retryModelCall } from '../../service-utils';
 import { findLastUserAndSummaryMessages } from '../utils/message-utils';
 import { sessionUsageStore } from '../../../store/session-usage-store';
 
@@ -7,7 +8,7 @@ export const routingAgent = async (messages: Fl0wMessage[], model: string, abort
   const state: JSONValue = JSON.parse(
     JSON.stringify({ messages: findLastUserAndSummaryMessages(messages) }),
   );
-  const result = await experimental_decide({
+  const result = await retryModelCall(() => experimental_decide({
     model,
     abortSignal: abort,
     state: [{ type: 'json', value: state }],
@@ -22,7 +23,7 @@ export const routingAgent = async (messages: Fl0wMessage[], model: string, abort
         },
       },
     },
-  });
+  }));
   sessionUsageStore.record(result);
   return result.answers.agent.choice;
 }

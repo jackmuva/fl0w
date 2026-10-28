@@ -21,7 +21,7 @@ const { AUTH_PATH, OUTBOX_DIR } = await import('../../constants');
 if (!AUTH_PATH.startsWith(home)) throw new Error('outbox test is not isolated');
 const { outboxStore } = await import('./outbox');
 const { deleteSession, getSession, listSessions, saveSession } = await import('../../store/session-store');
-const { createDraftSession } = await import('../session-record');
+const { createDraftSession } = await import('../service-utils');
 const { deleteWorkflow, listWorkflows, saveWorkflow } = await import('../../store/workflow-store');
 
 let sessions: Map<string, StoredSession>;

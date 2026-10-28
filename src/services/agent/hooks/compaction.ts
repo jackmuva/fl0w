@@ -1,4 +1,5 @@
 import { generateText, type ModelMessage } from 'ai';
+import { retryModelCall } from '../../service-utils';
 import {
   COMPACTION_TOKEN_THRESHOLD,
   TOOL_RESULT_MIN_KEEP,
@@ -198,13 +199,13 @@ export const compactMessages = async (
   if (toSummarize.length > 0) {
     const transcript = toSummarize.map(({ message }) => messageToText(message, { truncateToolResults: 2_000 }))
       .join('\n\n');
-    const summaryResult = await generateText({
+    const summaryResult = await retryModelCall(() => generateText({
       model: llm,
       instructions:
         `Summarize the following conversation history concisely. Preserve the user's goal, key decisions, important tool results, and progress made. Omit redundant details.\n\n` +
         `Important: Keep the summary compact — it must be significantly shorter than the compaction context window of ${contextWindow} tokens. That window is used at a threshold of ${Math.round(COMPACTION_TOKEN_THRESHOLD * 100)}% (i.e. a budget of ${tokenLimit} tokens), and the summary is re-fed into the model alongside other retained messages. So it must comfortably fit within that limit. Optimize for a tight, information-dense summary — favor the user's goal, key decisions, important tool results, and progress over verbatim detail.`,
       prompt: transcript,
-    });
+    }));
     sessionUsageStore.record(summaryResult);
     // Listed verbatim (not left to the LLM) so spilled outputs stay reachable across repeated compactions.
     const savedOutputs = [...new Set(messages.flatMap(({ message }) =>

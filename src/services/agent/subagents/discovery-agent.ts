@@ -2,6 +2,7 @@ import { isStepCount, streamText, type ModelMessage, type ToolSet } from "ai";
 import { MAX_ITERATIONS } from "../../../constants";
 import type { Fl0wMessage } from "../../../models/agent";
 import { toModelMessages, type AgentResult } from "../utils/message-utils";
+import { retryModelCall } from "../../service-utils";
 import { frontLoadInstructions } from "../hooks/front-load";
 
 export const discoveryAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolSet | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
@@ -14,9 +15,10 @@ Use the default/ask_question tool to ask users any clarifying questions. Do not 
 Depending on the task and project you are in, perform any sort of background research so that a planning agent will be able to take your research and develop a solid plan for an agent to execute.
 
 Be thorough AND concise. Only your last message will be delivered to the planning agent so deliver your report there.`;
-  return streamText({
+  const instructions = `${await frontLoadInstructions()}\n\n${systemPrompt}`;
+  return retryModelCall(async () => streamText({
     model,
-    instructions: `${await frontLoadInstructions()}\n\n${systemPrompt}`,
+    instructions,
     messages: toModelMessages(messages),
     tools,
     stopWhen: isStepCount(MAX_ITERATIONS),
@@ -25,7 +27,7 @@ Be thorough AND concise. Only your last message will be delivered to the plannin
       if (chunk.type === "text-delta") onStreamText(chunk.text);
     },
     onStepFinish: (step) => onStep(step.response.messages),
-  });
+  }));
 }
 
 

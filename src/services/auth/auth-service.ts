@@ -1,7 +1,7 @@
 import { AUTH_PATH, FL0W_API_URL } from '../../constants';
 import type { AuthFile, Fl0wAuth } from '../../models/auth';
 import { configSyncStore } from '../sync/config-sync';
-import { writeJsonAtomic } from '../utils';
+import { writeJsonAtomic } from '../service-utils';
 
 class Fl0wAuthError extends Error {
   constructor(readonly code: string, message: string) {

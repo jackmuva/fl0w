@@ -1,12 +1,8 @@
 import Bottleneck from "bottleneck";
 import { chmod, rename, writeFile } from "node:fs/promises";
-import {
-  generateText,
-  jsonSchema,
-  Output,
-} from 'ai';
-import { sessionUsageStore } from '../store/session-usage-store';
-import { parseJsonObject, WorkflowGenerationError } from "./workflow/generate";
+import { resolve } from 'node:path';
+import type { ModelSelection } from '../models/agent';
+import type { SessionRecord } from '../models/session';
 
 export const modelRateLimiter = new Bottleneck({
   minTime: 100,
@@ -27,7 +23,7 @@ export async function retryModelCall<T>(fn: () => Promise<T>, attempts = 2): Pro
       lastError = err;
       const isLastAttempt = i === attempts - 1;
       if (isLastAttempt) break;
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
   }
 
@@ -54,33 +50,23 @@ export async function writeJsonAtomic(path: string, value: unknown): Promise<voi
   await rename(tmp, path);
 }
 
-export const generateStructured = async <T>(
-  model: string,
-  prompt: string,
-  schema: ReturnType<typeof jsonSchema<T>>,
-  name: string,
-  jsonShape: string,
-  validate: (value: unknown) => T,
-): Promise<T> => {
-  try {
-    const generation = await generateText({
-      model,
-      prompt,
-      output: Output.object({ schema, name }),
-    });
-    sessionUsageStore.record(generation);
-    return validate(generation.output);
-  } catch { }
+export const emptyModelSelection = (): ModelSelection => ({
+  ROUTER: '',
+  DISCOVERY: '',
+  PLAN: '',
+  EXECUTE: '',
+  SUMMARIZE: '',
+});
 
-  try {
-    const generation = await generateText({
-      model,
-      prompt: `${prompt}\n\nReturn only a single JSON object (no markdown fences or surrounding prose) with:\n${jsonShape}`,
-    });
-    sessionUsageStore.record(generation);
-    return validate(parseJsonObject(generation.text));
-  } catch (error) {
-    if (error instanceof WorkflowGenerationError) throw error;
-    throw new WorkflowGenerationError('Could not parse generated workflow JSON');
-  }
+export const createDraftSession = (workspacePath: string, id: string = crypto.randomUUID()): SessionRecord => {
+  const now = (new Date()).toISOString();
+  return {
+    id,
+    workspacePath: resolve(workspacePath),
+    title: null,
+    models: emptyModelSelection(),
+    capabilities: null,
+    createdAt: now,
+    updatedAt: now,
+  };
 };

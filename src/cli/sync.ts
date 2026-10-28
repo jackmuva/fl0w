@@ -1,6 +1,7 @@
 import type { SyncFilename } from '../models/sync';
 import { runFullSync, type FullSyncResult } from '../services/sync/full-sync';
 import type { SyncResults } from '../services/sync/config-sync';
+import type { BundleSyncResult } from '../services/sync/bundle-sync';
 
 const HELP_FLAGS = new Set(['help', '-h', '--help']);
 
@@ -14,7 +15,7 @@ const formatConfig = (results: SyncResults | null): string[] => {
   return lines;
 };
 
-const formatNamedResults = (label: string, results: Record<string, 'unchanged' | 'pushed' | Error> | null): string[] => {
+const formatNamedResults = (label: string, results: Record<string, BundleSyncResult> | null): string[] => {
   if (!results || Object.keys(results).length === 0) return [`${label}: nothing to sync.`];
   const lines = [`${label}:`];
   for (const [name, result] of Object.entries(results).sort(([a], [b]) => a.localeCompare(b))) {
@@ -64,6 +65,10 @@ export const runSyncCommand = async (argv: string[]): Promise<number> => {
 
 Pull and push mcp.json and auth.json, skills, and user tools with fl0w-work, and push any
 session and workflow writes still waiting in ~/.fl0w/outbox (fl0w-work is where TUI sessions and workflows live).
+
+Skills and tools merge file by file: a file changed on one side takes that side's copy, and a file changed on
+both keeps the newer copy and saves the other under ~/.fl0w/sync-conflicts. Deleting a skill or tool on one
+side deletes it on the other.
 Requires \`fl0w login\`.`);
       return 0;
     }

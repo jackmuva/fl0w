@@ -3,8 +3,8 @@ import { AUTH_PATH, MCP_CONFIG_PATH } from '../../constants';
 import type { AuthFile } from '../../models/auth';
 import { SYNC_FILENAMES, type JsonObject, type RemoteFile, type RemoteFileMeta, type SyncFilename, type SyncState } from '../../models/sync';
 import { authService } from '../auth/auth-service';
-import { writeJsonAtomic } from '../utils';
-import { asJsonObject, jsonEqual, mergeConfig, shareable } from './merge';
+import { writeJsonAtomic } from '../service-utils';
+import { asJsonObject, jsonEqual, mergeConfig, shareable } from './merge/config-merge';
 import { getRemote, listRemote, putRemote, SyncConflictError } from '../remote-api/sync-api';
 import { SYNC_STATE_PATH } from '../../constants';
 

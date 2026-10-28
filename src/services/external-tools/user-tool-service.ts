@@ -95,6 +95,11 @@ class UserToolLoader {
     return { tools: this.entries, errors: this.loadErrors };
   }
 
+  /** Forgets what was loaded so the next loadUserTools reads the directory again (e.g. after sync pulled tools). */
+  reset() {
+    this.loaded = false;
+  }
+
   listUserTools(): McpTool[] {
     return this.entries.map((entry) => ({
       server: USER_TOOL_SERVER,

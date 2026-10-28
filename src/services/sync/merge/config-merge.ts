@@ -1,4 +1,4 @@
-import type { JsonObject, SyncFilename } from '../../models/sync';
+import type { JsonObject, SyncFilename } from '../../../models/sync';
 
 const LOCAL_ONLY: Record<SyncFilename, readonly string[]> = {
   'mcp.json': [],

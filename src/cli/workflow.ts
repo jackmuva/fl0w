@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import type { Fl0wMessage } from '../models/agent';
 import type { WorkflowRecord } from '../models/workflow';
 import type { SessionRecord } from '../models/session';
-import { createDraftSession, emptyModelSelection } from '../services/session-record';
+import { createDraftSession, emptyModelSelection } from '../services/service-utils';
 import { getWorkflow } from '../store/workflow-store';
 import { applyCapabilitySelection } from '../services/capabilities';
 import { runHeadlessTurn } from './cli-output';

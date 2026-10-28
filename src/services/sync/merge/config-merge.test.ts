@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import type { JsonObject } from '../../models/sync';
-import { jsonEqual, mergeConfig, shareable } from './merge';
+import type { JsonObject } from '../../../models/sync';
+import { jsonEqual, mergeConfig, shareable } from './config-merge';
 
 const login = (accessToken: string, expiresAt: number) => ({
   accessToken, refreshToken: `${accessToken}-r`, expiresAt, user: { id: 'u1', email: 'a@b.c' },

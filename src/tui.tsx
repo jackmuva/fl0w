@@ -5,7 +5,7 @@ import { modelStore } from './store/model-store';
 import type { StoredSession } from './models/session';
 import type { WorkflowRecord } from './models/workflow';
 import { findLatestSessionWithMessages } from './store/session-store';
-import { createDraftSession } from './services/session-record';
+import { createDraftSession } from './services/service-utils';
 import { listWorkflows } from './store/workflow-store';
 
 const loadMcp = async (initialMessage: string): Promise<string> => {

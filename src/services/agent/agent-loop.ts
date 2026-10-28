@@ -59,7 +59,7 @@ const runPhase = async (
   }, await toolsFor(subagent), onStep);
   const window = await modelStore.contextWindowFor(model);
   let streamError: unknown;
-  for await (const part of result.fullStream) {
+  for await (const part of result.stream) {
     if (part.type === "error") streamError ??= part.error;
     if (part.type === "finish-step") sessionUsageStore.record(part, window);
   }

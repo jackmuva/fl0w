@@ -33,3 +33,26 @@ export type SyncState = {
     base: JsonObject;
   }>>;
 };
+
+export type BundleKind = 'skills' | 'tools';
+
+/** A skill or tool bundle as of its last sync: the merge base for the next one. */
+export type BundleBase = {
+  contentHash: string;
+  /** fl0w-work's `updatedAt` for that bundle. */
+  updatedAt: string;
+  /** Path (relative to `dir`) -> sha256 of each file in the bundle. */
+  files: Record<string, string>;
+  /** Directory the bundle lives in on this device. */
+  dir: string;
+  /** For a tool, its own file in `dir` (the rest are shared `_` helpers). */
+  file?: string;
+};
+
+export type BundleSyncState = {
+  userId?: string;
+  /** fl0w-work deployment the bases came from; another one's bases would read as deletions. */
+  apiUrl?: string;
+  skills: Record<string, BundleBase>;
+  tools: Record<string, BundleBase>;
+};

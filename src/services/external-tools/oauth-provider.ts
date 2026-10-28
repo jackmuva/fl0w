@@ -11,7 +11,7 @@ import type { OAuthOptions } from '../../models/mcp';
 import { HEADLESS } from '../../constants';
 import { authService } from '../auth/auth-service';
 import { callbackUrl, listenForAuthCode } from './callback-server';
-import { openBrowser } from '../utils';
+import { openBrowser } from '../service-utils';
 
 const DEFAULT_CALLBACK_PORT = 33418;
 

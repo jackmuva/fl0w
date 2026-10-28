@@ -4,7 +4,7 @@ import { FL0W_API_URL } from '../constants';
 import type { Fl0wAuth } from '../models/auth';
 import { authService} from '../services/auth/auth-service';
 import { createHash, randomBytes } from 'node:crypto';
-import { openBrowser } from '../services/utils';
+import { openBrowser } from '../services/service-utils';
 import { callbackUrl, listenForAuthCode } from '../services/external-tools/callback-server';
 
 export async function login(log: (line: string) => void = console.log): Promise<Fl0wAuth> {

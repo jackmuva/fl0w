@@ -1,7 +1,7 @@
-import { SYNC_STATE_PATH } from '../../constants';
-import type { SyncState } from '../../models/sync';
-import { writeJsonAtomic } from '../utils';
-import { asJsonObject } from './merge';
+import { SYNC_STATE_PATH } from '../../../constants';
+import type { SyncState } from '../../../models/sync';
+import { writeJsonAtomic } from '../../service-utils';
+import { asJsonObject } from '../merge/config-merge';
 
 const normalizeSyncState = (raw: unknown): SyncState => {
   const state = asJsonObject(raw);

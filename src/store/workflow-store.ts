@@ -1,7 +1,6 @@
 import type { CapabilitySelection, ModelSelection } from '../models/agent';
 import { isWorkflowRecord, type WorkflowRecord, type WorkflowStep } from '../models/workflow';
 import { getRemoteWorkflow, listRemoteWorkflows } from '../services/remote-api/sync-api';
-import { nowIso } from '../services/session-record';
 import { outboxStore } from '../services/sync/outbox';
 import { normalizeWorkflowSteps } from '../services/workflow/generate';
 
@@ -43,7 +42,7 @@ export function saveWorkflow(input: {
   requiredCapabilities: CapabilitySelection;
   models: ModelSelection | null;
 }): WorkflowRecord {
-  const now = nowIso();
+  const now = (new Date()).toISOString();
   const workflow: WorkflowRecord = {
     id: crypto.randomUUID(),
     sourceSessionId: input.sourceSessionId ?? null,

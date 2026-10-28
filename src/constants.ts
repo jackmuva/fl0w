@@ -65,3 +65,9 @@ export const FL0W_API_URL = 'https://www.fl0w.work';
 export const AUTH_PATH = join(FL0W_HOME, 'auth.json');
 
 export const SYNC_STATE_PATH = join(FL0W_HOME, 'sync-state.json');
+
+/** Merge bases for skill and tool bundles; kept apart from sync-state.json, which config sync rewrites on its own schedule. */
+export const BUNDLE_SYNC_STATE_PATH = join(FL0W_HOME, 'bundle-sync-state.json');
+
+/** Where a skill or tool file that lost a sync conflict is kept. */
+export const SYNC_CONFLICTS_DIR = join(FL0W_HOME, 'sync-conflicts');

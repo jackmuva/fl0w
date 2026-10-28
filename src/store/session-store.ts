@@ -5,7 +5,30 @@ import type { Fl0wMessage } from '../models/agent';
 import type { SessionListEntry, SessionRecord, StoredSession } from '../models/session';
 import { getRemoteSession, listRemoteSessions } from '../services/remote-api/sync-api';
 import { outboxStore } from '../services/sync/outbox';
-import { deriveTitle, nextUpdatedAt } from '../services/session-record';
+
+const nextUpdatedAt = (previous?: string | null): string => {
+  const now = Date.now();
+  const previousMs = previous ? Date.parse(previous) : NaN;
+  if (!Number.isFinite(previousMs) || previousMs < now || previousMs - now > 1_000) return new Date(now).toISOString();
+  return new Date(previousMs + 1).toISOString();
+};
+
+const deriveTitle = (messages: Fl0wMessage[]): string | null => {
+  const firstUser = messages.find(({ message }) => message.role === 'user')?.message;
+  if (!firstUser) return null;
+
+  const text = typeof firstUser.content === 'string'
+    ? firstUser.content
+    : Array.isArray(firstUser.content)
+      ? firstUser.content
+        .map((part) => ('text' in part ? part.text : ''))
+        .join('')
+      : '';
+
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  return trimmed.length > 80 ? `${trimmed.slice(0, 77)}...` : trimmed;
+};
 
 /** Saves and deletes not yet pushed, so reads see this device's latest writes. */
 const pendingSessions = () => {

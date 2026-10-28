@@ -15,6 +15,8 @@ mock.module('../../constants', () => ({
   MCP_CONFIG_PATH: join(home, 'mcp.json'),
   SYNC_STATE_PATH: join(home, 'sync-state.json'),
   OUTBOX_DIR: join(home, 'outbox'),
+  BUNDLE_SYNC_STATE_PATH: join(home, 'bundle-sync-state.json'),
+  SYNC_CONFLICTS_DIR: join(home, 'sync-conflicts'),
 }));
 const { AUTH_PATH } = await import('../../constants');
 if (!AUTH_PATH.startsWith(home)) throw new Error('full-sync test is not isolated');

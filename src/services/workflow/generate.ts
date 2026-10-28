@@ -1,5 +1,9 @@
+import { retryModelCall } from '../service-utils';
+import { sessionUsageStore } from '../../store/session-usage-store';
 import {
+  Output,
   APICallError,
+  generateText,
   jsonSchema,
   NoObjectGeneratedError,
   UnsupportedFunctionalityError,
@@ -14,7 +18,37 @@ import {
   DEFAULT_MARK_STEP_COMPLETE_TOOL,
 } from '../agent/default-tools/utils';
 import type { GeneratedWorkflow, WorkflowStep, WorkflowToolCall } from '../../models/workflow';
-import { generateStructured } from '../utils';
+
+export const generateStructured = async <T>(
+  model: string,
+  prompt: string,
+  schema: ReturnType<typeof jsonSchema<T>>,
+  name: string,
+  jsonShape: string,
+  validate: (value: unknown) => T,
+): Promise<T> => {
+  try {
+    const generation = await retryModelCall(() => generateText({
+      model,
+      prompt,
+      output: Output.object({ schema, name }),
+    }));
+    sessionUsageStore.record(generation);
+    return validate(generation.output);
+  } catch { }
+
+  try {
+    const generation = await retryModelCall(() => generateText({
+      model,
+      prompt: `${prompt}\n\nReturn only a single JSON object (no markdown fences or surrounding prose) with:\n${jsonShape}`,
+    }));
+    sessionUsageStore.record(generation);
+    return validate(parseJsonObject(generation.text));
+  } catch (error) {
+    if (error instanceof WorkflowGenerationError) throw error;
+    throw new WorkflowGenerationError('Could not parse generated workflow JSON');
+  }
+};
 
 type GeneratedPlanSteps = Pick<GeneratedWorkflow, 'title' | 'goal' | 'steps'>;
 
