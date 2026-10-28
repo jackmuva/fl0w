@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { sessionUsageStore } from './session-usage-store';
+import { contextPercentOf, sessionUsageStore } from './session-usage-store';
 
 describe('session usage store', () => {
   afterEach(() => {
@@ -32,6 +32,11 @@ describe('session usage store', () => {
       lastInputTokens: 5000,
       contextWindow: 100_000,
     });
+  });
+
+  test('context percent keeps one decimal so small contexts read above zero', () => {
+    expect(contextPercentOf({ sessionCostUsd: 0, lastInputTokens: 3384, contextWindow: 1_000_000 })).toBe(0.3);
+    expect(contextPercentOf({ sessionCostUsd: 0, lastInputTokens: 50_000, contextWindow: 200_000 })).toBe(25);
   });
 
   test('reset clears state', () => {

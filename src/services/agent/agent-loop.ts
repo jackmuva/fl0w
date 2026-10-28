@@ -61,7 +61,7 @@ const runPhase = async (
   let streamError: unknown;
   for await (const part of result.stream) {
     if (part.type === "error") streamError ??= part.error;
-    if (part.type === "finish-step") sessionUsageStore.record(part, window);
+    if (part.type === "finish-step") sessionUsageStore.record(part, subagent === "SUMMARY" ? undefined : window);
   }
   abort.throwIfAborted();
   let produced: Awaited<AgentResult["responseMessages"]>;
