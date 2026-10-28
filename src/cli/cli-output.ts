@@ -6,13 +6,16 @@ import { contextPercentOf, sessionUsageStore, type SessionUsageState } from '../
 
 const printLine = (line: CliOutput) => console.log(JSON.stringify(line));
 
+const sameEntry = (a: Fl0wMessage, b: Fl0wMessage | undefined) =>
+  a === b || (!!b && a.subagent === b.subagent && JSON.stringify(a.message) === JSON.stringify(b.message));
+
 export const createTranscriptPrinter = () => {
   let printed: Fl0wMessage[] | null = null;
   return (all: Fl0wMessage[]) => {
     const conversation = all.filter(({ message }) => message.role !== 'system');
     const rewritten = !printed
       || conversation.length < printed.length
-      || printed.some((entry, index) => entry !== conversation[index]);
+      || printed.some((entry, index) => !sameEntry(entry, conversation[index]));
     if (rewritten) printLine({ type: 'snapshot', messages: conversation });
     else for (let index = printed!.length; index < conversation.length; index++) printLine({ type: 'message', index, message: conversation[index]! });
     printed = conversation;

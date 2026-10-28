@@ -43,6 +43,18 @@ describe('createTranscriptPrinter', () => {
     expect(lines.map((line) => line.type)).toEqual(['snapshot', 'snapshot', 'snapshot']);
     expect(lines[2]).toEqual({ type: 'snapshot', messages: [truncated, summary] });
   });
+
+  test('treats re-wrapped but identical entries as already printed', () => {
+    const print = createTranscriptPrinter();
+    print([user, decision]);
+    // a phase ends by re-wrapping the messages its steps published
+    print([user, fl0wMessage(decision.message, 'ROUTING'), reply]);
+
+    expect(lines).toEqual([
+      { type: 'snapshot', messages: [user, decision] },
+      { type: 'message', index: 2, message: reply },
+    ]);
+  });
 });
 
 describe('createStreamPrinter', () => {
