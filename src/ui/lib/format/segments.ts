@@ -1,11 +1,13 @@
 import type { Fl0wMessage, SubagentType } from "../../../models/agent"
 import {
   bareToolName,
+  firstLine,
   formatMessageContent,
   isToolResultError,
   readNumberField,
   readPlanSteps,
   readStringField,
+  truncateLine,
   type ToolResultPart,
 } from "./message"
 
@@ -52,13 +54,6 @@ const DIGEST_MAX_LENGTH = 96
 const PRIMARY_INPUT_FIELDS = ["command", "path", "file_path", "pattern", "url", "query"]
 const SKIPPED_DIGEST_TOOLS = new Set(["ask_question"])
 
-const truncateLine = (text: string, maxLength = DIGEST_MAX_LENGTH) => {
-  const line = text.replace(/\s+/g, " ").trim()
-  return line.length > maxLength ? `${line.slice(0, maxLength - 1)}…` : line
-}
-
-const firstLine = (text: string) => text.split("\n").find((line) => line.trim()) ?? ""
-
 const describeToolCall = (toolName: string, input: unknown): string => {
   const name = bareToolName(toolName)
   if (name === "create_plan") {
@@ -92,7 +87,7 @@ export const buildPhaseDigest = (messages: Fl0wMessage[]): DigestRow[] => {
     if (message.role !== "assistant") continue
 
     const text = firstLine(formatMessageContent(message))
-    if (text) rows.push({ status: "text", label: truncateLine(text) })
+    if (text) rows.push({ status: "text", label: truncateLine(text, DIGEST_MAX_LENGTH) })
 
     if (!Array.isArray(message.content)) continue
     for (const part of message.content) {
@@ -101,7 +96,7 @@ export const buildPhaseDigest = (messages: Fl0wMessage[]): DigestRow[] => {
 
       const result = results.get(part.toolCallId)
       const status: DigestStatus = !result ? "pending" : isToolResultError(result) ? "error" : "ok"
-      rows.push({ status, label: truncateLine(describeToolCall(part.toolName, part.input)) })
+      rows.push({ status, label: truncateLine(describeToolCall(part.toolName, part.input), DIGEST_MAX_LENGTH) })
     }
   }
 

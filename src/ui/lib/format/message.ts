@@ -165,8 +165,9 @@ export const formatMessageContent = (message: ModelMessage): string => {
   for (const part of message.content) {
     switch (part.type) {
       case "text":
-      case "reasoning":
         parts.push(part.text)
+        break
+      case "reasoning":
         break
       case "image":
         parts.push("[image]")
@@ -186,6 +187,20 @@ export const formatMessageContent = (message: ModelMessage): string => {
     }
   }
   return parts.join("")
+}
+
+export const formatReasoningContent = (message: ModelMessage): string => {
+  if (typeof message.content === "string") return ""
+  return message.content
+    .flatMap((part) => (part.type === "reasoning" ? [part.text] : []))
+    .join("")
+}
+
+export const firstLine = (text: string): string => text.split("\n").find((line) => line.trim()) ?? ""
+
+export const truncateLine = (text: string, maxLength: number): string => {
+  const line = text.replace(/\s+/g, " ").trim()
+  return line.length > maxLength ? `${line.slice(0, maxLength - 1)}…` : line
 }
 
 export const isToolResultError = (part: ToolResultPart): boolean =>

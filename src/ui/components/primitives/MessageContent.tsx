@@ -1,13 +1,18 @@
+import { MouseButton, type MouseEvent } from "@opentui/core"
 import type { ModelMessage } from "ai"
+import { useState } from "react"
 import type { Fl0wMessage } from "../../../models/agent"
 import { parseUserAttachments } from "../../lib/input-completion/at-files"
 import { parseWorkflowPrompt } from "../../../services/workflow/build-message"
 import { ASK_QUESTION_ACTION } from "../../../services/agent/utils/tool-utils"
 import { renderToolCall, renderToolResult } from "../../tool-renderers"
 import {
+  firstLine,
   formatMessageContent,
+  formatReasoningContent,
   formatToolResultText,
   isToolResultError,
+  truncateLine,
   type ToolCallPart,
   type ToolResultPart,
 } from "../../lib/format/message"
@@ -19,6 +24,8 @@ import {
   MessageFrame,
   MessageFrameKindContext,
 } from "./MessageFrame"
+
+const REASONING_PREVIEW_MAX_LENGTH = 72
 
 const hasOnlyToolCalls = (message: ModelMessage): boolean => {
   if (message.role !== "assistant" || !Array.isArray(message.content)) return false
@@ -45,6 +52,35 @@ const ToolCalls = ({ message }: { message: ModelMessage }) => {
         </box>
       ))}
     </MessageFrameKindContext.Provider>
+  )
+}
+
+const ReasoningLine = ({ message }: { message: ModelMessage }) => {
+  const [expanded, setExpanded] = useState(false)
+  const reasoning = formatReasoningContent(message).trim()
+  if (!reasoning) return null
+
+  const handleToggle = (event: MouseEvent) => {
+    if (event.button !== MouseButton.LEFT) return
+    event.preventDefault()
+    setExpanded((value) => !value)
+  }
+
+  const hiddenLineCount = reasoning.split("\n").filter((line) => line.trim()).length - 1
+  const preview = truncateLine(firstLine(reasoning), REASONING_PREVIEW_MAX_LENGTH)
+  const suffix = hiddenLineCount > 0 ? ` (+${hiddenLineCount} lines)` : ""
+
+  return (
+    <box flexDirection="column" paddingLeft={2} marginBottom={1} width="100%">
+      <text fg={AGENT_BORDER_COLOR} selectable={false} onMouseDown={handleToggle}>
+        {expanded ? "▴ ✻ Thought" : `▾ ✻ Thought · ${preview}${suffix}`}
+      </text>
+      {expanded && (
+        <box border={["left"]} borderColor={AGENT_BORDER_COLOR} paddingLeft={1} width="100%">
+          <text fg={AGENT_BORDER_COLOR}>{reasoning}</text>
+        </box>
+      )}
+    </box>
   )
 }
 
@@ -100,7 +136,15 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
   if (hasOnlyToolCalls(message)) return <ToolCalls message={message} />
 
   const text = formatMessageContent(message)
-  if (!text) return message.role === "assistant" ? <ToolCalls message={message} /> : null
+  if (!text) {
+    if (message.role !== "assistant") return null
+    return (
+      <>
+        <ReasoningLine message={message} />
+        <ToolCalls message={message} />
+      </>
+    )
+  }
 
   if (message.role === "user") {
     const workflow = parseWorkflowPrompt(text)
@@ -138,6 +182,7 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
 
   return (
     <>
+      {message.role === "assistant" && <ReasoningLine message={message} />}
       <box
         border={isAgent ? ["left"] : false}
         borderColor={isAgent ? AGENT_BORDER_COLOR : undefined}
