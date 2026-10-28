@@ -22,11 +22,6 @@ export const loadSkillDescription =
 
 export const loadSkillToolSchema = loadSkillInputSchema.jsonSchema as Record<string, unknown>;
 
-export const loadSkillTool = tool({
-  description: loadSkillDescription,
-  inputSchema: loadSkillInputSchema,
-});
-
 export const executeLoadSkill = async ({ name }: LoadSkillInput): Promise<string> => {
   const trimmed = name.trim();
   if (!trimmed) {
@@ -45,3 +40,9 @@ export const executeLoadSkill = async ({ name }: LoadSkillInput): Promise<string
 
   return content;
 };
+
+export const loadSkillTool = tool({
+  description: loadSkillDescription,
+  inputSchema: loadSkillInputSchema,
+  execute: executeLoadSkill,
+});
