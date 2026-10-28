@@ -31,7 +31,6 @@ export const DEFAULT_MODELS: ModelSelection = {
   DISCOVERY: 'deepseek/deepseek-v4.1-flash',
   PLAN: 'deepseek/deepseek-v4.1-flash',
   EXECUTE: 'deepseek/deepseek-v4.1-flash',
-  SUMMARIZE: 'deepseek/deepseek-v4.1-flash',
 };
 
 export const DEFAULT_TOOL_OUTPUT_MAX_CHARS = 20_000;

@@ -33,7 +33,7 @@ Headless commands (agent output as JSON lines on stdout; MCP progress on stderr)
       --answers answers the session's pending question: {"<question-id>":{"optionId":"<id>"}} or {"<question-id>":{"customText":"..."}}.
       Without --answers, --input answers a pending question as free text.
       --capabilities sets CapabilitySelection: {"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}
-      --models sets the model per phase: {"ROUTER":"<model>","DISCOVERY":"<model>","PLAN":"<model>","EXECUTE":"<model>","SUMMARIZE":"<model>"}.
+      --models sets the model per phase: {"ROUTER":"<model>","DISCOVERY":"<model>","PLAN":"<model>","EXECUTE":"<model>"}.
       Phases left out keep the session's choice; "" uses the default.
 
 Headless exit codes (workflow and session): 0 success, 1 error or stopped, 2 ended waiting on input.

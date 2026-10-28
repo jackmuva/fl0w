@@ -107,7 +107,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   if (values.models) {
     modelsFromCli = parseModelsJson(values.models);
     if (!modelsFromCli) {
-      console.error('Invalid --models JSON: expected {"<phase>": "<model>"} with phases ROUTER, DISCOVERY, PLAN, EXECUTE, SUMMARIZE');
+      console.error('Invalid --models JSON: expected {"<phase>": "<model>"} with phases ROUTER, DISCOVERY, PLAN, EXECUTE');
       return 1;
     }
   }

@@ -7,7 +7,6 @@ import {
 } from '../../../constants';
 import { sessionUsageStore } from '../../../store/session-usage-store';
 import type { Fl0wMessage } from '../../../models/agent';
-import { fl0wMessage } from '../utils/message-utils';
 import { TOOL_OUTPUT_FILE_PATTERN, toolOutputFileNotice } from '../default-tools/read-full-tool-output';
 
 const KEEP_ASSISTANT_MESSAGE = 4;
@@ -214,15 +213,12 @@ export const compactMessages = async (
       ? `${summaryResult.text}\n\nTool outputs truncated this session:\n${savedOutputs.map((path) => `- ${toolOutputFileNotice(path)}`).join('\n')}`
       : summaryResult.text;
 
-    const summaryMessage = fl0wMessage(
-      { role: 'assistant', content: summary },
-      'SUMMARY',
-    );
+    const summaryMessage: Fl0wMessage = { message: { role: 'assistant', content: summary }, compacted: true };
 
     const kept = messages.filter((_, index) => retained.has(index));
     const systemMessages = kept.filter(({ message }) => message.role === 'system');
     const otherKept = kept.filter(
-      ({ message, subagent }) => message.role !== 'system' && subagent !== 'SUMMARY',
+      ({ message, compacted }) => message.role !== 'system' && !compacted,
     );
     // Append summary last so sticky bottom scroll shows it.
     result = [...systemMessages, ...otherKept, summaryMessage];

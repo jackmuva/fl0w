@@ -2,7 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { jsonSchema, tool } from 'ai';
-import { assertWithinWorkspace, pathExists } from './utils';
+import { assertWithinWorkspace, pathExists } from './tool-utils';
 
 export type EditFileInput = {
   filePath: string;

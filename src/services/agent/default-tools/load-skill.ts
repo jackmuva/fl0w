@@ -38,7 +38,17 @@ export const executeLoadSkill = async ({ name }: LoadSkillInput): Promise<string
     return `Unknown skill "${trimmed}". Available skills: ${available.join(', ')}`;
   }
 
-  return content;
+  const baseDir = skillService.getSkillBaseDir(trimmed);
+  const files = await skillService.listSkillFiles(trimmed);
+  const header = [
+    `Base directory for this skill: ${baseDir}`,
+    'Relative paths referenced by this skill resolve against the base directory. Read them with their absolute path.',
+  ];
+  if (files.length > 0) {
+    header.push('', 'Bundled files:', ...files.map((file) => `- ${file}`));
+  }
+
+  return `${header.join('\n')}\n\n${content}`;
 };
 
 export const loadSkillTool = tool({

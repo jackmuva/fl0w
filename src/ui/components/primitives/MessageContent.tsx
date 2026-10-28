@@ -54,10 +54,10 @@ type MessageContentProps = {
 }
 
 export const MessageContent = ({ message: entry, toolCallInputs }: MessageContentProps) => {
-  const { message, subagent } = entry
+  const { message, compacted } = entry
   const isAgent = message.role === "assistant" || message.role === "tool"
 
-  if (subagent === "SUMMARY") {
+  if (compacted) {
     const text = formatMessageContent(message)
     if (!text) return null
 

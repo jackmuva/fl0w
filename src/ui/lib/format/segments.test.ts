@@ -32,7 +32,7 @@ describe("groupTranscript", () => {
       call("c1", "default/read", { path: "a.ts" }, "DISCOVERY"),
       call("p1", "default/create_plan", { steps: [] }, "PLAN"),
       text("doing", "EXECUTE"),
-      text("summary", "SUMMARY"),
+      { ...text("summary"), compacted: true },
     ])
 
     expect(segments.map((segment) => segment.kind === "phase"

@@ -7,7 +7,7 @@ import {
   type ActiveWorkflow,
 } from '../../../store/active-workflow-store';
 import { isCapabilityEnabled } from '../../capabilities';
-import { DEFAULT_MARK_STEP_COMPLETE_TOOL } from '../default-tools/utils';
+import { DEFAULT_MARK_STEP_COMPLETE_TOOL } from '../default-tools/tool-utils';
 
 export const AGENTS_MD_FILENAME = 'AGENTS.md';
 

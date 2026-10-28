@@ -1,6 +1,6 @@
 import { readdir, stat } from 'node:fs/promises';
 import { jsonSchema, tool } from 'ai';
-import { assertWithinWorkspace, getWorkspaceDir, pathExists } from './utils';
+import { assertReadablePath, getWorkspaceDir, pathExists } from './tool-utils';
 
 export type ListDirInput = {
   path?: string;
@@ -32,7 +32,7 @@ export const listDirDescription = `List entries in a directory from the local fi
 
 Usage:
 - Omit path to list the current working directory.
-- path may be relative (e.g. "src") or absolute within the workspace.
+- path may be relative (e.g. "src") or absolute within the workspace or a loaded skill's base directory.
 - Returns one entry per line with a trailing / for subdirectories.
 - Use offset and limit to paginate large directories.
 - Use glob to find files by pattern; use list_dir to browse a known directory.
@@ -40,7 +40,7 @@ Usage:
 
 export const executeListDir = async ({ path, offset = 1, limit = DEFAULT_LIMIT }: ListDirInput): Promise<string> => {
   const displayPath = path ?? '.';
-  const resolved = await assertWithinWorkspace(path ?? getWorkspaceDir());
+  const resolved = await assertReadablePath(path ?? getWorkspaceDir());
 
   if (!(await pathExists(resolved))) {
     throw new Error(`Directory not found: ${displayPath}`);

@@ -13,8 +13,7 @@ describe('resolveModels', () => {
       DISCOVERY: 'openai/gpt-6',
       PLAN: '  ',
       EXECUTE: 'anthropic/claude-sonnet-5.5',
-      SUMMARIZE: '',
-    });
+        });
     expect(resolved).toEqual({
       ...DEFAULT_MODELS,
       DISCOVERY: 'openai/gpt-6',

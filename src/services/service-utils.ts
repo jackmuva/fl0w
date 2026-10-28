@@ -55,7 +55,6 @@ export const emptyModelSelection = (): ModelSelection => ({
   DISCOVERY: '',
   PLAN: '',
   EXECUTE: '',
-  SUMMARIZE: '',
 });
 
 export const createDraftSession = (workspacePath: string, id: string = crypto.randomUUID()): SessionRecord => {

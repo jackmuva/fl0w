@@ -1,7 +1,7 @@
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { stat } from 'node:fs/promises';
 import { jsonSchema, tool } from 'ai';
-import { getWorkspaceDir, resolveWorkspacePath } from './utils';
+import { getWorkspaceDir, resolveWorkspacePath } from './tool-utils';
 
 export type GrepInput = {
   pattern: string;

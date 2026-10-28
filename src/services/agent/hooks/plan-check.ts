@@ -1,6 +1,6 @@
 import type { Fl0wMessage } from '../../../models/agent';
 import { buildPlanProgress } from '../../../ui/lib/format/message';
-import { DEFAULT_MARK_STEP_COMPLETE_TOOL } from '../default-tools/utils';
+import { DEFAULT_MARK_STEP_COMPLETE_TOOL } from '../default-tools/tool-utils';
 import { fl0wMessage } from '../utils/message-utils';
 
 // Returns a reminder for the execution agent when the latest plan has steps never marked complete.

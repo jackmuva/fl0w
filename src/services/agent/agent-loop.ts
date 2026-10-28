@@ -6,7 +6,6 @@ import { planAgent } from "./subagents/plan-agent";
 import { executeAgent } from "./subagents/execution-agent";
 import { fl0wMessage, type AgentResult } from "./utils/message-utils";
 import { routingAgent } from "./subagents/routing-agent";
-import { summaryAgent } from "./subagents/summarize-agent";
 import { compactionHook } from "./hooks/compaction";
 import { planCheckHook } from "./hooks/plan-check";
 import { modelStore } from "../../store/model-store";
@@ -61,7 +60,7 @@ const runPhase = async (
   let streamError: unknown;
   for await (const part of result.stream) {
     if (part.type === "error") streamError ??= part.error;
-    if (part.type === "finish-step") sessionUsageStore.record(part, subagent === "SUMMARY" ? undefined : window);
+    if (part.type === "finish-step") sessionUsageStore.record(part, window);
   }
   abort.throwIfAborted();
   let produced: Awaited<AgentResult["responseMessages"]>;
@@ -88,46 +87,44 @@ export const agentLoop = async (
 ): Promise<AgentResult> => {
   try {
     const models = resolveModels(selection);
-    let state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText);
+    let state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText, { discovery: true, plan: true, execute: true, taskComplete: false });
 
     const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
       abort.throwIfAborted();
-      const compacted = await compactionHook(transcript, models.SUMMARIZE, await modelStore.contextWindowFor(target));
+      const compacted = await compactionHook(transcript, models.EXECUTE, await modelStore.contextWindowFor(target));
       if (compacted !== transcript) onMessages(compacted);
       return compacted;
     };
 
     let transcript = messages;
-    let result: AgentResult;
     if (state === "discovery") {
       transcript = await compact(transcript, models.DISCOVERY);
-      ({ result, transcript } = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort, onPhase));
-      if (findPendingAskQuestion(transcript)) return result;
+      const discovery = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort, onPhase);
+      transcript = discovery.transcript;
+      if (findPendingAskQuestion(transcript)) return discovery.result;
+      state = activeWorkflowStore.get() ? "execute" : await routingAgent(transcript, models.ROUTER, abort, onStreamText, { discovery: false, plan: true, execute: true, taskComplete: true });
+      // Discovery's reply already answered the user, so there is nothing left to plan or execute.
+      if (state === "taskComplete") return discovery.result;
     }
-
-    state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText, { discovery: false, plan: true, execute: true });
 
     if (state === "plan") {
       transcript = await compact(transcript, models.PLAN);
       ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort, onPhase));
     }
 
-    state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText, { discovery: false, plan: false, execute: true });
-
-    if (state === "execute") {
+    transcript = await compact(transcript, models.EXECUTE);
+    let result: AgentResult;
+    ({ result, transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
+    for (let attempt = 0; attempt < PLAN_CHECK_MAX_RETRIES; attempt++) {
+      if (findPendingAskQuestion(transcript)) break;
+      const reminder = planCheckHook(transcript);
+      if (!reminder) break;
+      transcript = [...transcript, reminder];
+      onMessages(transcript);
       transcript = await compact(transcript, models.EXECUTE);
-      ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
-      for (let attempt = 0; attempt < PLAN_CHECK_MAX_RETRIES; attempt++) {
-        if (findPendingAskQuestion(transcript)) break;
-        const reminder = planCheckHook(transcript);
-        if (!reminder) break;
-        transcript = [...transcript, reminder];
-        onMessages(transcript);
-        transcript = await compact(transcript, models.EXECUTE);
-        ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
-      }
+      ({ result, transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
     }
-    return (await runPhase("SUMMARY", summaryAgent, models.SUMMARIZE, onMessages, onStreamText, transcript, abort, onPhase)).result;
+    return result;
   } finally {
     activeWorkflowStore.clear();
     onPhase?.(null);

@@ -2,7 +2,7 @@ import { writeFile, mkdtemp } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { jsonSchema, tool } from 'ai';
-import { IMAGE_MIMES } from './utils';
+import { IMAGE_MIMES } from './tool-utils';
 
 const IMAGE_EXTENSIONS: Record<string, string> = {
   'image/jpeg': '.jpg',

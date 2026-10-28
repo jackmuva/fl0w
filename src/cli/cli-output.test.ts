@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
-import type { CliOutput } from '../models/agent';
+import type { CliOutput, Fl0wMessage } from '../models/agent';
 import { fl0wMessage } from '../services/agent/utils/message-utils';
 import { createPhasePrinter, createStreamPrinter, createTranscriptPrinter, createUsagePrinter } from './cli-output';
 
@@ -34,7 +34,7 @@ describe('createTranscriptPrinter', () => {
   test('re-snapshots when entries shrink or are rewritten in place', () => {
     const print = createTranscriptPrinter();
     print([user, decision, reply]);
-    const summary = fl0wMessage({ role: 'assistant', content: 'condensed' }, 'SUMMARY');
+    const summary: Fl0wMessage = { message: { role: 'assistant', content: 'condensed' }, compacted: true };
     print([user, summary]);
     const truncated = { ...user, message: { role: 'user' as const, content: 'h' } };
     print([truncated, summary]);

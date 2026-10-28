@@ -1,5 +1,6 @@
 import { join, resolve, isAbsolute, relative } from 'node:path';
 import { stat } from 'node:fs/promises';
+import { skillService } from '../../external-tools/skill-service';
 
 export const DEFAULT_TOOL_SERVER = 'default';
 
@@ -70,6 +71,15 @@ export const assertWithinWorkspace = async (filePath: string) => {
     );
   }
   return resolved;
+};
+
+export const isPathWithinSkillDir = (resolvedPath: string) =>
+  skillService.getActiveSkillDirs().some((dir) => isPathWithinWorkspace(resolvedPath, dir));
+
+export const assertReadablePath = async (filePath: string) => {
+  const resolved = resolveWorkspacePath(filePath);
+  if (isPathWithinSkillDir(resolved)) return resolved;
+  return assertWithinWorkspace(filePath);
 };
 
 export const pathExists = async (filePath: string) => {

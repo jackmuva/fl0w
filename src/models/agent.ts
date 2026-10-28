@@ -1,10 +1,11 @@
 import type { ModelMessage } from "ai";
 
-export type SubagentType = 'SUMMARY' | "ROUTING" | "EXECUTE" | "PLAN" | "DISCOVERY";
+export type SubagentType = "ROUTING" | "EXECUTE" | "PLAN" | "DISCOVERY";
 
 export type Fl0wMessage = {
   message: ModelMessage,
   subagent?: SubagentType,
+  compacted?: true,
 }
 
 export type UserToolDefinition = {
@@ -81,5 +82,4 @@ export type ModelSelection = {
   "DISCOVERY": string,
   "PLAN": string,
   "EXECUTE": string,
-  "SUMMARIZE": string,
 }

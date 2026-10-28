@@ -36,7 +36,7 @@ On first launch fl0w creates `~/.fl0w/` with `mcp.json`, `tools/`, `skills/`, an
 
 ### Models
 
-Every session assigns a model to five phases, chosen in the `/configure` dialog:
+Every session assigns a model to four phases, chosen in the `/configure` dialog:
 
 | Phase | Role | Default |
 | --- | --- | --- |
@@ -44,9 +44,8 @@ Every session assigns a model to five phases, chosen in the `/configure` dialog:
 | Discovery (`DISCOVERY`) | Scopes the task and researches the workspace | `deepseek/deepseek-v4.1-flash` |
 | Plan (`PLAN`) | Turns the research into a step-by-step plan | `deepseek/deepseek-v4.1-flash` |
 | Execute (`EXECUTE`) | Does the work | `deepseek/deepseek-v4.1-flash` |
-| Summarize (`SUMMARIZE`) | Wraps up each turn and summarizes older context during compaction | `deepseek/deepseek-v4.1-flash` |
 
-Phases you leave unassigned fall back to those defaults. The router needs a decision model; the other four take text models. The model list and each model's metadata (including context windows and input prices) are fetched from fl0w-work's `/api/cli/ai/models` endpoint and cached for the process. The context window drives compaction and the usage meter, and defaults to 1,000,000 tokens for models the list doesn't describe. Compaction is checked before discovery, plan, and execute phases; the summarize model writes the compacted summary.
+Phases you leave unassigned fall back to those defaults. The router needs a decision model; the other three take text models. The model list and each model's metadata (including context windows and input prices) are fetched from fl0w-work's `/api/cli/ai/models` endpoint and cached for the process. The context window drives compaction and the usage meter, and defaults to 1,000,000 tokens for models the list doesn't describe. Compaction is checked before discovery, plan, and execute phases; the execute model writes the compacted summary.
 
 Optional capabilities: local skills in `~/.fl0w/skills/`; MCP servers in `~/.fl0w/mcp.json` (using [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers)); an `AGENTS.md` in the workspace root; and custom TypeScript tools in `~/.fl0w/tools/`. A user tool is a `.ts` file exporting `name`, `description`, `inputSchema`, and `execute` (or a default export with those fields).
 
@@ -98,7 +97,7 @@ fl0w sync                  # manual full sync with fl0w-work
 
 **Shared behavior (`workflow` and `session`)**
 
-- The transcript streams as replayable lines of `Fl0wMessage`s (`{"message":{...},"subagent"?:...}`, where `subagent` is the phase that produced it — `DISCOVERY`, `PLAN`, `EXECUTE`, or `SUMMARY` — and system messages are excluded):
+- The transcript streams as replayable lines of `Fl0wMessage`s (`{"message":{...},"subagent"?:...}`, where `subagent` is the phase that produced it — `DISCOVERY`, `PLAN`, or `EXECUTE`; compaction summaries carry `"compacted":true` instead — and system messages are excluded):
   - `{"type":"snapshot","messages":[...]}` first (prior messages plus this turn's input), and again whenever compaction rewrites earlier entries.
   - `{"type":"message","index":N,"message":{...}}` for each appended entry.
   - Replaying the lines in order rebuilds the transcript.
@@ -106,7 +105,7 @@ fl0w sync                  # manual full sync with fl0w-work
   - `{"type":"stream_delta","delta":"..."}` appends to the preview.
   - `{"type":"stream_end"}` discards it (the finished text then arrives as a `message`, or a retried call starts a new preview).
   - The preview isn't part of the transcript, so replays can ignore these lines.
-- `{"type":"phase","subagent":"DISCOVERY"}` announces each agent phase as it starts (`DISCOVERY`, `PLAN`, `EXECUTE`, or `SUMMARY`), ending with `{"type":"phase","subagent":null}`. Like the stream preview, phase lines are live-only and not part of the transcript.
+- `{"type":"phase","subagent":"DISCOVERY"}` announces each agent phase as it starts (`DISCOVERY`, `PLAN`, or `EXECUTE`), ending with `{"type":"phase","subagent":null}`. Like the stream preview, phase lines are live-only and not part of the transcript.
 - `{"type":"usage","contextPercent":42,"inputTokens":42000,"sessionCostUsd":0.01}` reports current context use and cumulative cost. Usage lines are live-only; replays can keep the latest one.
 - `{"type":"mcp_auth_required","server":"...","serverUrl":"..."}` reports an MCP server that needs OAuth authorization. It's emitted once per server per run, and the run continues without that server's tools.
 - The run ends with a single result line:
@@ -254,7 +253,9 @@ src/
    TUI renders the session.
 5. **Agent runtime** — a router decision model picks discovery, plan, or execute. Discovery
    scopes the task and may ask you a question; plan writes a step-by-step plan; execute does the
-   work and retries incomplete plan steps; summarize closes the turn. Compaction checks happen
-   before discovery, plan, and execute, using the summarize model. Saved workflows skip routing,
-   discovery, and planning and go directly to execute.
+   work and retries incomplete plan steps. The router sees your latest message and the
+   assistant's most recent reply. The first routing can't end the turn, so you always get a
+   reply; after discovery the router may also decide the task is already complete. Compaction
+   checks happen before discovery, plan, and execute, using the execute model. Saved workflows
+   skip routing, discovery, and planning and go directly to execute.
 6. **Shutdown** — starts MCP connection cleanup and attempts to flush pending writes; headless commands await MCP close and the outbox flush.

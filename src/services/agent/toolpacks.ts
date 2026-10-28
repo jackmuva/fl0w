@@ -2,7 +2,7 @@ import type { ToolSet } from "ai";
 import type { SubagentType } from "../../models/agent";
 import type { McpTool } from "../../models/mcp";
 import { USER_TOOL_SERVER } from "../../constants";
-import { DEFAULT_TOOL_SERVER } from "./default-tools/utils";
+import { DEFAULT_TOOL_SERVER } from "./default-tools/tool-utils";
 import { listAllTools, toAiSdkTools } from "./utils/tool-utils";
 
 type Toolpack = 'all' | { exclude: string[] } | { default: string[], mcp?: boolean };
@@ -15,7 +15,6 @@ export const TOOLPACKS: Record<SubagentType, Toolpack> = {
   },
   PLAN: { default: ['create_plan'] },
   EXECUTE: { exclude: ['ask_question', 'create_plan'] },
-  SUMMARY: { default: [] },
 };
 
 const inToolpack = (pack: Toolpack, entry: McpTool) => {

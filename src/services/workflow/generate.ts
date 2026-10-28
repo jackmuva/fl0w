@@ -16,7 +16,7 @@ import {
   DEFAULT_ASK_QUESTION_TOOL,
   DEFAULT_CREATE_PLAN_TOOL,
   DEFAULT_MARK_STEP_COMPLETE_TOOL,
-} from '../agent/default-tools/utils';
+} from '../agent/default-tools/tool-utils';
 import type { GeneratedWorkflow, WorkflowStep, WorkflowToolCall } from '../../models/workflow';
 
 export const generateStructured = async <T>(

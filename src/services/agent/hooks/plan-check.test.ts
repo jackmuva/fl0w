@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { Fl0wMessage } from '../../../models/agent';
-import { DEFAULT_CREATE_PLAN_TOOL, DEFAULT_MARK_STEP_COMPLETE_TOOL } from '../default-tools/utils';
+import { DEFAULT_CREATE_PLAN_TOOL, DEFAULT_MARK_STEP_COMPLETE_TOOL } from '../default-tools/tool-utils';
 import { planCheckHook } from './plan-check';
 
 const toolCall = (toolName: string, input: unknown, toolCallId = crypto.randomUUID()): Fl0wMessage => ({

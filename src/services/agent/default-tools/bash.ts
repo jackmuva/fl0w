@@ -1,5 +1,5 @@
 import { jsonSchema, tool } from 'ai';
-import { resolveWorkspacePath, truncateOutput } from './utils';
+import { resolveWorkspacePath, truncateOutput } from './tool-utils';
 
 export type BashInput = {
   command: string;

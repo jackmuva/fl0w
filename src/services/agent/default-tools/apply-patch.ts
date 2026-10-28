@@ -2,7 +2,7 @@ import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, relative } from 'node:path';
 import { jsonSchema, tool } from 'ai';
 import { deriveNewContentsFromChunks, parsePatch, type Hunk } from './patch-parser';
-import { assertWithinWorkspace, getWorkspaceDir, pathExists } from './utils';
+import { assertWithinWorkspace, getWorkspaceDir, pathExists } from './tool-utils';
 
 export type ApplyPatchInput = {
   patchText: string;

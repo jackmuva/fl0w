@@ -1,7 +1,7 @@
 import { stat } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
 import { jsonSchema, tool } from 'ai';
-import { getWorkspaceDir, isPathWithinWorkspace, resolveWorkspacePath } from './utils';
+import { assertReadablePath, getWorkspaceDir, isPathWithinWorkspace } from './tool-utils';
 
 export type GlobInput = {
   pattern: string;
@@ -30,12 +30,8 @@ export const globDescription = `- Fast file pattern matching tool that works wit
 - You have the capability to call multiple tools in a single response. It is always better to speculatively perform multiple searches as a batch that are potentially useful.`;
 
 export const executeGlob = async ({ pattern, path }: GlobInput): Promise<string> => {
-  const workspace = getWorkspaceDir();
-  const search = path ? resolveWorkspacePath(path) : workspace;
-
-  if (!isPathWithinWorkspace(search, resolve(workspace))) {
-    throw new Error(`Path is outside the workspace: ${path ?? workspace}`);
-  }
+  const workspace = resolve(getWorkspaceDir());
+  const search = path ? await assertReadablePath(path) : workspace;
 
   try {
     const info = await stat(search);
@@ -51,7 +47,7 @@ export const executeGlob = async ({ pattern, path }: GlobInput): Promise<string>
 
   for await (const file of glob.scan({ cwd: search, onlyFiles: true })) {
     const absolute = resolve(search, file);
-    files.push(relative(resolve(workspace), absolute));
+    files.push(isPathWithinWorkspace(absolute, workspace) ? relative(workspace, absolute) : absolute);
     if (files.length >= limit) break;
   }
 

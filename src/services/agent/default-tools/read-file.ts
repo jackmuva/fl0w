@@ -2,12 +2,12 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { jsonSchema, tool } from 'ai';
 import {
-  assertWithinWorkspace,
+  assertReadablePath,
   formatLineNumbered,
   IMAGE_MIMES,
   mimeFromExtension,
   pathExists,
-} from './utils';
+} from './tool-utils';
 
 export type ReadFileInput = {
   filePath: string;
@@ -40,6 +40,7 @@ export const readFileDescription = `Read a file or directory from the local file
 
 Usage:
 - Prefer workspace-relative paths (e.g. "src/index.ts"). Do not use root-relative paths like "/src/index.ts".
+- Files inside a loaded skill's base directory can be read with their absolute path.
 - By default, this tool returns up to 2000 lines from the start of the file.
 - The offset parameter is the line number to start from (1-indexed).
 - To read later sections, call this tool again with a larger offset.
@@ -50,7 +51,7 @@ Usage:
 - This tool can read image files (jpeg, png, gif, webp) and return them as base64 data URLs.`;
 
 export const executeReadFile = async ({ filePath, offset = 1, limit = DEFAULT_READ_LIMIT }: ReadFileInput): Promise<string> => {
-  const resolved = await assertWithinWorkspace(filePath);
+  const resolved = await assertReadablePath(filePath);
 
   if (!(await pathExists(resolved))) {
     const dir = dirname(resolved);

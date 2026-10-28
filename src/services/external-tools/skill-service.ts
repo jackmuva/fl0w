@@ -1,9 +1,11 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { FL0W_HOME } from '../../constants';
 
 export const SKILL_FILENAME = 'SKILL.md';
+
+const MAX_SKILL_FILES_LISTED = 50;
 
 export type SkillSummary = {
   name: string;
@@ -37,6 +39,29 @@ class SkillService {
 
     const content = (await readFile(skill.path, 'utf8')).trim();
     return content || null;
+  }
+
+  getSkillBaseDir(name: string): string | null {
+    const skill = this.registry.get(name);
+    return skill ? dirname(skill.path) : null;
+  }
+
+  getActiveSkillDirs(): string[] {
+    return this.listSkills().map((skill) => dirname(skill.path));
+  }
+
+  async listSkillFiles(name: string): Promise<string[]> {
+    const skill = this.registry.get(name);
+    if (!skill) return [];
+
+    const glob = new Bun.Glob('**/*');
+    const files: string[] = [];
+    for await (const file of glob.scan({ cwd: dirname(skill.path), onlyFiles: true })) {
+      if (file === SKILL_FILENAME) continue;
+      files.push(file);
+      if (files.length >= MAX_SKILL_FILES_LISTED) break;
+    }
+    return files.sort();
   }
 
   formatSkillsCatalog(skills: SkillSummary[]): string {

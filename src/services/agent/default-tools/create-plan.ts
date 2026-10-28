@@ -1,5 +1,5 @@
 import { jsonSchema, tool, type ModelMessage } from 'ai';
-import { DEFAULT_CREATE_PLAN_TOOL } from './utils';
+import { DEFAULT_CREATE_PLAN_TOOL } from './tool-utils';
 
 export type PlanStep = {
   index: number;
