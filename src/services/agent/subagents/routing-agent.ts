@@ -10,8 +10,8 @@ export const routingAgent = async (messages: Fl0wMessage[], model: string, abort
   );
 
   const criteria: { [agent: string]: string } = { "taskComplete": "No additional work is needed." };
-  if (options.discovery) criteria["discovery"] = "If the task is ambiguous or we need to do background research with read tools."
-  if (options.plan) criteria["plan"] = "If the task is a multi-step problem, create a plan for an execution agent to start working on"
+  if (options.discovery) criteria["discovery"] = "If the task is ambiguous or we need to do background research"
+  if (options.plan) criteria["plan"] = "If the task is a multi-step problem that needs a multi-step plan"
   if (options.execute) criteria["execute"] = "If the task is ready for an agent to start working on"
 
   const result = await retryModelCall(() => experimental_decide({
@@ -21,7 +21,7 @@ export const routingAgent = async (messages: Fl0wMessage[], model: string, abort
     questions: {
       agent: {
         type: 'choice',
-        instructions: 'Based on the user\'s requested task, do we need to clarify the problem and do background research, create a plan to complete the task, or start executing the task?',
+        instructions: 'Based on the user\'s requested task, do we need to clarify the problem and do background research, create a plan to complete the task, start executing the task, or is the task already done?',
         criteria,
       },
     },
