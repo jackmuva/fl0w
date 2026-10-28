@@ -43,7 +43,6 @@ export const Transcript = ({
           )
         }
 
-        // Only the trailing segment of the phase that is still running stays expanded.
         const live = index === segments.length - 1 && segment.subagent === activePhase
         return (
           <PhaseFrame

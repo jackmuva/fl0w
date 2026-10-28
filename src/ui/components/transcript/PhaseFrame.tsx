@@ -65,7 +65,7 @@ export const PhaseFrame = ({ subagent, messages, live, toolCallInputs }: PhaseFr
 
   if (live) {
     return (
-      <box flexDirection="column" flexShrink={0} width="100%">
+      <box flexDirection="column" flexShrink={0} width="75%">
         <text fg={accent} selectable={false}>{`● ${subagent} · running`}</text>
         <PhaseMessages messages={messages} toolCallInputs={toolCallInputs} />
       </box>
@@ -84,7 +84,7 @@ export const PhaseFrame = ({ subagent, messages, live, toolCallInputs }: PhaseFr
   const stepLabel = `${rows.length} ${rows.length === 1 ? "step" : "steps"}`
 
   return (
-    <box flexDirection="column" flexShrink={0} width="100%" marginBottom={1}>
+    <box flexDirection="column" flexShrink={0} width="75%" marginBottom={1}>
       <WorkflowEdge />
       <box
         border={true}

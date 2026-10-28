@@ -88,7 +88,7 @@ export const agentLoop = async (
 ): Promise<AgentResult> => {
   try {
     const models = resolveModels(selection);
-    const state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText);
+    let state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText);
 
     const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
       abort.throwIfAborted();
@@ -105,21 +105,27 @@ export const agentLoop = async (
       if (findPendingAskQuestion(transcript)) return result;
     }
 
-    if (state === "discovery" || state === "plan") {
+    state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText, { discovery: false, plan: true, execute: true });
+
+    if (state === "plan") {
       transcript = await compact(transcript, models.PLAN);
       ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort, onPhase));
     }
 
-    transcript = await compact(transcript, models.EXECUTE);
-    ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
-    for (let attempt = 0; attempt < PLAN_CHECK_MAX_RETRIES; attempt++) {
-      if (findPendingAskQuestion(transcript)) break;
-      const reminder = planCheckHook(transcript);
-      if (!reminder) break;
-      transcript = [...transcript, reminder];
-      onMessages(transcript);
+    state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText, { discovery: false, plan: false, execute: true });
+
+    if (state === "execute") {
       transcript = await compact(transcript, models.EXECUTE);
       ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
+      for (let attempt = 0; attempt < PLAN_CHECK_MAX_RETRIES; attempt++) {
+        if (findPendingAskQuestion(transcript)) break;
+        const reminder = planCheckHook(transcript);
+        if (!reminder) break;
+        transcript = [...transcript, reminder];
+        onMessages(transcript);
+        transcript = await compact(transcript, models.EXECUTE);
+        ({ transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
+      }
     }
     return (await runPhase("SUMMARY", summaryAgent, models.SUMMARIZE, onMessages, onStreamText, transcript, abort, onPhase)).result;
   } finally {

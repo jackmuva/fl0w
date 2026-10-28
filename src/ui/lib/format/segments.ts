@@ -20,7 +20,6 @@ export type TranscriptSegment =
   | { kind: "phase"; subagent: PhaseSubagent; messages: Fl0wMessage[]; startIndex: number }
   | { kind: "single"; message: Fl0wMessage; index: number }
 
-// Contiguous messages from the same phase subagent form one segment; everything else stands alone.
 export const groupTranscript = (messages: Fl0wMessage[]): TranscriptSegment[] => {
   const segments: TranscriptSegment[] = []
 
