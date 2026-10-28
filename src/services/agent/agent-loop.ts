@@ -64,9 +64,9 @@ const runPhase = async (
     if (part.type === "finish-step") sessionUsageStore.record(part, window);
   }
   abort.throwIfAborted();
-  let produced: Awaited<AgentResult["response"]>["messages"];
+  let produced: Awaited<AgentResult["responseMessages"]>;
   try {
-    ({ messages: produced } = await result.response);
+    produced = await result.responseMessages;
   } catch (error) {
     if (!NoOutputGeneratedError.isInstance(error) || streamError === undefined) throw error;
     const reason = streamError instanceof Error ? streamError.message : String(streamError);
