@@ -87,7 +87,7 @@ export const agentLoop = async (
 ): Promise<AgentResult> => {
   try {
     const models = resolveModels(selection);
-    let state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText, { discovery: true, plan: true, execute: true, taskComplete: false });
+    let state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText, { plan: true, execute: true, taskComplete: false });
 
     const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
       abort.throwIfAborted();
@@ -97,17 +97,15 @@ export const agentLoop = async (
     };
 
     let transcript = messages;
-    if (state === "discovery") {
+    if (state === "plan") {
       transcript = await compact(transcript, models.DISCOVERY);
       const discovery = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort, onPhase);
       transcript = discovery.transcript;
       if (findPendingAskQuestion(transcript)) return discovery.result;
-      state = activeWorkflowStore.get() ? "execute" : await routingAgent(transcript, models.ROUTER, abort, onStreamText, { discovery: false, plan: true, execute: true, taskComplete: true });
-      // Discovery's reply already answered the user, so there is nothing left to plan or execute.
-      if (state === "taskComplete") return discovery.result;
-    }
 
-    if (state === "plan") {
+      state = activeWorkflowStore.get() ? "execute" : await routingAgent(transcript, models.ROUTER, abort, onStreamText, { plan: true, execute: true, taskComplete: true });
+      if (state === "taskComplete") return discovery.result;
+
       transcript = await compact(transcript, models.PLAN);
       ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort, onPhase));
     }
