@@ -10,8 +10,8 @@ export const routingAgent = async (messages: Fl0wMessage[], model: string, abort
   );
 
   const criteria: { [agent: string]: string } = {};
-  if (options.plan) criteria["plan"] = "If the task is a multi-step problem"
-  if (options.execute) criteria["execute"] = "If the task is ready for an agent to start working on"
+  if (options.plan) criteria["plan"] = "If the task is a multi-step problem."
+  if (options.execute) criteria["execute"] = "If the task is a one-step request"
   if (options.taskComplete) criteria["taskComplete"] = "If no additional work is needed"
 
   const result = await retryModelCall(() => experimental_decide({
