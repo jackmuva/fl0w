@@ -1,7 +1,7 @@
 import Bottleneck from "bottleneck";
 import { chmod, rename, writeFile } from "node:fs/promises";
 import { resolve } from 'node:path';
-import type { ModelSelection } from '../models/agent';
+import { SUBAGENT_TYPES, type ModelSelection } from '../models/agent';
 import type { SessionRecord } from '../models/session';
 
 export const modelRateLimiter = new Bottleneck({
@@ -50,12 +50,8 @@ export async function writeJsonAtomic(path: string, value: unknown): Promise<voi
   await rename(tmp, path);
 }
 
-export const emptyModelSelection = (): ModelSelection => ({
-  ROUTER: '',
-  DISCOVERY: '',
-  PLAN: '',
-  EXECUTE: '',
-});
+export const emptyModelSelection = (): ModelSelection =>
+  Object.fromEntries(SUBAGENT_TYPES.map((type) => [type, ''])) as ModelSelection;
 
 export const createDraftSession = (workspacePath: string, id: string = crypto.randomUUID()): SessionRecord => {
   const now = (new Date()).toISOString();

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { Fl0wMessage, SubagentType } from "../../../models/agent"
-import { buildPhaseDigest, groupTranscript, truncateDigest, type DigestRow } from "./segments"
+import { groupEntries, groupTranscript, truncateMiddle } from "./segments"
 
 const user = (text: string): Fl0wMessage => ({ message: { role: "user", content: text } })
 const text = (value: string, subagent?: SubagentType): Fl0wMessage => ({
@@ -37,7 +37,7 @@ describe("groupTranscript", () => {
 
     expect(segments.map((segment) => segment.kind === "phase"
       ? `${segment.subagent}@${segment.startIndex}x${segment.messages.length}`
-      : `single@${segment.index}`)).toEqual([
+      : segment.kind === "burst" ? `burst@${segment.startIndex}` : `single@${segment.index}`)).toEqual([
       "single@0",
       "DISCOVERY@1x2",
       "PLAN@3x1",
@@ -52,53 +52,68 @@ describe("groupTranscript", () => {
   })
 })
 
-describe("buildPhaseDigest", () => {
-  test("pairs tool calls with their results", () => {
-    expect(buildPhaseDigest([
-      call("c1", "default__bash", { command: "ls src\nls test" }),
-      result("c1", "default__bash", "index.tsx"),
-      call("c2", "default__read", { path: "missing.ts" }),
-      result("c2", "default__read", "not found", true),
-      call("c3", "mcp__thing", {}),
-    ])).toEqual([
-      { status: "ok", label: "bash · ls src" },
-      { status: "error", label: "read · missing.ts" },
-      { status: "pending", label: "thing" },
-    ])
+describe("groupEntries", () => {
+  const shape = (messages: Fl0wMessage[]) => groupEntries(messages).map((entry) => entry.kind === "burst"
+    ? `burst@${entry.startIndex}x${entry.messages.length}`
+    : `single@${entry.index}${entry.hideToolCalls ? "-prose" : ""}`)
+
+  test("collects consecutive tool calls and results into one burst", () => {
+    expect(shape([
+      user("go"),
+      call("c1", "default__read", { filePath: "a.ts" }),
+      result("c1", "default__read", "1: a"),
+      call("c2", "default__bash", { command: "ls" }),
+      result("c2", "default__bash", "a.ts"),
+      text("done"),
+    ])).toEqual(["single@0", "burst@1x4", "single@5"])
   })
 
-  test("summarises plan tools and skips ask_question", () => {
-    expect(buildPhaseDigest([
-      call("p1", "default__create_plan", { title: "Refactor", steps: [{ index: 1, description: "a" }, { index: 2, description: "b" }] }),
-      result("p1", "default__create_plan", "Refactor\n1. a\n2. b"),
-      call("m1", "default__mark_step_complete", { index: 2 }),
-      result("m1", "default__mark_step_complete", "Step 2 marked complete"),
-      call("q1", "default__ask_question", { questions: [] }),
-    ])).toEqual([
-      { status: "ok", label: "plan · Refactor · 2 steps" },
-      { status: "ok", label: "step 2 complete" },
-    ])
+  test("splits prose from the tool calls in the same message", () => {
+    const mixed: Fl0wMessage = {
+      message: {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Let me look." },
+          { type: "tool-call", toolCallId: "c1", toolName: "default__read", input: { filePath: "a.ts" } },
+        ],
+      },
+    }
+    expect(shape([mixed, result("c1", "default__read", "1: a")])).toEqual(["single@0-prose", "burst@0x2"])
   })
 
-  test("uses the first line of assistant text", () => {
-    expect(buildPhaseDigest([text("\n  First line  \nsecond", "EXECUTE")])).toEqual([
-      { status: "text", label: "First line" },
-    ])
+  test("standalone tools end a burst", () => {
+    expect(shape([
+      call("c1", "default__read", { filePath: "a.ts" }),
+      result("c1", "default__read", "1: a"),
+      call("p1", "default__create_plan", { steps: [] }),
+      result("p1", "default__create_plan", "plan"),
+      call("c2", "default__read", { filePath: "b.ts" }),
+    ])).toEqual(["burst@0x2", "single@2", "single@3", "burst@4x1"])
   })
 })
 
-describe("truncateDigest", () => {
-  const rows = (count: number): DigestRow[] =>
-    Array.from({ length: count }, (_, index) => ({ status: "ok", label: `${index}` }))
+describe("groupTranscript bursts", () => {
+  test("groups loose tool calls outside a phase", () => {
+    const segments = groupTranscript([
+      user("go"),
+      { message: { role: "assistant", content: [{ type: "tool-call", toolCallId: "c1", toolName: "default__read", input: {} }] } },
+      text("phase", "EXECUTE"),
+    ])
+    expect(segments.map((segment) => segment.kind)).toEqual(["single", "burst", "phase"])
+  })
+})
+
+describe("truncateMiddle", () => {
+  const rows = (count: number) => Array.from({ length: count }, (_, index) => `${index}`)
 
   test("keeps every row when they fit", () => {
-    expect(truncateDigest(rows(6))).toEqual({ head: rows(6), hiddenCount: 0, tail: [] })
+    expect(truncateMiddle(rows(6))).toEqual({ head: rows(6), hiddenCount: 0, tail: [] })
   })
 
   test("hides the middle rows", () => {
-    const truncated = truncateDigest(rows(10))
-    expect(truncated.head.map((row) => row.label)).toEqual(["0", "1", "2"])
+    const truncated = truncateMiddle(rows(10))
+    expect(truncated.head).toEqual(["0", "1", "2"])
     expect(truncated.hiddenCount).toBe(4)
-    expect(truncated.tail.map((row) => row.label)).toEqual(["7", "8", "9"])
+    expect(truncated.tail).toEqual(["7", "8", "9"])
   })
 })

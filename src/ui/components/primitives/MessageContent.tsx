@@ -1,4 +1,3 @@
-import { MouseButton, type MouseEvent } from "@opentui/core"
 import type { ModelMessage } from "ai"
 import { useState } from "react"
 import type { Fl0wMessage } from "../../../models/agent"
@@ -17,10 +16,12 @@ import {
   type ToolResultPart,
 } from "../../lib/format/message"
 import { filetypeFromPath } from "../../lib/format/message"
+import { ExpandableRow } from "./ExpandableRow"
 import { HighlightedCode } from "./HighlightedCode"
 import { syntaxStyle } from "../../lib/syntax-style"
 import {
   AGENT_BORDER_COLOR,
+  CREAM_FG,
   MessageFrame,
   MessageFrameKindContext,
 } from "./MessageFrame"
@@ -42,7 +43,7 @@ const ToolCalls = ({ message }: { message: ModelMessage }) => {
   return (
     <MessageFrameKindContext.Provider value="call">
       {toolCalls.map((toolCall, index) => (
-        <box key={toolCall.toolCallId ?? index}>
+        <box key={toolCall.toolCallId ?? index} paddingLeft={2}>
           {renderToolCall({
             toolName: toolCall.toolName,
             toolCallId: toolCall.toolCallId,
@@ -60,21 +61,17 @@ const ReasoningLine = ({ message }: { message: ModelMessage }) => {
   const reasoning = formatReasoningContent(message).trim()
   if (!reasoning) return null
 
-  const handleToggle = (event: MouseEvent) => {
-    if (event.button !== MouseButton.LEFT) return
-    event.preventDefault()
-    setExpanded((value) => !value)
-  }
-
   const hiddenLineCount = reasoning.split("\n").filter((line) => line.trim()).length - 1
   const preview = truncateLine(firstLine(reasoning), REASONING_PREVIEW_MAX_LENGTH)
   const suffix = hiddenLineCount > 0 ? ` (+${hiddenLineCount} lines)` : ""
 
   return (
     <box flexDirection="column" paddingLeft={2} marginBottom={1} width="100%">
-      <text fg={AGENT_BORDER_COLOR} selectable={false} onMouseDown={handleToggle}>
-        {expanded ? "▴ ✻ Thought" : `▾ ✻ Thought · ${preview}${suffix}`}
-      </text>
+      <ExpandableRow expanded={expanded} onToggle={() => setExpanded((value) => !value)}>
+        <text fg={AGENT_BORDER_COLOR} selectable={false}>
+          {expanded ? "✻ Thought" : `✻ Thought · ${preview}${suffix}`}
+        </text>
+      </ExpandableRow>
       {expanded && (
         <box border={["left"]} borderColor={AGENT_BORDER_COLOR} paddingLeft={1} width="100%">
           <text fg={AGENT_BORDER_COLOR}>{reasoning}</text>
@@ -84,12 +81,21 @@ const ReasoningLine = ({ message }: { message: ModelMessage }) => {
   )
 }
 
+const UserLine = ({ text }: { text: string }) => (
+  <box flexDirection="row" width="100%">
+    <text fg={CREAM_FG} selectable={false} flexShrink={0}>{"› "}</text>
+    <text flexGrow={1} flexShrink={1}>{text}</text>
+  </box>
+)
+
 type MessageContentProps = {
   message: Fl0wMessage
   toolCallInputs: Map<string, { toolName: string; input: unknown }>
+  // Set when this message's tool calls are told by a journal entry instead.
+  hideToolCalls?: boolean
 }
 
-export const MessageContent = ({ message: entry, toolCallInputs }: MessageContentProps) => {
+export const MessageContent = ({ message: entry, toolCallInputs, hideToolCalls = false }: MessageContentProps) => {
   const { message, compacted } = entry
   const isAgent = message.role === "assistant" || message.role === "tool"
 
@@ -98,7 +104,7 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
     if (!text) return null
 
     return (
-      <box width="100%" marginBottom={1}>
+      <box width="100%" paddingLeft={2}>
         <MessageFrameKindContext.Provider value="summary">
           <MessageFrame title="Conversation summary">
             <text>{text}</text>
@@ -117,7 +123,7 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
 
           const matchedCall = toolCallInputs.get(toolResult.toolCallId)
           return (
-            <box key={toolResult.toolCallId ?? index}>
+            <box key={toolResult.toolCallId ?? index} paddingLeft={2}>
               {renderToolResult({
                 toolName: toolResult.toolName,
                 toolCallId: toolResult.toolCallId,
@@ -133,7 +139,7 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
     )
   }
 
-  if (hasOnlyToolCalls(message)) return <ToolCalls message={message} />
+  if (hasOnlyToolCalls(message)) return hideToolCalls ? null : <ToolCalls message={message} />
 
   const text = formatMessageContent(message)
   if (!text) {
@@ -141,7 +147,7 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
     return (
       <>
         <ReasoningLine message={message} />
-        <ToolCalls message={message} />
+        {!hideToolCalls && <ToolCalls message={message} />}
       </>
     )
   }
@@ -150,7 +156,7 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
     const workflow = parseWorkflowPrompt(text)
     if (workflow) {
       return (
-        <box width="100%" marginBottom={1}>
+        <box width="100%" paddingLeft={2}>
           <MessageFrameKindContext.Provider value="workflow">
             <MessageFrame title={workflow.title}>
               <text>{workflow.content}</text>
@@ -164,15 +170,17 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
     if (attachments.length > 0) {
       return (
         <box flexDirection="column" width="100%" marginBottom={1}>
-          {prompt ? <text>{prompt}</text> : null}
+          {prompt ? <UserLine text={prompt} /> : null}
           {attachments.map((attachment, index) => (
             <MessageFrameKindContext.Provider key={`${attachment.path}-${index}`} value="attachment">
-              <MessageFrame title={attachment.path}>
-                <HighlightedCode
-                  content={attachment.content}
-                  filetype={filetypeFromPath(attachment.path) ?? "plaintext"}
-                />
-              </MessageFrame>
+              <box width="100%" paddingLeft={2}>
+                <MessageFrame title={attachment.path}>
+                  <HighlightedCode
+                    content={attachment.content}
+                    filetype={filetypeFromPath(attachment.path) ?? "plaintext"}
+                  />
+                </MessageFrame>
+              </box>
             </MessageFrameKindContext.Provider>
           ))}
         </box>
@@ -183,19 +191,13 @@ export const MessageContent = ({ message: entry, toolCallInputs }: MessageConten
   return (
     <>
       {message.role === "assistant" && <ReasoningLine message={message} />}
-      <box
-        border={isAgent ? ["left"] : false}
-        borderColor={isAgent ? AGENT_BORDER_COLOR : undefined}
-        paddingLeft={isAgent ? 1 : 0}
-        marginBottom={1}
-        width="100%"
-      >
+      <box paddingLeft={isAgent ? 2 : 0} marginBottom={1} width="100%">
         {message.role === "assistant"
           ? <markdown content={text} syntaxStyle={syntaxStyle} />
-          : <text>{text}</text>}
+          : message.role === "user" ? <UserLine text={text} /> : <text>{text}</text>}
       </box>
       {/* Assistant messages can mix text with tool calls; show the calls after the text. */}
-      {message.role === "assistant" && <ToolCalls message={message} />}
+      {message.role === "assistant" && !hideToolCalls && <ToolCalls message={message} />}
     </>
   )
 }

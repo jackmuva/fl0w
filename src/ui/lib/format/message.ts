@@ -120,7 +120,7 @@ export const readNumberField = (input: unknown, key: string, fallback: number): 
   return typeof value === "number" ? value : fallback
 }
 
-export const callTitle = (toolName: string) => `▶ ${toolName}`
+export const callTitle = (toolName: string) => bareToolName(toolName)
 
 export const concatenateSubtitle = (items: string[], maxLength = 72): string => {
   if (items.length === 0) return ""

@@ -1,37 +1,81 @@
+import type { ModelMessage } from "ai"
 import type { Fl0wMessage, SubagentType } from "../../../models/agent"
-import {
-  bareToolName,
-  firstLine,
-  formatMessageContent,
-  isToolResultError,
-  readNumberField,
-  readPlanSteps,
-  readStringField,
-  truncateLine,
-  type ToolResultPart,
-} from "./message"
+import { isStandaloneTool } from "./journal"
+import { formatMessageContent, formatReasoningContent } from "./message"
 
-export type PhaseSubagent = Extract<SubagentType, "DISCOVERY" | "PLAN" | "EXECUTE">
+export type PhaseSubagent = Exclude<SubagentType, "ROUTER">
 
 const PHASE_SUBAGENTS = new Set<SubagentType>(["DISCOVERY", "PLAN", "EXECUTE"])
 
 export const isPhaseSubagent = (subagent: SubagentType | undefined | null): subagent is PhaseSubagent =>
   subagent !== undefined && subagent !== null && PHASE_SUBAGENTS.has(subagent)
 
+export type TranscriptEntry =
+  | { kind: "single"; message: Fl0wMessage; index: number; hideToolCalls?: true }
+  | { kind: "burst"; messages: Fl0wMessage[]; startIndex: number }
+
 export type TranscriptSegment =
   | { kind: "phase"; subagent: PhaseSubagent; messages: Fl0wMessage[]; startIndex: number }
-  | { kind: "single"; message: Fl0wMessage; index: number }
+  | TranscriptEntry
+
+// Tool calls and results that render as a journal sentence rather than their own view.
+const joinsBurst = (message: ModelMessage): boolean => {
+  if (!Array.isArray(message.content)) return false
+  if (message.role === "assistant") {
+    const calls = message.content.filter((part) => part.type === "tool-call")
+    return calls.length > 0 && calls.every((part) => !isStandaloneTool(part.toolName))
+  }
+  if (message.role === "tool") {
+    return message.content.length > 0
+      && message.content.every((part) => part.type === "tool-result" && !isStandaloneTool(part.toolName))
+  }
+  return false
+}
+
+const hasProse = (message: ModelMessage): boolean =>
+  message.role === "assistant"
+  && Boolean(formatMessageContent(message).trim() || formatReasoningContent(message).trim())
+
+// Collects consecutive tool calls and results into bursts. An assistant message that mixes prose
+// with tool calls is split: its prose stays a single entry and its calls start the next burst.
+export const groupEntries = (messages: Fl0wMessage[], startIndex = 0): TranscriptEntry[] => {
+  const entries: TranscriptEntry[] = []
+
+  messages.forEach((entry, offset) => {
+    const index = startIndex + offset
+    if (!joinsBurst(entry.message)) {
+      entries.push({ kind: "single", message: entry, index })
+      return
+    }
+
+    if (hasProse(entry.message)) entries.push({ kind: "single", message: entry, index, hideToolCalls: true })
+    const last = entries[entries.length - 1]
+    if (last?.kind === "burst") last.messages.push(entry)
+    else entries.push({ kind: "burst", messages: [entry], startIndex: index })
+  })
+
+  return entries
+}
 
 export const groupTranscript = (messages: Fl0wMessage[]): TranscriptSegment[] => {
   const segments: TranscriptSegment[] = []
+  let loose: Fl0wMessage[] = []
+  let looseStart = 0
+
+  const flushLoose = () => {
+    segments.push(...groupEntries(loose, looseStart))
+    loose = []
+  }
 
   messages.forEach((entry, index) => {
     const { subagent } = entry
     if (!isPhaseSubagent(subagent)) {
-      segments.push({ kind: "single", message: entry, index })
+      if (loose.length === 0) looseStart = index
+      loose.push(entry)
       return
     }
 
+    flushLoose()
     const last = segments[segments.length - 1]
     if (last?.kind === "phase" && last.subagent === subagent) {
       last.messages.push(entry)
@@ -39,77 +83,18 @@ export const groupTranscript = (messages: Fl0wMessage[]): TranscriptSegment[] =>
       segments.push({ kind: "phase", subagent, messages: [entry], startIndex: index })
     }
   })
+  flushLoose()
 
   return segments
 }
 
-export type DigestStatus = "ok" | "error" | "pending" | "text"
-
-export type DigestRow = {
-  status: DigestStatus
-  label: string
-}
-
-const DIGEST_MAX_LENGTH = 96
-const PRIMARY_INPUT_FIELDS = ["command", "path", "file_path", "pattern", "url", "query"]
-const SKIPPED_DIGEST_TOOLS = new Set(["ask_question"])
-
-const describeToolCall = (toolName: string, input: unknown): string => {
-  const name = bareToolName(toolName)
-  if (name === "create_plan") {
-    const title = readStringField(input, "title")?.trim()
-    const count = readPlanSteps(input).length
-    return ["plan", title, `${count} steps`].filter(Boolean).join(" · ")
-  }
-  if (name === "mark_step_complete") {
-    return `step ${readNumberField(input, "index", 0) || "?"} complete`
-  }
-
-  for (const field of PRIMARY_INPUT_FIELDS) {
-    const value = readStringField(input, field)
-    if (value?.trim()) return `${name} · ${firstLine(value)}`
-  }
-  return name
-}
-
-// One line per tool call (paired with its result) or assistant text block within a phase.
-export const buildPhaseDigest = (messages: Fl0wMessage[]): DigestRow[] => {
-  const results = new Map<string, ToolResultPart>()
-  for (const { message } of messages) {
-    if (message.role !== "tool" || !Array.isArray(message.content)) continue
-    for (const part of message.content) {
-      if (part.type === "tool-result") results.set(part.toolCallId, part)
-    }
-  }
-
-  const rows: DigestRow[] = []
-  for (const { message } of messages) {
-    if (message.role !== "assistant") continue
-
-    const text = firstLine(formatMessageContent(message))
-    if (text) rows.push({ status: "text", label: truncateLine(text, DIGEST_MAX_LENGTH) })
-
-    if (!Array.isArray(message.content)) continue
-    for (const part of message.content) {
-      if (part.type !== "tool-call") continue
-      if (SKIPPED_DIGEST_TOOLS.has(bareToolName(part.toolName))) continue
-
-      const result = results.get(part.toolCallId)
-      const status: DigestStatus = !result ? "pending" : isToolResultError(result) ? "error" : "ok"
-      rows.push({ status, label: truncateLine(describeToolCall(part.toolName, part.input), DIGEST_MAX_LENGTH) })
-    }
-  }
-
-  return rows
-}
-
-export type TruncatedDigest = {
-  head: DigestRow[]
+export type TruncatedList<T> = {
+  head: T[]
   hiddenCount: number
-  tail: DigestRow[]
+  tail: T[]
 }
 
-export const truncateDigest = (rows: DigestRow[], head = 3, tail = 3): TruncatedDigest => {
+export const truncateMiddle = <T>(rows: T[], head = 3, tail = 3): TruncatedList<T> => {
   if (rows.length <= head + tail) return { head: rows, hiddenCount: 0, tail: [] }
   return {
     head: rows.slice(0, head),

@@ -15,7 +15,7 @@ describe('createTranscriptPrinter', () => {
 
   const system = fl0wMessage({ role: 'system', content: 'rules' });
   const user = fl0wMessage({ role: 'user', content: 'hi' });
-  const decision = fl0wMessage({ role: 'assistant', content: '{}' }, 'ROUTING');
+  const decision = fl0wMessage({ role: 'assistant', content: '{}' }, 'ROUTER');
   const reply = fl0wMessage({ role: 'assistant', content: 'hello' });
 
   test('snapshots first, then appends with indices that skip system messages', () => {
@@ -48,7 +48,7 @@ describe('createTranscriptPrinter', () => {
     const print = createTranscriptPrinter();
     print([user, decision]);
     // a phase ends by re-wrapping the messages its steps published
-    print([user, fl0wMessage(decision.message, 'ROUTING'), reply]);
+    print([user, fl0wMessage(decision.message, 'ROUTER'), reply]);
 
     expect(lines).toEqual([
       { type: 'snapshot', messages: [user, decision] },

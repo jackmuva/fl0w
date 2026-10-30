@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
-import type { CapabilityKind, CapabilitySelection, Fl0wMessage, ModelSelection } from '../models/agent';
+import { SUBAGENT_TYPES, type CapabilityKind, type CapabilitySelection, type Fl0wMessage, type ModelSelection, type SubagentType } from '../models/agent';
 import type { SessionRecord } from '../models/session';
 import { createDraftSession, emptyModelSelection } from '../services/service-utils';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/capabilities';
@@ -16,8 +16,6 @@ const USAGE = 'Usage: fl0w session [session-id] [--input "<message>"] [--answers
 
 const CAPABILITY_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
 
-const MODEL_PHASES = Object.keys(emptyModelSelection()) as (keyof ModelSelection)[];
-
 const parseModelsJson = (raw: string): Partial<ModelSelection> | null => {
   let parsed: unknown;
   try {
@@ -28,8 +26,8 @@ const parseModelsJson = (raw: string): Partial<ModelSelection> | null => {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
   const models: Partial<ModelSelection> = {};
   for (const [phase, model] of Object.entries(parsed)) {
-    if (!MODEL_PHASES.includes(phase as keyof ModelSelection) || typeof model !== 'string') return null;
-    models[phase as keyof ModelSelection] = model;
+    if (!SUBAGENT_TYPES.includes(phase as SubagentType) || typeof model !== 'string') return null;
+    models[phase as SubagentType] = model;
   }
   return models;
 };

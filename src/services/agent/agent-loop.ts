@@ -1,5 +1,5 @@
 import { NoOutputGeneratedError, type ModelMessage, type ToolSet } from "ai";
-import type { Fl0wMessage, ModelSelection, SubagentType } from "../../models/agent";
+import { SUBAGENT_TYPES, type Fl0wMessage, type ModelSelection, type SubagentType } from "../../models/agent";
 import { DEFAULT_MODELS, PLAN_CHECK_MAX_RETRIES } from "../../constants";
 import { discoveryAgent } from "./subagents/discovery-agent";
 import { planAgent } from "./subagents/plan-agent";
@@ -25,7 +25,7 @@ export type Phase = (
 
 export const resolveModels = (selection: Partial<ModelSelection> | null | undefined): ModelSelection => {
   const resolved = { ...DEFAULT_MODELS };
-  for (const phase of Object.keys(resolved) as (keyof ModelSelection)[]) {
+  for (const phase of SUBAGENT_TYPES) {
     const picked = selection?.[phase]?.trim();
     if (picked) resolved[phase] = picked;
   }

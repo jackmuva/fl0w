@@ -5,6 +5,7 @@ import type { PlanProgress } from "../../lib/format/message"
 import { groupTranscript, isPhaseSubagent } from "../../lib/format/segments"
 import { MessageContent } from "../primitives/MessageContent"
 import { PlanProgressContext } from "../tools/PlanToolView"
+import { EntryView } from "./JournalEntry"
 import { PhaseFrame } from "./PhaseFrame"
 
 type TranscriptProps = {
@@ -33,11 +34,11 @@ export const Transcript = ({
   return (
     <PlanProgressContext.Provider value={planProgress}>
       {segments.map((segment, index) => {
-        if (segment.kind === "single") {
+        if (segment.kind !== "phase") {
           return (
-            <MessageContent
-              key={segment.index}
-              message={segment.message}
+            <EntryView
+              key={segment.kind === "burst" ? `b${segment.startIndex}` : segment.index}
+              entry={segment}
               toolCallInputs={toolCallInputs}
             />
           )
@@ -46,7 +47,7 @@ export const Transcript = ({
         const live = index === segments.length - 1 && segment.subagent === activePhase
         return (
           <PhaseFrame
-            key={segment.startIndex}
+            key={`p${segment.startIndex}`}
             subagent={segment.subagent}
             messages={segment.messages}
             live={live}

@@ -1,7 +1,6 @@
 import type { ToolViewProps } from "../../../models/ui"
 import { asRecord } from "../../lib/format/message"
 import { USER_INPUT_BORDER_COLOR } from "../primitives/MessageFrame"
-import { WorkflowEdge } from "../primitives/WorkflowEdge"
 
 const MUTED_FG = "#565f89"
 const ACCENT_FG = "#e6d5b8"
@@ -34,29 +33,19 @@ export const AskQuestionToolResultView = (props: ToolViewProps) => {
   const lines = props.text.split("\n").filter((line) => line.trim())
 
   return (
-    <box width="75%" flexDirection="column" flexShrink={0}>
-      <WorkflowEdge />
-      <box
-        border={true}
-        borderStyle="rounded"
-        borderColor={USER_INPUT_BORDER_COLOR}
-        title=" ◇ INPUT · Your answers "
-        titleColor={USER_INPUT_BORDER_COLOR}
-        paddingLeft={1}
-        paddingRight={1}
-        width="100%"
-        flexDirection="column"
-      >
-        {lines.map((line, index) => {
-          const { prompt, answer } = splitAnswerLine(line, prompts)
-          return (
-            <text key={index}>
+    <box width="100%" flexDirection="column" flexShrink={0} marginBottom={1}>
+      <text fg={USER_INPUT_BORDER_COLOR} selectable={false}>› your answers</text>
+      {lines.map((line, index) => {
+        const { prompt, answer } = splitAnswerLine(line, prompts)
+        return (
+          <box key={index} paddingLeft={2}>
+            <text>
               {prompt ? <span fg={MUTED_FG}>{`${prompt} `}</span> : null}
               {answer}
             </text>
-          )
-        })}
-      </box>
+          </box>
+        )
+      })}
     </box>
   )
 }

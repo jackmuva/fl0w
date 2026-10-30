@@ -7,6 +7,7 @@ import type {
   CapabilitySelection,
   ModelMetadata,
   ModelSelection,
+  SubagentType,
 } from "../../../models/agent"
 import { getFilterKeyAction } from "../../lib/dialog-filter-key"
 import { filterByFuzzyName } from "../../lib/input-completion/fuzzy-match"
@@ -42,7 +43,7 @@ const HIGHLIGHT_BG = "#283457"
 const DONE_FG = "#9ece6a"
 
 type TabKind = "models" | CapabilityKind
-type Phase = keyof ModelSelection
+type Phase = SubagentType
 type ModelAssignments = Record<Phase, string | null>
 type ModelType = ModelMetadata["type"]
 

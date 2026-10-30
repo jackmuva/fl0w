@@ -8,7 +8,7 @@ import { listAllTools, toAiSdkTools } from "./utils/tool-utils";
 type Toolpack = 'all' | { exclude: string[] } | { default: string[], mcp?: boolean };
 
 export const TOOLPACKS: Record<SubagentType, Toolpack> = {
-  ROUTING: { default: [] },
+  ROUTER: { default: [] },
   DISCOVERY: {
     default: ['read', 'grep', 'glob', 'list_dir', 'read_full_tool_output', 'load_skill', 'websearch', 'webfetch', 'ask_question'],
     mcp: true,

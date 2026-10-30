@@ -18,7 +18,7 @@ import type { WorkflowRecord } from "../models/workflow"
 import type { SessionListEntry, StoredSession } from "../models/session"
 import { useSessionPersistence } from "./hooks/useSessionPersistence"
 import { buildPlanProgress, buildToolCallInputMap, type PlanProgress } from "./lib/format/message"
-import { PlanSidebar, PLAN_SIDEBAR_MIN_TERMINAL_WIDTH } from "./components/plan-sidebar/PlanSidebar"
+import { fitsPlanSidebar, PlanSidebar } from "./components/plan-sidebar/PlanSidebar"
 import { Transcript } from "./components/transcript/Transcript"
 import { CompletionOverlayDialog } from "./components/input/CompletionOverlay"
 import { SessionSelectionDialog } from "./components/dialogs/SessionSelectionDialog"
@@ -120,7 +120,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     return latest ?? (kept?.sessionId === session.id ? kept.plan : undefined)
   }, [visibleMessages, session.id])
 
-  const showPlanSidebar = planProgress !== undefined && width >= PLAN_SIDEBAR_MIN_TERMINAL_WIDTH
+  const showPlanSidebar = planProgress !== undefined && fitsPlanSidebar(width)
 
   const refreshWorkflows = useCallback(async () => {
     try {

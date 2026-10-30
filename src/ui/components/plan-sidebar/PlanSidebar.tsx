@@ -4,10 +4,11 @@ import { EDGE_FG } from "../primitives/WorkflowEdge"
 import { PLAN_PENDING_FG, PLAN_STEP_FG, PLAN_STEP_GLYPH, planEdgeColor, planStepStates } from "./plan-style"
 
 export const PLAN_SIDEBAR_WIDTH = 36
-// Below this terminal width the sidebar is hidden so the chat keeps its room.
-export const PLAN_SIDEBAR_MIN_TERMINAL_WIDTH = 100
+// The sidebar is hidden once it would take more than half the terminal, so the chat keeps its room.
+export const fitsPlanSidebar = (terminalWidth: number) => PLAN_SIDEBAR_WIDTH <= terminalWidth / 2
 
-// Steps render on one line, so keep only the first line of the description; the text truncates with an ellipsis.
+// Keep only the first line of the description; it wraps and is clipped after STEP_MAX_LINES so the start always shows.
+const STEP_MAX_LINES = 2
 const stepHeadline = (description: string) => description.trim().split("\n")[0]!.trim()
 
 type PlanSidebarProps = {
@@ -32,10 +33,10 @@ export const PlanSidebar = ({ progress }: PlanSidebarProps) => {
       paddingLeft={1}
       marginLeft={1}
     >
-      <text fg={complete ? GREEN_FG : CREAM_FG}>
+      <text fg={complete ? GREEN_FG : CREAM_FG} flexShrink={0}>
         <strong>{progress.title ?? "Plan"}</strong>
       </text>
-      <text fg={complete ? GREEN_FG : PLAN_PENDING_FG}>
+      <text fg={complete ? GREEN_FG : PLAN_PENDING_FG} flexShrink={0}>
         {complete ? `✓ complete · ${steps.length} steps` : `${done}/${steps.length} complete`}
       </text>
       <scrollbox flexGrow={1} flexShrink={1} minHeight={0} width="100%" marginTop={1}>
@@ -50,11 +51,10 @@ export const PlanSidebar = ({ progress }: PlanSidebarProps) => {
                 <box flexShrink={0} width={3}>
                   <text fg={PLAN_STEP_FG[state]}>{` ${PLAN_STEP_GLYPH[state]}`}</text>
                 </box>
-                <box flexGrow={1} flexShrink={1}>
+                <box flexGrow={1} flexShrink={1} maxHeight={STEP_MAX_LINES} overflow="hidden">
                   <text
                     fg={state === "pending" ? PLAN_PENDING_FG : state === "done" ? GREEN_FG : undefined}
-                    wrapMode="none"
-                    truncate
+                    wrapMode="word"
                   >
                     {`${step.index}. ${stepHeadline(step.description)}`}
                   </text>

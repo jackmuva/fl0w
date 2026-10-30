@@ -1,7 +1,7 @@
-import { MouseButton, RGBA, type MouseEvent } from "@opentui/core"
+import type { BoxRenderable } from "@opentui/core"
 import type { ReactNode } from "react"
 import { createContext, useContext, useState } from "react"
-import { WorkflowEdge } from "./WorkflowEdge"
+import { ExpandableRow } from "./ExpandableRow"
 
 export const AGENT_BORDER_COLOR = "#565f89"
 export const USER_INPUT_BORDER_COLOR = "#e0af68"
@@ -14,14 +14,13 @@ export const MESSAGE_FRAME_MAX_HEIGHT = 14
 const MUTED_FG = "#565f89"
 const CALL_LABEL_FG = CREAM_FG
 const OUTPUT_LABEL_FG = GREEN_FG
-const TERMINAL_BG = RGBA.defaultBackground()
 
 const NODE_LABEL: Record<MessageFrameKind, string> = {
-  call: "● CALL",
-  output: "■ OUTPUT",
-  summary: "◆ SUMMARY",
-  attachment: "◇ ATTACH",
-  workflow: "▶ WORKFLOW",
+  call: "",
+  output: "",
+  summary: "summary",
+  attachment: "attached",
+  workflow: "workflow",
 }
 
 export type MessageFrameKind = "call" | "output" | "summary" | "attachment" | "workflow"
@@ -36,21 +35,17 @@ type MessageFrameProps = {
   width?: `${number}%` | number | "auto"
 }
 
+// A dim title line over indented content; the content clips at maxHeight until expanded.
 export const MessageFrame = ({
   title,
   subtitle,
   children,
   maxHeight = MESSAGE_FRAME_MAX_HEIGHT,
-  width = "75%" as const,
+  width = "100%" as const,
 }: MessageFrameProps) => {
   const [expanded, setExpanded] = useState(false)
+  const [overflowing, setOverflowing] = useState(false)
   const kind = useContext(MessageFrameKindContext)
-
-  const handleToggle = (event: MouseEvent) => {
-    if (event.button !== MouseButton.LEFT) return
-    event.preventDefault()
-    setExpanded((value) => !value)
-  }
 
   const accent = kind === "call"
     ? CALL_LABEL_FG
@@ -63,41 +58,37 @@ export const MessageFrame = ({
           : kind === "workflow"
             ? WORKFLOW_BORDER_COLOR
             : AGENT_BORDER_COLOR
-  const label = kind ? `${NODE_LABEL[kind]} · ` : ""
+  const label = kind && NODE_LABEL[kind] ? `${NODE_LABEL[kind]} ` : ""
 
   return (
-    <box flexDirection="column" flexShrink={0} width={width}>
-      <WorkflowEdge />
+    <box flexDirection="column" flexShrink={0} width={width} marginBottom={1}>
+      <text selectable={false}>
+        <span fg={accent}>{`~ ${label}${title}`}</span>
+        {subtitle ? <span fg={MUTED_FG}>{` · ${subtitle}`}</span> : null}
+      </text>
       <box
-        position="relative"
-        flexDirection="column"
         width="100%"
+        paddingLeft={2}
+        maxHeight={expanded ? undefined : maxHeight}
+        overflow={expanded ? undefined : "hidden"}
       >
         <box
-          border={true}
-          borderStyle="rounded"
-          borderColor={accent}
-          title={` ${label}${title} `}
-          titleColor={accent}
-          paddingLeft={1}
-          paddingRight={1}
           width="100%"
-          zIndex={10}
-          backgroundColor={TERMINAL_BG}
+          flexShrink={0}
+          onSizeChange={function (this: BoxRenderable) {
+            setOverflowing(this.height > maxHeight)
+          }}
         >
-          {subtitle ? <text fg={MUTED_FG}>{subtitle}</text> : null}
-          <box
-            width="100%"
-            maxHeight={expanded ? undefined : maxHeight}
-            overflow={expanded ? undefined : "hidden"}
-          >
-            {children}
-          </box>
-          <text fg={MUTED_FG} selectable={false} onMouseDown={handleToggle}>
-            {expanded ? "▴ collapse" : "▾ expand"}
-          </text>
+          {children}
         </box>
       </box>
+      {(overflowing || expanded) && (
+        <box paddingLeft={2}>
+          <ExpandableRow expanded={expanded} onToggle={() => setExpanded((value) => !value)}>
+            <text fg={MUTED_FG} selectable={false}>{expanded ? "show less" : "show more"}</text>
+          </ExpandableRow>
+        </box>
+      )}
     </box>
   )
 }

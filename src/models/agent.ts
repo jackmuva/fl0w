@@ -1,6 +1,8 @@
 import type { ModelMessage } from "ai";
 
-export type SubagentType = "ROUTING" | "EXECUTE" | "PLAN" | "DISCOVERY";
+export const SUBAGENT_TYPES = ["ROUTER", "DISCOVERY", "PLAN", "EXECUTE"] as const;
+
+export type SubagentType = typeof SUBAGENT_TYPES[number];
 
 export type Fl0wMessage = {
   message: ModelMessage,
@@ -77,9 +79,4 @@ export type ModelMetadata = {
   type: "text" | "decision",
 }
 
-export type ModelSelection = {
-  "ROUTER": string,
-  "DISCOVERY": string,
-  "PLAN": string,
-  "EXECUTE": string,
-}
+export type ModelSelection = Record<SubagentType, string>
