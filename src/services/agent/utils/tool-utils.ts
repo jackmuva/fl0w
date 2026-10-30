@@ -1,12 +1,12 @@
 import { jsonSchema, tool, type generateText } from "ai";
 import { mcpToolKey, type McpTool, type McpToolResult } from "../../../models/mcp";
-import { sessionWorkspacePath, TOOL_OUTPUT_MAX_CHARS, WORKFLOW_RUN } from "../../../constants";
+import { sessionWorkspacePath, TOOL_OUTPUT_MAX_CHARS, USER_TOOL_SERVER, WORKFLOW_RUN } from "../../../constants";
 import { mcpClient } from "../../external-tools/mcp-client";
 import { isCapabilityEnabled, isMcpToolEnabled } from "../../capabilities";
-import { executeDefaultTool, getDefaultTool, isDefaultToolKey, listDefaultTools } from "../default-tools";
-import { DEFAULT_ASK_QUESTION_TOOL, DEFAULT_CREATE_PLAN_TOOL, defaultToolKey, READ_FULL_TOOL_OUTPUT_TOOL } from "../default-tools/tool-utils";
+import { executeDefaultTool, getDefaultTool, listDefaultTools } from "../default-tools";
+import { DEFAULT_ASK_QUESTION_TOOL, DEFAULT_CREATE_PLAN_TOOL, DEFAULT_TOOL_SERVER, defaultToolKey, READ_FULL_TOOL_OUTPUT_TOOL } from "../default-tools/tool-utils";
 import { skillService } from "../../external-tools/skill-service";
-import { isUserToolKey, userToolLoader } from "../../external-tools/user-tool-service";
+import { userToolLoader } from "../../external-tools/user-tool-service";
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { toolOutputFileNotice } from "../default-tools/read-full-tool-output";
@@ -14,11 +14,6 @@ import { toolOutputFileNotice } from "../default-tools/read-full-tool-output";
 export const CREATE_PLAN_ACTION = DEFAULT_CREATE_PLAN_TOOL;
 export const ASK_QUESTION_ACTION = DEFAULT_ASK_QUESTION_TOOL;
 export type EvaluateMcpTool = Pick<McpTool, 'server' | 'name' | 'description' | 'inputSchema'>;
-
-export const parseToolKey = (key: string): { server: string, name: string } => {
-  const slash = key.indexOf('/');
-  return { server: key.slice(0, slash), name: key.slice(slash + 1) };
-};
 
 const toolCallGenerationErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -60,7 +55,7 @@ export const toAiSdkTools = (tools: McpTool[]) =>
       description: entry.description ?? `Call the ${key} tool`,
       inputSchema: jsonSchema<Record<string, unknown>>(entry.inputSchema as Record<string, unknown>),
       execute: async (input, { toolCallId }) => {
-        const result = await executeNamedTool(key, input, { toolCallId });
+        const result = await executeTool(entry, input, { toolCallId });
         if (result.isError) throw new Error(result.content);
         return result.content;
       },
@@ -98,18 +93,17 @@ export const capToolOutput = async (
   return { ...result, content: `${header} ${toolOutputFileNotice(path)}.]\n${preview}` };
 };
 
-export const executeNamedTool = async (
-  toolName: string,
+export const executeTool = async (
+  { server, name }: Pick<McpTool, 'server' | 'name'>,
   input: Record<string, unknown>,
   context?: ToolCallContext,
 ): Promise<McpToolResult> => {
-  const { server, name } = parseToolKey(toolName);
-  const result = isDefaultToolKey(toolName)
+  const result = server === DEFAULT_TOOL_SERVER
     ? await executeDefaultTool(name, input)
-    : isUserToolKey(toolName)
+    : server === USER_TOOL_SERVER
       ? await userToolLoader.executeUserTool(name, input)
       : await mcpClient.callTool(server, name, input);
-  if (!context || UNCAPPED_TOOLS.has(toolName)) return result;
+  if (!context || UNCAPPED_TOOLS.has(mcpToolKey({ server, name }))) return result;
   return capToolOutput(result, context.toolCallId, context.sessionId);
 };
 

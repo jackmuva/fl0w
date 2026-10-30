@@ -38,8 +38,6 @@ const parseModule = (mod: Record<string, unknown>, filePath: string): UserToolDe
   };
 };
 
-export const isUserToolKey = (key: string) => key.startsWith(`${USER_TOOL_SERVER}/`);
-
 class UserToolLoader {
   private loaded = false;
   private entries: UserToolDefinition[] = [];

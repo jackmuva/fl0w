@@ -156,8 +156,6 @@ const defaultToolEntries: DefaultToolEntry[] = [
 
 const defaultToolMap = new Map(defaultToolEntries.map((entry) => [entry.name, entry]));
 
-export const isDefaultToolKey = (key: string) => key.startsWith(`${DEFAULT_TOOL_SERVER}/`);
-
 export const listDefaultTools = (): McpTool[] =>
   defaultToolEntries.map((entry) => ({
     server: DEFAULT_TOOL_SERVER,

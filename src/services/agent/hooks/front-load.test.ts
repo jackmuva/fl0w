@@ -182,7 +182,7 @@ describe('frontLoadMessages active workflow', () => {
         index: 1,
         description: 'Find the handler',
         instructions: 'Search the source tree for the handler',
-        tools: [{ tool: 'default/grep', parameters: { pattern: '{{handler}}' } }],
+        tools: [{ tool: 'default__grep', parameters: { pattern: '{{handler}}' } }],
       },
       { index: 2, description: 'Open the PR', instructions: 'Push and open a PR' },
     ],
@@ -198,9 +198,9 @@ describe('frontLoadMessages active workflow', () => {
 
     expect(content).toContain('Goal: Open a PR for the change');
     expect(content).toContain('### Step 1: Find the handler');
-    expect(content).toContain('- default/grep({"pattern":"{{handler}}"})');
+    expect(content).toContain('- default__grep({"pattern":"{{handler}}"})');
     expect(content).toContain('### Step 2: Open the PR');
-    expect(content).toContain('default/mark_step_complete');
+    expect(content).toContain('default__mark_step_complete');
     expect(content).toContain('handler is loginHandler');
   });
 

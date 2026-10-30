@@ -70,8 +70,8 @@ describe('mergePlanAndInstructions', () => {
   test('joins steps by index and keeps catalog tools with stringified parameters', () => {
     const workflow = mergePlanAndInstructions(plan, validateGeneratedInstructions({
       steps: [
-        { index: 2, instructions: 'Open the PR', tools: [{ tool: 'github/create_pr', parameters: { title: '{{title}}', draft: true } }] },
-        { index: 1, instructions: ' Search for the handler ', tools: [{ tool: 'default/grep', parameters: { pattern: 'handler' } }] },
+        { index: 2, instructions: 'Open the PR', tools: [{ tool: 'github__create_pr', parameters: { title: '{{title}}', draft: true } }] },
+        { index: 1, instructions: ' Search for the handler ', tools: [{ tool: 'default__grep', parameters: { pattern: 'handler' } }] },
       ],
     }), tools);
 
@@ -80,13 +80,13 @@ describe('mergePlanAndInstructions', () => {
         index: 1,
         description: 'Find the code',
         instructions: 'Search for the handler',
-        tools: [{ tool: 'default/grep', parameters: { pattern: 'handler' } }],
+        tools: [{ tool: 'default__grep', parameters: { pattern: 'handler' } }],
       },
       {
         index: 2,
         description: 'Open a PR',
         instructions: 'Open the PR',
-        tools: [{ tool: 'github/create_pr', parameters: { title: '{{title}}', draft: 'true' } }],
+        tools: [{ tool: 'github__create_pr', parameters: { title: '{{title}}', draft: 'true' } }],
       },
     ]);
   });

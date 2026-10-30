@@ -14,6 +14,7 @@ import type {
   McpTool,
   McpToolResult,
 } from '../../models/mcp';
+import { mcpToolKey } from '../../models/mcp';
 import { HEADLESS, HEADLESS_MCP_CONNECT_TIMEOUT_MS, MCP_CONFIG_PATH } from '../../constants';
 import { configSyncStore } from '../sync/config-sync';
 
@@ -285,7 +286,7 @@ export class McpClientManager {
       content: [{
         type: 'tool-result',
         toolCallId,
-        toolName: `${result.server}/${result.tool}`,
+        toolName: mcpToolKey({ server: result.server, name: result.tool }),
         output: { type: result.isError ? 'error-text' : 'text', value: result.content },
       }],
     };

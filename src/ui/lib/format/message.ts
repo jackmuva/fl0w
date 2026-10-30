@@ -1,5 +1,6 @@
 import type { ModelMessage } from "ai"
 import type { Fl0wMessage } from "../../../models/agent"
+import { parseToolKey } from "../../../models/mcp"
 
 const EXT_TO_FILETYPE: Record<string, string> = {
   ts: "typescript",
@@ -233,7 +234,7 @@ export type PlanProgress = {
   steps: PlanStepProgress[]
 }
 
-export const bareToolName = (toolName: string) => toolName.split("/").pop() ?? toolName
+export const bareToolName = (toolName: string) => parseToolKey(toolName).name
 
 export const readPlanSteps = (input: unknown): Omit<PlanStepProgress, "done">[] => {
   const steps = asRecord(input)?.steps

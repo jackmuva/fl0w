@@ -21,7 +21,7 @@ const sampleWorkflow: WorkflowRecord = {
       index: 1,
       description: 'Find session store',
       instructions: 'Search for SessionStore usage',
-      tools: [{ tool: 'default/grep', parameters: { pattern: 'SessionStore' } }],
+      tools: [{ tool: 'default__grep', parameters: { pattern: 'SessionStore' } }],
     },
     {
       index: 2,
@@ -59,7 +59,7 @@ describe('buildWorkflowPlanMessages', () => {
 
     expect(call?.role).toBe('assistant');
     const callPart = (call?.content as Array<{ type: string; toolName: string; toolCallId: string; input: unknown }>)[0]!;
-    expect(callPart.toolName).toBe('default/create_plan');
+    expect(callPart.toolName).toBe('default__create_plan');
     expect(callPart.input).toEqual({
       title: 'Add persistence',
       steps: [

@@ -1,7 +1,7 @@
 import type { CapabilitySelection } from './agent';
 import type { ModelSelection } from './agent';
 
-/** A tool the step should call; `tool` is the `server/name` key, parameters may hold {{placeholder}} values. */
+/** A tool the step should call; `tool` is the `server__name` key, parameters may hold {{placeholder}} values. */
 export type WorkflowToolCall = {
   tool: string;
   parameters: Record<string, string>;

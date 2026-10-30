@@ -55,7 +55,7 @@ const toolSelectionSchema = (maxTools: number) => jsonSchema<ToolSelection>({
       items: { type: 'string' },
       minItems: 1,
       maxItems: maxTools,
-      description: 'Exact MCP tool keys (server/name) needed for the next step, most relevant first',
+      description: 'Exact MCP tool keys (server__name) needed for the next step, most relevant first',
     },
   },
   required: ['toolNames'],
@@ -117,7 +117,7 @@ const selectToolNamesWithLlm = async (
   const messagesJson = JSON.stringify(toModelMessages(messages));
 
   const instructions = `
-Given the conversation and the full tool catalog below, return only the tool keys that are likely needed for the user's last task. Prefer fewer tools when possible. Use exact keys from the catalog (server/name format).
+Given the conversation and the full tool catalog below, return only the tool keys that are likely needed for the user's last task. Prefer fewer tools when possible. Use exact keys from the catalog (server__name format).
 
 Select at most ${maxToolCount} tools.
 

@@ -11,7 +11,7 @@ import {
 import type { Fl0wMessage } from '../../models/agent';
 import type { StoredSession } from '../../models/session';
 import { emptyCapabilitySelection } from '../capabilities';
-import { mcpToolKey, type McpTool } from '../../models/mcp';
+import { mcpToolKey, parseToolKey, type McpTool } from '../../models/mcp';
 import {
   DEFAULT_ASK_QUESTION_TOOL,
   DEFAULT_CREATE_PLAN_TOOL,
@@ -164,7 +164,7 @@ const instructionsSchema = jsonSchema<GeneratedStepInstructions>({
             items: {
               type: 'object',
               properties: {
-                tool: { type: 'string', description: 'Tool key exactly as listed in the catalog (server/name)' },
+                tool: { type: 'string', description: 'Tool key exactly as listed in the catalog (server__name)' },
                 parameters: {
                   type: 'object',
                   additionalProperties: { type: 'string' },
@@ -385,10 +385,8 @@ export const generateWorkflowFromSession = async (
 
   const catalog = new Map(tools.map((entry) => [mcpToolKey(entry), entry]));
   for (const { toolName } of extractToolCalls(conversation)) {
-    const slash = toolName.indexOf('/');
-    if (slash > 0 && !catalog.has(toolName)) {
-      catalog.set(toolName, { server: toolName.slice(0, slash), name: toolName.slice(slash + 1) });
-    }
+    const { server, name } = parseToolKey(toolName);
+    if (server && !catalog.has(toolName)) catalog.set(toolName, { server, name });
   }
   const stepTools = [...catalog.entries()]
     .filter(([key]) => !NON_STEP_TOOLS.has(key))

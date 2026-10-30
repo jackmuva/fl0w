@@ -12,7 +12,7 @@ const largeToolResult = (size: number): Fl0wMessage => ({ message: {
   content: [{
     type: 'tool-result',
     toolCallId: 'call-1',
-    toolName: 'default/read_file',
+    toolName: 'default__read_file',
     output: { type: 'text', value: 'x'.repeat(size) },
   }],
 } });
@@ -75,7 +75,7 @@ describe('shrinkMessagesToTokenBudget', () => {
         content: [{
           type: 'tool-result',
           toolCallId: id,
-          toolName: 'default/read_file',
+          toolName: 'default__read_file',
           output: { type: 'text', value: 'x'.repeat(size) },
         }],
       },
@@ -109,7 +109,7 @@ describe('shrinkMessagesToTokenBudget', () => {
         content: [{
           type: 'tool-result',
           toolCallId: 'json',
-          toolName: 'default/bash',
+          toolName: 'default__bash',
           output: { type: 'json', value: { stdout: 'x'.repeat(20_000) } },
         }],
       },
@@ -120,7 +120,7 @@ describe('shrinkMessagesToTokenBudget', () => {
         content: [{
           type: 'tool-result',
           toolCallId: 'content',
-          toolName: 'provider/tool',
+          toolName: 'provider__tool',
           output: {
             type: 'content',
             value: [{ type: 'text', text: 'y'.repeat(20_000) }],

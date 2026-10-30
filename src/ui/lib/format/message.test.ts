@@ -68,8 +68,8 @@ describe("buildPlanProgress", () => {
 
   test("marks steps completed after the latest plan", () => {
     expect(buildPlanProgress([
-      call("p1", "default/create_plan", { steps }),
-      call("m1", "default/mark_step_complete", { index: 2 }),
+      call("p1", "default__create_plan", { steps }),
+      call("m1", "default__mark_step_complete", { index: 2 }),
     ])).toEqual({
       toolCallId: "p1",
       title: undefined,
@@ -81,20 +81,20 @@ describe("buildPlanProgress", () => {
   })
 
   test("carries the plan title", () => {
-    expect(buildPlanProgress([call("p1", "default/create_plan", { title: " Refactor ", steps })])?.title).toBe("Refactor")
+    expect(buildPlanProgress([call("p1", "default__create_plan", { title: " Refactor ", steps })])?.title).toBe("Refactor")
   })
 
   test("a new plan resets progress", () => {
     const progress = buildPlanProgress([
-      call("p1", "default/create_plan", { steps }),
-      call("m1", "default/mark_step_complete", { index: 1 }),
-      call("p2", "default/create_plan", { steps }),
+      call("p1", "default__create_plan", { steps }),
+      call("m1", "default__mark_step_complete", { index: 1 }),
+      call("p2", "default__create_plan", { steps }),
     ])
     expect(progress?.toolCallId).toBe("p2")
     expect(progress?.steps.every((step) => !step.done)).toBe(true)
   })
 
   test("returns undefined without a structured plan", () => {
-    expect(buildPlanProgress([call("p1", "default/create_plan", { plan: "1. Read" })])).toBeUndefined()
+    expect(buildPlanProgress([call("p1", "default__create_plan", { plan: "1. Read" })])).toBeUndefined()
   })
 })

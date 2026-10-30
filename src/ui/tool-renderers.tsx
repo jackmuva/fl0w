@@ -1,5 +1,6 @@
 import { createElement, type ComponentType, type ReactNode } from "react"
 import type { ToolViewProps } from "../models/ui"
+import { parseToolKey } from "../models/mcp"
 import { ApplyPatchToolCallView, ApplyPatchToolResultView } from "./components/tools/ApplyPatchToolView"
 import { AskQuestionToolCallView, AskQuestionToolResultView } from "./components/tools/AskQuestionToolView"
 import { BashToolCallView, BashToolResultView } from "./components/tools/BashToolView"
@@ -22,47 +23,45 @@ import { WriteToolCallView, WriteToolResultView } from "./components/tools/Write
 
 type ToolComponent = ComponentType<ToolViewProps>
 
-const stripToolServer = (toolName: string) => toolName.split("/").pop() ?? toolName
-
 const toolResultComponents: Record<string, ToolComponent> = {
-  "default/read": ReadToolResultView,
-  "default/bash": BashToolResultView,
-  "default/grep": GrepToolResultView,
-  "default/edit": EditToolResultView,
-  "default/apply_patch": ApplyPatchToolResultView,
-  "default/write": WriteToolResultView,
-  "default/glob": GlobToolResultView,
-  "default/list_dir": ListDirToolResultView,
-  "default/webfetch": WebFetchToolResultView,
-  "default/websearch": WebSearchToolResultView,
-  "default/message_answer": MessageAnswerToolResultView,
-  "default/ask_question": AskQuestionToolResultView,
-  "default/create_plan": PlanToolResultView,
-  "default/mark_step_complete": MarkStepCompleteToolResultView,
+  "default__read": ReadToolResultView,
+  "default__bash": BashToolResultView,
+  "default__grep": GrepToolResultView,
+  "default__edit": EditToolResultView,
+  "default__apply_patch": ApplyPatchToolResultView,
+  "default__write": WriteToolResultView,
+  "default__glob": GlobToolResultView,
+  "default__list_dir": ListDirToolResultView,
+  "default__webfetch": WebFetchToolResultView,
+  "default__websearch": WebSearchToolResultView,
+  "default__message_answer": MessageAnswerToolResultView,
+  "default__ask_question": AskQuestionToolResultView,
+  "default__create_plan": PlanToolResultView,
+  "default__mark_step_complete": MarkStepCompleteToolResultView,
 }
 
 const toolCallComponents: Record<string, ToolComponent> = {
-  "default/read": ReadToolCallView,
-  "default/bash": BashToolCallView,
-  "default/grep": GrepToolCallView,
-  "default/edit": EditToolCallView,
-  "default/apply_patch": ApplyPatchToolCallView,
-  "default/write": WriteToolCallView,
-  "default/glob": GlobToolCallView,
-  "default/list_dir": ListDirToolCallView,
-  "default/webfetch": WebFetchToolCallView,
-  "default/websearch": WebSearchToolCallView,
-  "default/message_answer": MessageAnswerToolCallView,
-  "default/ask_question": AskQuestionToolCallView,
-  "default/create_plan": PlanToolCallView,
-  "default/mark_step_complete": MarkStepCompleteToolCallView,
+  "default__read": ReadToolCallView,
+  "default__bash": BashToolCallView,
+  "default__grep": GrepToolCallView,
+  "default__edit": EditToolCallView,
+  "default__apply_patch": ApplyPatchToolCallView,
+  "default__write": WriteToolCallView,
+  "default__glob": GlobToolCallView,
+  "default__list_dir": ListDirToolCallView,
+  "default__webfetch": WebFetchToolCallView,
+  "default__websearch": WebSearchToolCallView,
+  "default__message_answer": MessageAnswerToolCallView,
+  "default__ask_question": AskQuestionToolCallView,
+  "default__create_plan": PlanToolCallView,
+  "default__mark_step_complete": MarkStepCompleteToolCallView,
 }
 
 const lookupComponent = (
   registry: Record<string, ToolComponent>,
   toolName: string,
 ): ToolComponent | undefined =>
-  registry[toolName] ?? registry[`default/${stripToolServer(toolName)}`]
+  registry[toolName] ?? registry[`default__${parseToolKey(toolName).name}`]
 
 export const renderToolResult = (ctx: ToolViewProps): ReactNode => {
   const Component = lookupComponent(toolResultComponents, ctx.toolName) ?? SmartDefaultToolResultView

@@ -29,8 +29,8 @@ describe("groupTranscript", () => {
     const segments = groupTranscript([
       user("hi"),
       text("looking", "DISCOVERY"),
-      call("c1", "default/read", { path: "a.ts" }, "DISCOVERY"),
-      call("p1", "default/create_plan", { steps: [] }, "PLAN"),
+      call("c1", "default__read", { path: "a.ts" }, "DISCOVERY"),
+      call("p1", "default__create_plan", { steps: [] }, "PLAN"),
       text("doing", "EXECUTE"),
       { ...text("summary"), compacted: true },
     ])
@@ -55,11 +55,11 @@ describe("groupTranscript", () => {
 describe("buildPhaseDigest", () => {
   test("pairs tool calls with their results", () => {
     expect(buildPhaseDigest([
-      call("c1", "default/bash", { command: "ls src\nls test" }),
-      result("c1", "default/bash", "index.tsx"),
-      call("c2", "default/read", { path: "missing.ts" }),
-      result("c2", "default/read", "not found", true),
-      call("c3", "mcp/thing", {}),
+      call("c1", "default__bash", { command: "ls src\nls test" }),
+      result("c1", "default__bash", "index.tsx"),
+      call("c2", "default__read", { path: "missing.ts" }),
+      result("c2", "default__read", "not found", true),
+      call("c3", "mcp__thing", {}),
     ])).toEqual([
       { status: "ok", label: "bash · ls src" },
       { status: "error", label: "read · missing.ts" },
@@ -69,11 +69,11 @@ describe("buildPhaseDigest", () => {
 
   test("summarises plan tools and skips ask_question", () => {
     expect(buildPhaseDigest([
-      call("p1", "default/create_plan", { title: "Refactor", steps: [{ index: 1, description: "a" }, { index: 2, description: "b" }] }),
-      result("p1", "default/create_plan", "Refactor\n1. a\n2. b"),
-      call("m1", "default/mark_step_complete", { index: 2 }),
-      result("m1", "default/mark_step_complete", "Step 2 marked complete"),
-      call("q1", "default/ask_question", { questions: [] }),
+      call("p1", "default__create_plan", { title: "Refactor", steps: [{ index: 1, description: "a" }, { index: 2, description: "b" }] }),
+      result("p1", "default__create_plan", "Refactor\n1. a\n2. b"),
+      call("m1", "default__mark_step_complete", { index: 2 }),
+      result("m1", "default__mark_step_complete", "Step 2 marked complete"),
+      call("q1", "default__ask_question", { questions: [] }),
     ])).toEqual([
       { status: "ok", label: "plan · Refactor · 2 steps" },
       { status: "ok", label: "step 2 complete" },

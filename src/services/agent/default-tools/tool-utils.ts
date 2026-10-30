@@ -1,10 +1,11 @@
 import { join, resolve, isAbsolute, relative } from 'node:path';
 import { stat } from 'node:fs/promises';
 import { skillService } from '../../external-tools/skill-service';
+import { mcpToolKey } from '../../../models/mcp';
 
 export const DEFAULT_TOOL_SERVER = 'default';
 
-export const defaultToolKey = (name: string) => `${DEFAULT_TOOL_SERVER}/${name}`;
+export const defaultToolKey = (name: string) => mcpToolKey({ server: DEFAULT_TOOL_SERVER, name });
 
 export const DEFAULT_CREATE_PLAN_TOOL = defaultToolKey('create_plan');
 export const DEFAULT_MARK_STEP_COMPLETE_TOOL = defaultToolKey('mark_step_complete');
