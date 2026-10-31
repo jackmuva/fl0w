@@ -24,35 +24,44 @@ const BODY = [
 ]
 
 const ARM_SIDE = 2
+const SWAY = 1
 const BODY_WIDTH = BODY[0]!.length
-const WIDTH = ARM_SIDE * 2 + BODY_WIDTH
+const SPRITE_WIDTH = ARM_SIDE * 2 + BODY_WIDTH
+const WIDTH = SPRITE_WIDTH + SWAY * 2
 const BODY_ROWS = BODY.length / 2
 const HEIGHT = BODY_ROWS + 2
 const ARM_ROW = 2
 const LEG_COLS = [ARM_SIDE + 3, ARM_SIDE + 6]
 
-type Pose = { squat: boolean; leftUp: boolean; rightUp: boolean }
+type Pose = { squat: boolean; leftUp: boolean; rightUp: boolean; shift?: number; armsIn?: boolean }
 
 const IDLE: Pose = { squat: true, leftUp: false, rightUp: false }
 const STAND: Pose = { squat: false, leftUp: false, rightUp: false }
-const DANCE: Pose[] = [
+const BOUNCE: Pose[] = [
   STAND,
   { squat: true, leftUp: true, rightUp: false },
   STAND,
   { squat: true, leftUp: false, rightUp: true },
 ]
+const SWAY_MOVE: Pose[] = [
+  { ...STAND, shift: -1 },
+  { ...STAND, armsIn: true },
+  { ...STAND, shift: 1 },
+  { ...STAND, armsIn: true },
+]
 
-const drawPose = ({ squat, leftUp, rightUp }: Pose): Cell[][] => {
+const drawPose = ({ squat, leftUp, rightUp, shift = 0, armsIn = false }: Pose): Cell[][] => {
   const grid: Cell[][] = Array.from({ length: HEIGHT }, () =>
     Array.from({ length: WIDTH }, () => ({ ch: " " })),
   )
   const top = squat ? 1 : 0
+  const left = SWAY + shift
 
   for (let row = 0; row < BODY_ROWS; row++) {
     for (let col = 0; col < BODY_WIDTH; col++) {
       const upper = PIXEL_FG[BODY[row * 2]![col]!]
       const lower = PIXEL_FG[BODY[row * 2 + 1]![col]!]
-      const cell = grid[top + row]![ARM_SIDE + col]!
+      const cell = grid[top + row]![left + ARM_SIDE + col]!
       if (upper && lower) Object.assign(cell, upper === lower ? { ch: "█", fg: upper } : { ch: "▀", fg: upper, bg: lower })
       else if (upper) Object.assign(cell, { ch: "▀", fg: upper })
       else if (lower) Object.assign(cell, { ch: "▄", fg: lower })
@@ -61,22 +70,28 @@ const drawPose = ({ squat, leftUp, rightUp }: Pose): Cell[][] => {
 
   const arm = grid[top + ARM_ROW]!
   const shoulder = grid[top + ARM_ROW - 1]!
-  arm[0] = { ch: leftUp ? "╰" : "●", fg: LIMB_FG }
-  arm[1] = { ch: "─", fg: LIMB_FG }
-  arm[WIDTH - 2] = { ch: "─", fg: LIMB_FG }
-  arm[WIDTH - 1] = { ch: rightUp ? "╯" : "●", fg: LIMB_FG }
-  if (leftUp) shoulder[0] = { ch: "●", fg: LIMB_FG }
-  if (rightUp) shoulder[WIDTH - 1] = { ch: "●", fg: LIMB_FG }
+  const right = left + SPRITE_WIDTH - 1
+  if (armsIn) {
+    arm[left + 1] = { ch: "●", fg: LIMB_FG }
+    arm[right - 1] = { ch: "●", fg: LIMB_FG }
+  } else {
+    arm[left] = { ch: leftUp ? "╰" : "●", fg: LIMB_FG }
+    arm[left + 1] = { ch: "─", fg: LIMB_FG }
+    arm[right - 1] = { ch: "─", fg: LIMB_FG }
+    arm[right] = { ch: rightUp ? "╯" : "●", fg: LIMB_FG }
+    if (leftUp) shoulder[left] = { ch: "●", fg: LIMB_FG }
+    if (rightUp) shoulder[right] = { ch: "●", fg: LIMB_FG }
+  }
 
   for (const col of LEG_COLS) {
-    if (!squat) grid[HEIGHT - 2]![col] = { ch: "│", fg: LIMB_FG }
-    grid[HEIGHT - 1]![col] = { ch: "●", fg: LIMB_FG }
+    if (!squat) grid[HEIGHT - 2]![left + col] = { ch: "│", fg: LIMB_FG }
+    grid[HEIGHT - 1]![left + col] = { ch: "●", fg: LIMB_FG }
   }
   return grid
 }
 
 const IDLE_GRID = drawPose(IDLE)
-const DANCE_GRIDS = DANCE.map(drawPose)
+const MOVES = [BOUNCE, SWAY_MOVE].map((move) => move.map(drawPose))
 
 type MascotProps = {
   working: boolean
@@ -84,17 +99,30 @@ type MascotProps = {
 
 export const Mascot = ({ working }: MascotProps) => {
   const [frame, setFrame] = useState(0)
+  const [move, setMove] = useState(0)
 
   useEffect(() => {
     if (!working) {
       setFrame(0)
       return
     }
-    const id = setInterval(() => setFrame((current) => (current + 1) % DANCE_GRIDS.length), 220)
+    const id = setInterval(() => setFrame((current) => (current + 1) % MOVES[move]!.length), 220)
+    return () => clearInterval(id)
+  }, [working, move])
+
+  // Every 3s, coin-flip whether to switch dance moves.
+  useEffect(() => {
+    if (!working) {
+      setMove(0)
+      return
+    }
+    const id = setInterval(() => {
+      if (Math.random() < 0.5) setMove((current) => (current + 1) % MOVES.length)
+    }, 3000)
     return () => clearInterval(id)
   }, [working])
 
-  const grid = working ? DANCE_GRIDS[frame]! : IDLE_GRID
+  const grid = working ? MOVES[move]![frame]! : IDLE_GRID
 
   return (
     <box flexDirection="column" flexShrink={0} width={WIDTH} height={HEIGHT}>
