@@ -118,7 +118,7 @@ export const Mascot = ({ working }: MascotProps) => {
     }
     const id = setInterval(() => {
       if (Math.random() < 0.5) setMove((current) => (current + 1) % MOVES.length)
-    }, 3000)
+    }, 1000)
     return () => clearInterval(id)
   }, [working])
 
