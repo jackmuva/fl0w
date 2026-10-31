@@ -6,7 +6,7 @@ import { retryModelCall } from "../../service-utils";
 import { frontLoadInstructions } from "../hooks/front-load";
 
 export const discoveryAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolSet | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
-  const systemPrompt = `You are a subagent tasked with fully scoping the problem and the current state of the project.
+  const systemPrompt = `You are a subagent tasked with fully scoping the problem and the current state of the project. You are only given read tools. If no discovery or further research is needed, just say so and the next agent will have write tools that can be used to complete the user's task.
 
 For coding projects, please find the AGENTS.md and README.md if present.
 
