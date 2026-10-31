@@ -44,10 +44,10 @@ const BOUNCE: Pose[] = [
   { squat: true, leftUp: false, rightUp: true },
 ]
 const SWAY_MOVE: Pose[] = [
-  { ...STAND, shift: -1 },
-  { ...STAND, armsIn: true },
-  { ...STAND, shift: 1 },
-  { ...STAND, armsIn: true },
+  { ...IDLE, shift: -1 },
+  { ...IDLE, armsIn: true },
+  { ...IDLE, shift: 1 },
+  { ...IDLE, armsIn: true },
 ]
 
 const drawPose = ({ squat, leftUp, rightUp, shift = 0, armsIn = false }: Pose): Cell[][] => {
