@@ -52,6 +52,7 @@ export const createUsagePrinter = () => {
       contextPercent: contextPercentOf(state),
       inputTokens: state.lastInputTokens,
       sessionCostUsd: state.sessionCostUsd,
+      totalTokens: state.totalTokens,
     };
     const json = JSON.stringify(line);
     if (json === last) return;

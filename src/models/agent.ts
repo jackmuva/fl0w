@@ -63,7 +63,7 @@ export type CliOutput =
   | { type: 'stream_end' }
   | { type: 'phase'; subagent: SubagentType | null }
   | { type: 'mcp_auth_required'; server: string; serverUrl: string }
-  | { type: 'usage'; contextPercent: number; inputTokens: number; sessionCostUsd: number }
+  | { type: 'usage'; contextPercent: number; inputTokens: number; sessionCostUsd: number; totalTokens: number }
   | {
     type: 'result';
     status: CliOuputStatus;

@@ -124,15 +124,15 @@ describe('createUsagePrinter', () => {
   });
   afterEach(() => logSpy.mockRestore());
 
-  test('prints the context percent, tokens and cost, skipping repeats', () => {
+  test('prints the context percent, tokens, cost and total tokens, skipping repeats', () => {
     const print = createUsagePrinter();
-    print({ sessionCostUsd: 0.01, lastInputTokens: 0, contextWindow: 0 });
-    print({ sessionCostUsd: 0.01, lastInputTokens: 0, contextWindow: 0 });
-    print({ sessionCostUsd: 0.02, lastInputTokens: 50_000, contextWindow: 200_000 });
+    print({ sessionCostUsd: 0.01, lastInputTokens: 0, contextWindow: 0, totalTokens: 300 });
+    print({ sessionCostUsd: 0.01, lastInputTokens: 0, contextWindow: 0, totalTokens: 300 });
+    print({ sessionCostUsd: 0.02, lastInputTokens: 50_000, contextWindow: 200_000, totalTokens: 50_400 });
 
     expect(lines).toEqual([
-      { type: 'usage', contextPercent: 0, inputTokens: 0, sessionCostUsd: 0.01 },
-      { type: 'usage', contextPercent: 25, inputTokens: 50_000, sessionCostUsd: 0.02 },
+      { type: 'usage', contextPercent: 0, inputTokens: 0, sessionCostUsd: 0.01, totalTokens: 300 },
+      { type: 'usage', contextPercent: 25, inputTokens: 50_000, sessionCostUsd: 0.02, totalTokens: 50_400 },
     ]);
   });
 });

@@ -20,6 +20,7 @@ describe('session usage store', () => {
       sessionCostUsd: 0.003,
       lastInputTokens: 12000,
       contextWindow: 200_000,
+      totalTokens: 20_300,
     });
   });
 
@@ -31,12 +32,18 @@ describe('session usage store', () => {
       sessionCostUsd: 0,
       lastInputTokens: 5000,
       contextWindow: 100_000,
+      totalTokens: 95_600,
     });
   });
 
   test('context percent keeps one decimal so small contexts read above zero', () => {
-    expect(contextPercentOf({ sessionCostUsd: 0, lastInputTokens: 3384, contextWindow: 1_000_000 })).toBe(0.3);
-    expect(contextPercentOf({ sessionCostUsd: 0, lastInputTokens: 50_000, contextWindow: 200_000 })).toBe(25);
+    expect(contextPercentOf({ sessionCostUsd: 0, lastInputTokens: 3384, contextWindow: 1_000_000, totalTokens: 0 })).toBe(0.3);
+    expect(contextPercentOf({ sessionCostUsd: 0, lastInputTokens: 50_000, contextWindow: 200_000, totalTokens: 0 })).toBe(25);
+  });
+
+  test('total tokens fall back to input plus output when the provider omits a total', () => {
+    sessionUsageStore.record({ usage: { inputTokens: 1000, outputTokens: 50 } });
+    expect(sessionUsageStore.get().totalTokens).toBe(1050);
   });
 
   test('reset clears state', () => {
@@ -46,6 +53,7 @@ describe('session usage store', () => {
       sessionCostUsd: 0,
       lastInputTokens: 0,
       contextWindow: 0,
+      totalTokens: 0,
     });
   });
 });

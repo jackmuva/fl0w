@@ -4,6 +4,7 @@ export type SessionUsageState = {
   sessionCostUsd: number;
   lastInputTokens: number;
   contextWindow: number;
+  totalTokens: number;
 };
 
 export const contextPercentOf = ({ lastInputTokens, contextWindow }: SessionUsageState): number =>
@@ -24,6 +25,7 @@ class SessionUsageStore {
   private sessionCostUsd = 0;
   private lastInputTokens = 0;
   private contextWindow = 0;
+  private totalTokens = 0;
   private readonly listeners = new Set<() => void>();
 
   private notify(): void {
@@ -35,6 +37,7 @@ class SessionUsageStore {
       sessionCostUsd: this.sessionCostUsd,
       lastInputTokens: this.lastInputTokens,
       contextWindow: this.contextWindow,
+      totalTokens: this.totalTokens,
     };
   }
 
@@ -42,6 +45,7 @@ class SessionUsageStore {
     this.sessionCostUsd = 0;
     this.lastInputTokens = 0;
     this.contextWindow = 0;
+    this.totalTokens = 0;
     this.notify();
   }
 
@@ -63,6 +67,12 @@ class SessionUsageStore {
     }
 
     const usage = source.usage;
+    const tokens = usage?.totalTokens ?? (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
+    if (tokens > 0) {
+      this.totalTokens += tokens;
+      changed = true;
+    }
+
     if (window != null && usage?.inputTokens != null && usage.inputTokens > 0) {
       this.lastInputTokens = usage.inputTokens;
       this.contextWindow = window;
