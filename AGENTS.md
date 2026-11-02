@@ -12,7 +12,7 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
   `ensureFl0wHome()` (`services/setup.ts`) scaffolds `FL0W_HOME` (`~/.fl0w`): `mcp.json`, `tools/`,
   `skills/`, `workspace/`.
 - **Models** — each session has a `ModelSelection` (`models/agent.ts`) for `ROUTER` (decision model;
-  default `typesafe-ai/jev`) and `DISCOVERY`/`PLAN`/`EXECUTE`/`SUMMARIZE` (default
+  default `typesafe-ai/jev`) and `DISCOVERY`/`PLAN`/`EXECUTE` (default
   `deepseek/deepseek-v4.1-flash`). Unset phases fall back to `DEFAULT_MODELS` via `resolveModels()`;
   `/configure` edits the selection. Model list/metadata come from `/api/cli/ai/models`
   (`remote-api/ai-api.ts`, cached in `store/model-store.ts`); `contextWindowFor()` (fallback
@@ -62,16 +62,18 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
 
 `agentLoop()` (`services/agent/agent-loop.ts`), per turn:
 
-1. **ROUTER** — `routingAgent` (`experimental_decide`) picks `discovery`/`plan`/`execute`. Saved
-   workflows skip straight to EXECUTE.
-2. **DISCOVERY** (only if routed) — a pending `ask_question` ends the turn with `needs_input`.
-3. **PLAN** (optional) → **EXECUTE** → `planCheckHook` (`hooks/plan-check.ts`) re-runs EXECUTE for
-   steps not marked via `mark_step_complete`, up to `PLAN_CHECK_MAX_RETRIES` (2).
-4. **SUMMARY**.
+1. **ROUTER** — `routingAgent` (`experimental_decide`) picks `plan` or `execute`; `taskComplete`
+   is offered only on the second routing, after discovery. Saved workflows skip straight to
+   EXECUTE.
+2. **PLAN path** — **DISCOVERY** scopes the task; a pending `ask_question` ends the turn with
+   `needs_input`. The router runs again and may end the turn with `taskComplete`, then **PLAN**
+   writes the plan.
+3. **EXECUTE** → `planCheckHook` (`hooks/plan-check.ts`) re-runs EXECUTE for steps not marked via
+   `mark_step_complete`, up to `PLAN_CHECK_MAX_RETRIES` (2). There is no summary phase.
 
 Each phase is a subagent in `services/agent/subagents/` with its own model and tool allowlist
 (`toolpacks.ts`). Before DISCOVERY, PLAN, and EXECUTE only, `compactionHook` compacts the transcript
-(using the SUMMARIZE model) when it exceeds `COMPACTION_TOKEN_THRESHOLD` of that phase's context window.
+(using the EXECUTE model) when it exceeds `COMPACTION_TOKEN_THRESHOLD` of that phase's context window.
 
 **Streaming** — `onStreamText` (live assistant text, `null` on commit) and `onPhase` (running subagent,
 `null` at end). The TUI renders them below the transcript; headless `runHeadlessTurn()`

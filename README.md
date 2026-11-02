@@ -40,7 +40,7 @@ Every session assigns a model to four phases, chosen in the `/configure` dialog:
 
 | Phase | Role | Default |
 | --- | --- | --- |
-| Router (`ROUTER`) | Decision model that picks the next phase: discovery, plan, or execute | `typesafe-ai/jev` |
+| Router (`ROUTER`) | Decision model that picks the next phase: plan, execute, or task-complete | `typesafe-ai/jev` |
 | Discovery (`DISCOVERY`) | Scopes the task and researches the workspace | `deepseek/deepseek-v4.1-flash` |
 | Plan (`PLAN`) | Turns the research into a step-by-step plan | `deepseek/deepseek-v4.1-flash` |
 | Execute (`EXECUTE`) | Does the work | `deepseek/deepseek-v4.1-flash` |
@@ -106,7 +106,7 @@ fl0w sync                  # manual full sync with fl0w-work
   - `{"type":"stream_end"}` discards it (the finished text then arrives as a `message`, or a retried call starts a new preview).
   - The preview isn't part of the transcript, so replays can ignore these lines.
 - `{"type":"phase","subagent":"DISCOVERY"}` announces each agent phase as it starts (`DISCOVERY`, `PLAN`, or `EXECUTE`), ending with `{"type":"phase","subagent":null}`. Like the stream preview, phase lines are live-only and not part of the transcript.
-- `{"type":"usage","contextPercent":42,"inputTokens":42000,"sessionCostUsd":0.01}` reports current context use and cumulative cost. Usage lines are live-only; replays can keep the latest one.
+- `{"type":"usage","contextPercent":42,"inputTokens":42000,"totalTokens":96500,"sessionCostUsd":0.01}` reports current context use and cumulative tokens and cost. Usage lines are live-only; replays can keep the latest one.
 - `{"type":"mcp_auth_required","server":"...","serverUrl":"..."}` reports an MCP server that needs OAuth authorization. It's emitted once per server per run, and the run continues without that server's tools.
 - The run ends with a single result line:
 
@@ -154,7 +154,7 @@ Each line is JSON, for example:
 
 ```json
 {"kind":"skills","name":"my-skill","description":"..."}
-{"kind":"mcpServers","name":"github/search_issues","description":"..."}
+{"kind":"mcpServers","name":"github__search_issues","description":"..."}
 ```
 
 
@@ -192,7 +192,7 @@ fl0w session abc-123-def --messages pending-messages.json --answers '{"scope":{"
 ```json
 {
   "skills": ["my-skill"],
-  "mcpServers": ["github/search_issues"],
+  "mcpServers": ["github__search_issues"],
   "userTools": ["my-tool"],
   "agentsMd": ["AGENTS.md"]
 }
@@ -251,11 +251,12 @@ src/
 4. **Front-loading and render** — after session capabilities are applied, workspace instructions,
    enabled `AGENTS.md` content, and the enabled skills catalog seed the conversation; then the
    TUI renders the session.
-5. **Agent runtime** — a router decision model picks discovery, plan, or execute. Discovery
-   scopes the task and may ask you a question; plan writes a step-by-step plan; execute does the
-   work and retries incomplete plan steps. The router sees your latest message and the
-   assistant's most recent reply. The first routing can't end the turn, so you always get a
-   reply; after discovery the router may also decide the task is already complete. Compaction
-   checks happen before discovery, plan, and execute, using the execute model. Saved workflows
-   skip routing, discovery, and planning and go directly to execute.
+5. **Agent runtime** — a router decision model picks `plan` for multi-step tasks or `execute` for
+   one-step requests. Choosing plan first runs discovery, which scopes the task and may ask you a
+   question; after discovery the router picks plan, execute, or declares the task already
+   complete, and plan writes a step-by-step plan. Execute does the work and retries incomplete
+   plan steps. The router sees your latest message and the assistant's most recent reply. The
+   first routing can't end the turn, so you always get a reply. Compaction checks happen before
+   discovery, plan, and execute, using the execute model. Saved workflows skip routing,
+   discovery, and planning and go directly to execute.
 6. **Shutdown** — starts MCP connection cleanup and attempts to flush pending writes; headless commands await MCP close and the outbox flush.
