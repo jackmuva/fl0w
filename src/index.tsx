@@ -1,6 +1,7 @@
 import { createGateway } from '@ai-sdk/gateway';
 import { FL0W_API_URL } from "./constants";
 import { authService } from "./services/auth/auth-service";
+import { currentBillingSession, SESSION_HEADER } from "./services/billing-session";
 
 const fl0wModelProvider = createGateway({
   baseURL: `${FL0W_API_URL}/api/cli/ai`,
@@ -10,6 +11,8 @@ const fl0wModelProvider = createGateway({
     const send = async (force: boolean) => {
       const headers = new Headers(init?.headers);
       headers.set('authorization', `Bearer ${await authService.getAccessToken({ force })}`);
+      const sessionId = currentBillingSession();
+      if (sessionId) headers.set(SESSION_HEADER, sessionId);
       return fetch(input, { ...init, headers });
     };
     const res = await send(false);

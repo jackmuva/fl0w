@@ -70,7 +70,10 @@ export async function getSession(id: string): Promise<StoredSession | null> {
     throw error;
   });
   if (!remote || !pending) return remote ?? pending ?? null;
-  return pending.updatedAt > remote.updatedAt ? pending : remote;
+  if (pending.updatedAt <= remote.updatedAt) return remote;
+  // only fl0w-work tracks usage, so keep its stats on the newer local copy
+  const { spend, lastInputTokens, totalTokens } = remote;
+  return { ...pending, spend, lastInputTokens, totalTokens };
 }
 
 export async function findLatestSessionWithMessages(workspacePath: string): Promise<StoredSession | null> {

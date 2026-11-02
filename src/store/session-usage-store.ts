@@ -1,4 +1,7 @@
 import type { ProviderMetadata } from 'ai';
+import type { SessionStats } from '../models/session';
+
+const MICRO_USD_PER_USD = 1_000_000;
 
 export type SessionUsageState = {
   sessionCostUsd: number;
@@ -42,10 +45,25 @@ class SessionUsageStore {
   }
 
   reset(): void {
-    this.sessionCostUsd = 0;
-    this.lastInputTokens = 0;
+    this.restore(undefined);
+  }
+
+  /**
+   * Starts from a stored session's stats so new calls add to them. The context window is unknown until the model
+   * list loads; pass it to `fillContextWindow` once it does.
+   */
+  restore(stats: Partial<SessionStats> | undefined): void {
+    this.sessionCostUsd = (stats?.spend ?? 0) / MICRO_USD_PER_USD;
+    this.lastInputTokens = stats?.lastInputTokens ?? 0;
     this.contextWindow = 0;
-    this.totalTokens = 0;
+    this.totalTokens = stats?.totalTokens ?? 0;
+    this.notify();
+  }
+
+  /** Sets the window for restored input tokens; no-op once a live call has set its own. */
+  fillContextWindow(window: number): void {
+    if (this.contextWindow > 0 || this.lastInputTokens <= 0 || window <= 0) return;
+    this.contextWindow = window;
     this.notify();
   }
 

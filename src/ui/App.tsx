@@ -1,6 +1,7 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { agentLoop, resolveModels } from "../services/agent/agent-loop"
+import { withBillingSession } from "../services/billing-session"
 import {
   getCapabilitySelection,
   emptyCapabilitySelection,
@@ -98,7 +99,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     }
   }, [applySessionCapabilities, capabilityCatalog, session.id])
   const { width, height } = useTerminalDimensions()
-  const { contextPercent, sessionCostUsd, lastInputTokens } = useProviderMetadata(session.id)
+  const { contextPercent, sessionCostUsd, lastInputTokens } = useProviderMetadata()
   const pendingAsk = findPendingAskQuestion(messages)
 
   const visibleMessages = useMemo(
@@ -255,7 +256,8 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     const runAbort = new AbortController()
     runAbortRef.current = runAbort
     try {
-      await agentLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, setActivePhase)
+      await withBillingSession(session.id, () =>
+        agentLoop(nextMessages, session.models, setMessages, runAbort.signal, setStreamingText, setActivePhase))
       setStatus("ready")
     } catch (error) {
       if (runAbort.signal.aborted) {

@@ -56,4 +56,40 @@ describe('session usage store', () => {
       totalTokens: 0,
     });
   });
+
+  test('restores stored stats and keeps accumulating from them', () => {
+    sessionUsageStore.restore({ spend: 1_250_000, lastInputTokens: 40_000, totalTokens: 90_000 });
+    expect(sessionUsageStore.get()).toEqual({
+      sessionCostUsd: 1.25,
+      lastInputTokens: 40_000,
+      contextWindow: 0,
+      totalTokens: 90_000,
+    });
+
+    sessionUsageStore.fillContextWindow(200_000);
+    expect(contextPercentOf(sessionUsageStore.get())).toBe(20);
+
+    sessionUsageStore.record({
+      providerMetadata: { gateway: { cost: 0.25 } },
+      usage: { inputTokens: 50_000, outputTokens: 500, totalTokens: 50_500 },
+    }, 100_000);
+    expect(sessionUsageStore.get()).toEqual({
+      sessionCostUsd: 1.5,
+      lastInputTokens: 50_000,
+      contextWindow: 100_000,
+      totalTokens: 140_500,
+    });
+
+    // a late window lookup doesn't override a live call's window
+    sessionUsageStore.fillContextWindow(200_000);
+    expect(sessionUsageStore.get().contextWindow).toBe(100_000);
+  });
+
+  test('restoring nothing or null stats starts from zero', () => {
+    sessionUsageStore.record({ usage: { inputTokens: 10, totalTokens: 20 } }, 1000);
+    sessionUsageStore.restore({ spend: null, lastInputTokens: null, totalTokens: null });
+    expect(sessionUsageStore.get()).toEqual({ sessionCostUsd: 0, lastInputTokens: 0, contextWindow: 0, totalTokens: 0 });
+    sessionUsageStore.fillContextWindow(1000);
+    expect(sessionUsageStore.get().contextWindow).toBe(0);
+  });
 });

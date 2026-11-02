@@ -5,6 +5,10 @@ import type { SessionListEntry, SessionRecord, StoredSession } from '../../model
 import { deleteSession, getSession, listSessions, saveSession } from '../../store/session-store';
 import { createDraftSession } from '../../services/service-utils';
 import { applyCapabilitySelection } from '../../services/capabilities';
+import { resolveModels } from '../../services/agent/agent-loop';
+import { DEFAULT_CONTEXT_WINDOW } from '../../constants';
+import { modelStore } from '../../store/model-store';
+import { sessionUsageStore } from '../../store/session-usage-store';
 
 type SetMessagesAction = Fl0wMessage[] | ((previous: Fl0wMessage[]) => Fl0wMessage[]);
 
@@ -27,7 +31,13 @@ export type UseSessionPersistenceResult = {
 const hasConversation = (fl0wMessages: Fl0wMessage[]) =>
   fl0wMessages.some(({ message }) => message.role !== 'system');
 
-const withoutMessages = ({ messages: _messages, ...session }: StoredSession): SessionRecord => session;
+const withoutMessages = ({
+  messages: _messages,
+  spend: _spend,
+  lastInputTokens: _lastInputTokens,
+  totalTokens: _totalTokens,
+  ...session
+}: StoredSession): SessionRecord => session;
 
 /**
  * The current session, saved to fl0w-work through the outbox: message changes settle for SAVE_DEBOUNCE_MS, then the
@@ -51,6 +61,23 @@ export const useSessionPersistence = (
     sessionRef.current = next;
     setSessionState(next);
   }, []);
+
+  /** Seeds the status bar with the stored session's usage (or zeroes it), so resumed sessions keep accumulating. */
+  const restoreUsage = useCallback((stored?: StoredSession) => {
+    sessionUsageStore.restore(stored);
+    if (!stored?.lastInputTokens) return;
+    // context % is measured against the main agent's window, as fl0w-work's status bar does
+    void modelStore.contextWindowFor(resolveModels(stored.models).EXECUTE)
+      .catch(() => DEFAULT_CONTEXT_WINDOW)
+      .then((window) => {
+        if (sessionRef.current.id === stored.id) sessionUsageStore.fillContextWindow(window);
+      });
+  }, []);
+
+  useEffect(() => {
+    // only the session loaded before the TUI rendered; later loads restore where they happen
+    restoreUsage(initialSession);
+  }, [restoreUsage]);
 
   const replaceMessages = useCallback((next: Fl0wMessage[]) => {
     messagesRef.current = next;
@@ -105,7 +132,8 @@ export const useSessionPersistence = (
     flushSave();
     setSession(createDraftSession(workspace));
     replaceMessages([]);
-  }, [flushSave, replaceMessages, setSession, workspace]);
+    restoreUsage();
+  }, [flushSave, replaceMessages, restoreUsage, setSession, workspace]);
 
   const getSessions = useCallback(() => listSessions(workspace), [workspace]);
 
@@ -122,7 +150,8 @@ export const useSessionPersistence = (
     flushSave();
     setSession(withoutMessages(target));
     replaceMessages([...target.messages]);
-  }, [flushSave, replaceMessages, setSession]);
+    restoreUsage(target);
+  }, [flushSave, replaceMessages, restoreUsage, setSession]);
 
   const deleteStoredSession = useCallback(async (sessionId: string) => {
     const isCurrent = sessionId === sessionRef.current.id;
@@ -134,7 +163,8 @@ export const useSessionPersistence = (
     const replacement = remaining[0] ? await getSession(remaining[0].id).catch(() => null) : null;
     setSession(replacement ? withoutMessages(replacement) : createDraftSession(workspace));
     replaceMessages(replacement ? [...replacement.messages] : []);
-  }, [cancelSave, replaceMessages, setSession, workspace]);
+    restoreUsage(replacement ?? undefined);
+  }, [cancelSave, replaceMessages, restoreUsage, setSession, workspace]);
 
   return {
     messages,

@@ -14,5 +14,11 @@ export type SessionRecord = {
 /** One row of GET /api/sync/sessions. */
 export type SessionListEntry = SessionRecord & { messageCount: number };
 
-/** A session with its messages in order, as GET/PUT /api/sync/sessions/:id carry it. */
-export type StoredSession = SessionRecord & { messages: Fl0wMessage[] };
+/**
+ * Usage fl0w-work accumulates for a session as its model calls are billed (`spend` in micro-USD). Read-only for the
+ * CLI: GET returns it, PUT ignores it.
+ */
+export type SessionStats = { spend: number | null; lastInputTokens: number | null; totalTokens: number | null };
+
+/** A session with its messages in order, as GET/PUT /api/sync/sessions/:id carry it; GET adds its stats. */
+export type StoredSession = SessionRecord & { messages: Fl0wMessage[] } & Partial<SessionStats>;
