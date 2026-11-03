@@ -24,6 +24,7 @@ import { Transcript } from "./components/transcript/Transcript"
 import { CompletionOverlayDialog } from "./components/input/CompletionOverlay"
 import { SessionSelectionDialog } from "./components/dialogs/SessionSelectionDialog"
 import { WorkflowSelectionDialog } from "./components/dialogs/WorkflowSelectionDialog"
+import { WorkflowInputsDialog } from "./components/dialogs/WorkflowInputsDialog"
 import { ChatInput } from "./components/input/ChatInput"
 import { ClarifyQuestionBox } from "./components/primitives/ClarifyQuestionBox"
 import { ContextCostStatusBar } from "./components/primitives/ContextCostStatusBar"
@@ -70,6 +71,8 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
   const [completion, setCompletion] = useState<CompletionState>({ open: false })
   const [sessionPickerOpen, setSessionPickerOpen] = useState(false)
   const [generateSessionPickerOpen, setGenerateSessionPickerOpen] = useState(false)
+  // session chosen for generation, awaiting the workflow inputs dialog
+  const [pendingGenerateSession, setPendingGenerateSession] = useState<SessionListEntry | null>(null)
   const [workflowPickerOpen, setWorkflowPickerOpen] = useState(false)
   const [pendingWorkflow, setPendingWorkflow] = useState<WorkflowRecord | null>(null)
   const [generating, setGenerating] = useState(false)
@@ -188,14 +191,30 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     setWorkflows((current) => current.filter(({ id }) => id !== workflowId))
   }, [])
 
-  const handleGenerateSessionSelect = useCallback(async (sessionId: string) => {
+  const handleGenerateSessionSelect = useCallback((sessionId: string) => {
     setGenerateSessionPickerOpen(false)
+    setPendingGenerateSession(listedSessions.find(({ id }) => id === sessionId) ?? null)
+  }, [listedSessions])
+
+  const handleGenerateInputsDismiss = useCallback(() => {
+    setPendingGenerateSession(null)
+  }, [])
+
+  const handleGenerateConfirm = useCallback(async (inputSpec: string) => {
+    if (!pendingGenerateSession) return
+    const sessionId = pendingGenerateSession.id
+    setPendingGenerateSession(null)
     setGenerating(true)
 
     try {
       const source = await loadSession(sessionId)
       if (!source) throw new WorkflowGenerationError("The selected session is no longer on fl0w-work")
-      const generated = await generateWorkflowFromSession(source, resolveModels(session.models).EXECUTE, await listAllTools())
+      const generated = await generateWorkflowFromSession(
+        source,
+        resolveModels(session.models).EXECUTE,
+        await listAllTools(),
+        inputSpec,
+      )
       const saved = saveWorkflow({ sourceSessionId: sessionId, ...generated })
       setWorkflows((current) => [saved, ...current])
       const content = `Workflow saved: ${saved.title}`
@@ -217,7 +236,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     } finally {
       setGenerating(false)
     }
-  }, [loadSession, session.models, setMessages])
+  }, [loadSession, pendingGenerateSession, session.models, setMessages])
 
   const handleGenerateSessionPickerDismiss = useCallback(() => {
     setGenerateSessionPickerOpen(false)
@@ -331,7 +350,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     await runAgentLoop(nextMessages)
   }
 
-  const inputDisabled = status === "working" || capabilityPickerOpen || generating || sessionPickerOpen || generateSessionPickerOpen || workflowPickerOpen;
+  const inputDisabled = status === "working" || capabilityPickerOpen || generating || sessionPickerOpen || generateSessionPickerOpen || pendingGenerateSession !== null || workflowPickerOpen;
   const chatPlaceholder = pendingWorkflow
     ? `Add instructions for "${pendingWorkflow.title}"…`
     : "What would you like to do"
@@ -440,6 +459,15 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
           onSelect={handleGenerateSessionSelect}
           onDelete={handleSessionDelete}
           onDismiss={handleGenerateSessionPickerDismiss}
+          terminalWidth={width}
+          terminalHeight={height}
+        />
+      )}
+      {pendingGenerateSession && (
+        <WorkflowInputsDialog
+          sessionTitle={pendingGenerateSession.title?.trim() || "Untitled session"}
+          onConfirm={(inputSpec) => void handleGenerateConfirm(inputSpec)}
+          onDismiss={handleGenerateInputsDismiss}
           terminalWidth={width}
           terminalHeight={height}
         />

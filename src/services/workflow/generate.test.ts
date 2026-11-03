@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { APICallError, UnsupportedFunctionalityError } from 'ai';
 import {
+  formatWorkflowInputs,
   isStructuredOutputUnsupported,
   mergePlanAndInstructions,
   parseJsonObject,
@@ -129,5 +130,21 @@ describe('isStructuredOutputUnsupported', () => {
       url: 'https://example.com',
       requestBodyValues: {},
     }))).toBe(false);
+  });
+});
+
+describe('formatWorkflowInputs', () => {
+  test('declares no inputs when the spec is empty', () => {
+    for (const spec of [undefined, '', '   ']) {
+      const section = formatWorkflowInputs(spec);
+      expect(section).toContain('Workflow inputs: none.');
+      expect(section).toContain('do not introduce any {{placeholder}}');
+    }
+  });
+
+  test('includes the trimmed spec and constant-values guidance', () => {
+    const section = formatWorkflowInputs('  customer email, date range \n');
+    expect(section).toContain('customer email, date range\nTreat only these');
+    expect(section).toContain('is a constant');
   });
 });

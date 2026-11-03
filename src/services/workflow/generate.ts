@@ -324,7 +324,19 @@ export const mergePlanAndInstructions = (
   return { title: plan.title, goal: plan.goal, steps };
 };
 
-export const generateWorkflowPlan = (context: string, model: string): Promise<GeneratedPlan> =>
+/** Prompt section telling the model which values vary per run; an empty spec means the workflow has no inputs. */
+export const formatWorkflowInputs = (inputSpec?: string): string => {
+  const spec = inputSpec?.trim();
+  if (!spec) {
+    return `Workflow inputs: none.
+The user specified that this workflow takes no inputs. Every value from the session (ids, names, channels, paths, queries, settings) is a constant: keep it exactly as used in the session and do not introduce any {{placeholder}}.`;
+  }
+  return `Workflow inputs (specified by the user):
+${spec}
+Treat only these as inputs that change between runs. Every other value from the session (ids, names, channels, paths, settings) is a constant: keep it exactly as used in the session.`;
+};
+
+export const generateWorkflowPlan = (context: string, model: string, inputSpec?: string): Promise<GeneratedPlan> =>
   generateStructured(
     model,
     `You are a planning agent that turns completed agent sessions into reusable workflows.
@@ -332,7 +344,9 @@ export const generateWorkflowPlan = (context: string, model: string): Promise<Ge
 Given the conversation and tool-call trace below, distill the successful path into an ordered plan.
 - Remove failed or exploratory work; keep only what led to the result.
 - Each step should be one checkable unit of work an execution agent can mark complete.
-- Describe steps generically so the workflow can be rerun with different inputs.
+- Describe steps in terms of the workflow inputs below; keep all other specifics fixed as in the session.
+
+${formatWorkflowInputs(inputSpec)}
 
 ${context}`,
     planSchema,
@@ -346,6 +360,7 @@ export const generateStepInstructions = (
   plan: GeneratedPlan,
   tools: WorkflowToolCatalogEntry[],
   model: string,
+  inputSpec?: string,
 ): Promise<GeneratedStepInstructions> =>
   generateStructured(
     model,
@@ -355,7 +370,9 @@ For every plan step, give:
 - index: the plan step's index
 - instructions: imperative instructions an execution agent can follow without the original session
 - tools: the tools to call, in order, with their parameters. Only name tools from the catalog below, using the exact key. Base tool choices and parameters on the tool-call trace; omit tools when no specific tool can be pinned down.
-- In parameters, replace values that will differ between runs (names, paths, ids, queries) with {{placeholder}} names the user can fill in later.
+- Use {{placeholder}} only for the workflow inputs below (one snake_case name per input, reused across steps and referenced in the instructions). Hard-code every other parameter value from the tool-call trace.
+
+${formatWorkflowInputs(inputSpec)}
 
 Workflow: ${plan.title}
 Goal: ${plan.goal}
@@ -377,6 +394,7 @@ export const generateWorkflowFromSession = async (
   source: StoredSession,
   model: string,
   tools: WorkflowToolCatalogEntry[],
+  inputSpec?: string,
 ): Promise<GeneratedWorkflow> => {
   const conversation = source.messages.filter(({ message }) => message.role !== 'system');
   if (!hasConversationContent(conversation)) {
@@ -392,8 +410,8 @@ export const generateWorkflowFromSession = async (
     .filter(([key]) => !NON_STEP_TOOLS.has(key))
     .map(([, entry]) => entry);
   const context = buildSessionContext(conversation);
-  const plan = await generateWorkflowPlan(context, model);
-  const instructions = await generateStepInstructions(context, plan, stepTools, model);
+  const plan = await generateWorkflowPlan(context, model, inputSpec);
+  const instructions = await generateStepInstructions(context, plan, stepTools, model, inputSpec);
   return {
     ...mergePlanAndInstructions(plan, instructions, stepTools),
     requiredCapabilities: source.capabilities ?? emptyCapabilitySelection(),
