@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as constants from '../../constants';
 import type { SkillSummary } from '../external-tools/skill-service';
@@ -64,6 +64,43 @@ describe('mirrorSkills', () => {
     });
     expect(await readFile(join(fl0wSkillsDir, 'demo-skill', 'SKILL.md'), 'utf8')).toContain('Steps');
     expect(await readFile(join(fl0wSkillsDir, 'demo-skill', 'helper.txt'), 'utf8')).toBe('extra');
+  });
+
+  test('copies the files of a symlinked skill, not the link', async () => {
+    await writeSkill(join(tempRoot, 'real'), 'linked-skill', 'linked-skill', 'Linked body', {
+      'helper.txt': 'extra',
+    });
+    await mkdir(externalSkills, { recursive: true });
+    await symlink(join(tempRoot, 'real', 'linked-skill'), join(externalSkills, 'linked-skill'));
+    const catalog: SkillSummary[] = [{
+      name: 'linked-skill',
+      description: 'linked-skill description',
+      path: join(externalSkills, 'linked-skill', 'SKILL.md'),
+    }];
+
+    const result = await syncSkillService.mirrorSkills(catalog);
+
+    expect(result.mirrored).toEqual(['linked-skill']);
+    const dest = join(fl0wSkillsDir, 'linked-skill');
+    expect((await lstat(dest)).isSymbolicLink()).toBe(false);
+    expect(await readFile(join(dest, 'SKILL.md'), 'utf8')).toContain('Linked body');
+    expect(await readFile(join(dest, 'helper.txt'), 'utf8')).toBe('extra');
+  });
+
+  test('skips a symlinked skill that points into FL0W_HOME/skills without deleting it', async () => {
+    await writeSkill(fl0wSkillsDir, 'own-skill', 'own-skill', 'Own body');
+    await mkdir(externalSkills, { recursive: true });
+    await symlink(join(fl0wSkillsDir, 'own-skill'), join(externalSkills, 'own-skill'));
+    const catalog: SkillSummary[] = [{
+      name: 'own-skill',
+      description: 'own-skill description',
+      path: join(externalSkills, 'own-skill', 'SKILL.md'),
+    }];
+
+    const result = await syncSkillService.mirrorSkills(catalog);
+
+    expect(result.skipped).toEqual(['own-skill']);
+    expect(await readFile(join(fl0wSkillsDir, 'own-skill', 'SKILL.md'), 'utf8')).toContain('Own body');
   });
 
   test('skips skills already under FL0W_HOME/skills', async () => {

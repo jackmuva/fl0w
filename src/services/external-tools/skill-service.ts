@@ -21,6 +21,7 @@ class SkillService {
       join(resolve(cwd), '.agents', 'skills'),
       join(homedir(), '.cursor', 'skills-cursor'),
       join(homedir(), '.claude', 'skills'),
+      join(homedir(), '.agents', 'skills'),
       join(FL0W_HOME, 'skills'),
     ];
   }

@@ -12,6 +12,7 @@ Usage:
   fl0w logout                       Sign out
   fl0w whoami                       Show signed-in account
   fl0w sync                         Sync config, auth, skills, and tools with fl0w-work; push pending session/workflow writes
+  fl0w reauth [server...]           Connect to all (or the named) MCP servers, running OAuth where needed
 
 The TUI, workflow, and session commands require fl0w login. TUI sessions and workflows are stored on fl0w-work.
 

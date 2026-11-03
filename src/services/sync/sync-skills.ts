@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, rm, rmdir } from 'node:fs/promises';
+import { cp, mkdir, readdir, realpath, rm, rmdir } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { FL0W_SKILLS_DIR } from '../../constants';
 import type { BundleBase } from '../../models/sync';
@@ -43,16 +43,14 @@ class SyncSkillService {
 
     for (const skill of catalog) {
       const skillDir = dirname(resolve(skill.path));
-      if (this.isUnderFl0wSkills(skillDir)) {
-        result.skipped.push(skill.name);
-        continue;
-      }
-
-      const dest = join(FL0W_SKILLS_DIR, basename(skillDir));
 
       try {
-        await rm(dest, { recursive: true, force: true });
-        await cp(skillDir, dest, { recursive: true, force: true });
+        // A symlinked skill that points back into ~/.fl0w/skills is already mirrored; clearing dest would delete it.
+        if (this.isUnderFl0wSkills(skillDir) || this.isUnderFl0wSkills(await realpath(skillDir))) {
+          result.skipped.push(skill.name);
+          continue;
+        }
+        await this.copySkillDir(skillDir, this.mirrorDir(skillDir));
         result.mirrored.push(skill.name);
       } catch (error) {
         result.errors.push({
@@ -170,8 +168,18 @@ class SyncSkillService {
   private async refreshMirror(skillDir: string): Promise<void> {
     if (this.isUnderFl0wSkills(skillDir)) return;
     const dest = this.mirrorDir(skillDir);
+    if (await Bun.file(join(skillDir, SKILL_FILENAME)).exists()) await this.copySkillDir(skillDir, dest);
+    else await rm(dest, { recursive: true, force: true });
+  }
+
+  /**
+   * Replaces `dest` with a real copy of `skillDir`. Symlinks are followed (the skill folder itself is often one, e.g.
+   * ~/.claude/skills/<name> -> ~/.agents/skills/<name>) so the mirror holds files, not a link back to the source.
+   */
+  private async copySkillDir(skillDir: string, dest: string): Promise<void> {
+    const source = await realpath(skillDir);
     await rm(dest, { recursive: true, force: true });
-    if (await Bun.file(join(skillDir, SKILL_FILENAME)).exists()) await cp(skillDir, dest, { recursive: true, force: true });
+    await cp(source, dest, { recursive: true, force: true, dereference: true });
   }
 
   /** A deleted skill's mirror would otherwise be found, and synced, as a new skill. */

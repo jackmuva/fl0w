@@ -91,6 +91,7 @@ Run the agent from scripts, cron, or sandboxes without the TUI. Headless command
 fl0w help | -h | --help    # list commands and flags
 fl0w login | logout | whoami
 fl0w sync                  # manual full sync with fl0w-work
+fl0w reauth                # connect to every MCP server, re-running OAuth where needed
 ```
 
 `workflow` and `session` require `fl0w login`. They run startup config sync before the agent runs, then push pending session and config writes on exit.

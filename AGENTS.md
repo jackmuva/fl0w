@@ -82,7 +82,7 @@ lines. `fl0w session` exits `2` on `needs_input`.
 
 ## Startup & Shutdown
 
-1. `index.tsx` scaffolds `FL0W_HOME` and dispatches `help`, account, `sync`, `workflow`, `session`,
+1. `index.tsx` scaffolds `FL0W_HOME` and dispatches `help`, account, `sync`, `reauth`, `workflow`, `session`,
    `capabilities`. Bare `fl0w` runs `requireLogin()` and `runStartupSync()`, then boots the TUI.
 2. `tui.tsx`: `mcpClient.loadConfig()` + `connectAll()`; loads latest workspace session and all
    workflows; registers user tools; `buildCapabilityCatalog()` + `loadModels()` feed `/configure`.
