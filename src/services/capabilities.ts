@@ -1,5 +1,5 @@
 import type { CapabilitySelection, CapabilityCatalog, CapabilityKind, Fl0wMessage } from '../models/agent';
-import {type McpTool, mcpToolKey } from '../models/mcp';
+import type { McpTool } from '../models/mcp';
 import { discoverAgentsMd } from './agent/hooks/front-load';
 import { skillService } from './external-tools/skill-service';
 import { userToolLoader } from './external-tools/user-tool-service';
@@ -12,9 +12,9 @@ const CATALOG_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'a
 
 export const buildCapabilityCatalog = async (): Promise<CapabilityCatalog> => ({
   skills: await skillService.discoverSkills(),
-  mcpServers: (await mcpClient.listTools()).map((tool) => ({
-    name: mcpToolKey(tool),
-    description: tool.description,
+  mcpServers: [...Map.groupBy(await mcpClient.listTools(), (tool) => tool.server)].map(([server, tools]) => ({
+    name: server,
+    description: tools.length === 1 ? '1 tool' : `${tools.length} tools`,
   })),
   userTools: userToolLoader.listUserTools().map((tool) => ({
     name: tool.name,
@@ -66,12 +66,8 @@ export const setCapabilitySelection = (next: CapabilitySelection) => {
 export const isCapabilityEnabled = (kind: CapabilityKind, name: string) =>
   selection !== null && selection[kind].includes(name);
 
-export const isMcpToolEnabled = (tool: Pick<McpTool, 'server' | 'name'>) => {
-  if (!selection) return false;
-  const key = mcpToolKey(tool);
-  if (selection.mcpServers.includes(key)) return true;
-  return selection.mcpServers.includes(tool.server);
-};
+export const isMcpToolEnabled = (tool: Pick<McpTool, 'server'>) =>
+  selection !== null && selection.mcpServers.includes(tool.server);
 
 export const emptyCapabilitySelection = (): CapabilitySelection => ({
   skills: [],

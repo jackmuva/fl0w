@@ -71,7 +71,7 @@ const phasesFor = (type: ModelType) => MODEL_PHASES.filter((entry) => entry.type
 
 const EMPTY_MESSAGES: Record<TabKind, string> = {
   models: "No models available",
-  mcpServers: "No MCP tools available",
+  mcpServers: "No MCP servers connected",
   skills: "No skills discovered",
   userTools: "No user tools found",
   agentsMd: "No AGENTS.md in this workspace",

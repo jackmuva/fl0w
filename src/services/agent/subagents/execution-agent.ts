@@ -1,13 +1,14 @@
-import { isStepCount, streamText, type ModelMessage, type ToolSet } from "ai";
+import { isStepCount, streamText, type ModelMessage } from "ai";
 import type { Fl0wMessage } from "../../../models/agent";
 import type { AgentResult } from "../utils/message-utils";
+import type { ToolOptions } from "../tool-search";
 import { retryModelCall } from "../../service-utils";
 import { frontLoadInstructions } from "../hooks/front-load";
 import { activeWorkflowStore } from "../../../store/active-workflow-store";
 import { toModelMessages } from "../utils/message-utils";
 import { MAX_ITERATIONS } from "../../../constants";
 
-export const executeAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolSet | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
+export const executeAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolOptions | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
   const workflowPrompt = activeWorkflowStore.get()
     ? ` You are running the saved workflow described in <workflow>: carry out each step with the tools and parameters it lists rather than improvising a different approach.`
     : "";
@@ -17,7 +18,7 @@ export const executeAgent = async (messages: Fl0wMessage[], model: string, abort
     model,
     instructions,
     messages: toModelMessages(messages),
-    tools,
+    ...tools,
     stopWhen: isStepCount(MAX_ITERATIONS),
     abortSignal: abort,
     onChunk: ({ chunk }) => {

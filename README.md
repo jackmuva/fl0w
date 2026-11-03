@@ -154,7 +154,7 @@ Each line is JSON, for example:
 
 ```json
 {"kind":"skills","name":"my-skill","description":"..."}
-{"kind":"mcpServers","name":"github__search_issues","description":"..."}
+{"kind":"mcpServers","name":"github","description":"42 tools"}
 ```
 
 
@@ -187,12 +187,12 @@ fl0w session abc-123-def --messages pending-messages.json --answers '{"scope":{"
 
 ##### Headless capability selection
 
-`--capabilities` on `fl0w session` must match this shape (all four keys, string arrays of **names** from `fl0w capabilities`):
+`--capabilities` on `fl0w session` must match this shape (all four keys, string arrays of **names** from `fl0w capabilities`; `mcpServers` takes server names):
 
 ```json
 {
   "skills": ["my-skill"],
-  "mcpServers": ["github__search_issues"],
+  "mcpServers": ["github"],
   "userTools": ["my-tool"],
   "agentsMd": ["AGENTS.md"]
 }

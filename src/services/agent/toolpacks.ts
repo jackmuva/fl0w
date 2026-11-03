@@ -1,9 +1,9 @@
-import type { ToolSet } from "ai";
 import type { SubagentType } from "../../models/agent";
 import type { McpTool } from "../../models/mcp";
 import { USER_TOOL_SERVER } from "../../constants";
 import { DEFAULT_TOOL_SERVER } from "./default-tools/tool-utils";
 import { listAllTools, toAiSdkTools } from "./utils/tool-utils";
+import { withToolSearch, type ToolOptions } from "./tool-search";
 
 type Toolpack = 'all' | { exclude: string[] } | { default: string[], mcp?: boolean };
 
@@ -24,9 +24,9 @@ const inToolpack = (pack: Toolpack, entry: McpTool) => {
   return entry.server !== USER_TOOL_SERVER && pack.mcp === true;
 };
 
-export const toolsFor = async (subagent: SubagentType): Promise<ToolSet | undefined> => {
+export const toolsFor = async (subagent: SubagentType): Promise<ToolOptions | undefined> => {
   const pack = TOOLPACKS[subagent];
   if (pack !== 'all' && 'default' in pack && pack.default.length === 0 && !pack.mcp) return undefined;
   const tools = (await listAllTools()).filter((entry) => inToolpack(pack, entry));
-  return tools.length > 0 ? toAiSdkTools(tools) : undefined;
+  return tools.length > 0 ? withToolSearch(tools, toAiSdkTools(tools)) : undefined;
 };

@@ -41,9 +41,13 @@ export const DEFAULT_CONTEXT_WINDOW = 1_000_000;
 
 export const COMPACTION_TOKEN_THRESHOLD = 0.75;
 
-export const TOOL_TOKEN_THRESHOLD = 0.25;
+/** Non-default tool schemas above this (estimated tokens) are deferred behind default/search_tools. */
+export const TOOL_SEARCH_THRESHOLD_TOKENS = 10_000;
 
-export const MAX_ROUTED_TOOL_OPTIONS = 20;
+/** Token budget for the deferred-tool catalog listed in search_tools' description. */
+export const TOOL_SEARCH_CATALOG_TOKENS = 2_000;
+
+export const TOOL_SEARCH_DEFAULT_LIMIT = 5;
 
 export const DEFAULT_MAX_ITERATIONS = 50;
 

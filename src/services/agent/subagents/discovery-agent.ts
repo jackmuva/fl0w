@@ -1,11 +1,12 @@
-import { isStepCount, streamText, type ModelMessage, type ToolSet } from "ai";
+import { isStepCount, streamText, type ModelMessage } from "ai";
 import { MAX_ITERATIONS } from "../../../constants";
 import type { Fl0wMessage } from "../../../models/agent";
 import { toModelMessages, type AgentResult } from "../utils/message-utils";
+import type { ToolOptions } from "../tool-search";
 import { retryModelCall } from "../../service-utils";
 import { frontLoadInstructions } from "../hooks/front-load";
 
-export const discoveryAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolSet | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
+export const discoveryAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolOptions | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
   const systemPrompt = `You are a subagent tasked with fully scoping the problem and the current state of the project. You are only given read tools. If no discovery or further research is needed, just say so and the next agent will have write tools that can be used to complete the user's task.
 
 For coding projects, please find the AGENTS.md and README.md if present.
@@ -20,7 +21,7 @@ Be thorough AND concise. Only your last message will be delivered to the plannin
     model,
     instructions,
     messages: toModelMessages(messages),
-    tools,
+    ...tools,
     stopWhen: isStepCount(MAX_ITERATIONS),
     abortSignal: abort,
     onChunk: ({ chunk }) => {

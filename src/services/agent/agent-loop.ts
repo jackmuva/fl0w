@@ -1,4 +1,4 @@
-import { NoOutputGeneratedError, type ModelMessage, type ToolSet } from "ai";
+import { NoOutputGeneratedError, type ModelMessage } from "ai";
 import { SUBAGENT_TYPES, type Fl0wMessage, type ModelSelection, type SubagentType } from "../../models/agent";
 import { DEFAULT_MODELS, PLAN_CHECK_MAX_RETRIES } from "../../constants";
 import { discoveryAgent } from "./subagents/discovery-agent";
@@ -10,6 +10,7 @@ import { compactionHook } from "./hooks/compaction";
 import { planCheckHook } from "./hooks/plan-check";
 import { modelStore } from "../../store/model-store";
 import { toolsFor } from "./toolpacks";
+import type { ToolOptions } from "./tool-search";
 import { sessionUsageStore } from "../../store/session-usage-store";
 import { findPendingAskQuestion } from "./utils/question-utils";
 import { activeWorkflowStore } from "../../store/active-workflow-store";
@@ -19,7 +20,7 @@ export type Phase = (
   model: string,
   abort: AbortSignal,
   onStreamText: (text: string) => void,
-  tools: ToolSet | undefined,
+  tools: ToolOptions | undefined,
   onStep: (stepMessages: ModelMessage[]) => void,
 ) => Promise<AgentResult>;
 
