@@ -41,10 +41,8 @@ export const DEFAULT_CONTEXT_WINDOW = 1_000_000;
 
 export const COMPACTION_TOKEN_THRESHOLD = 0.75;
 
-/** Non-default tool schemas above this (estimated tokens) are deferred behind default/search_tools. */
 export const TOOL_SEARCH_THRESHOLD_TOKENS = 10_000;
 
-/** Token budget for the deferred-tool catalog listed in search_tools' description. */
 export const TOOL_SEARCH_CATALOG_TOKENS = 2_000;
 
 export const TOOL_SEARCH_DEFAULT_LIMIT = 5;
@@ -69,8 +67,6 @@ export const AUTH_PATH = join(FL0W_HOME, 'auth.json');
 
 export const SYNC_STATE_PATH = join(FL0W_HOME, 'sync-state.json');
 
-/** Merge bases for skill and tool bundles; kept apart from sync-state.json, which config sync rewrites on its own schedule. */
 export const BUNDLE_SYNC_STATE_PATH = join(FL0W_HOME, 'bundle-sync-state.json');
 
-/** Where a skill or tool file that lost a sync conflict is kept. */
 export const SYNC_CONFLICTS_DIR = join(FL0W_HOME, 'sync-conflicts');

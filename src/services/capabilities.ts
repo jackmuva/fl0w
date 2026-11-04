@@ -92,6 +92,7 @@ export const applyCapabilitySelection = async (
   next: CapabilitySelection,
 ): Promise<Fl0wMessage[]> => {
   setCapabilitySelection(next);
+  skillService.setActiveSkills((await skillService.discoverSkills()).filter((skill) => next.skills.includes(skill.name)));
   const messages = await frontLoadMessages();
   return messages.map((message) => fl0wMessage(message));
 };

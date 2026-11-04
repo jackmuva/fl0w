@@ -7,6 +7,9 @@ export const SKILL_FILENAME = 'SKILL.md';
 
 const MAX_SKILL_FILES_LISTED = 50;
 
+/** YAML block scalar indicators: >, >-, >+, |, |-, possibly with an indentation digit. */
+const BLOCK_SCALAR_PATTERN = /^[|>][+-]?\d*$/;
+
 export type SkillSummary = {
   name: string;
   description: string;
@@ -65,23 +68,6 @@ class SkillService {
     return files.sort();
   }
 
-  formatSkillsCatalog(skills: SkillSummary[]): string {
-    const entries = skills
-      .map((skill) =>
-        `<agent_skill fullPath="${skill.path}">\n${skill.description}\n</agent_skill>`,
-      )
-      .join('\n\n');
-
-    return [
-      '<available_skills>',
-      'Skills are special instructions for specific tasks. Only read a skill when it is relevant.',
-      'When a skill applies, call the load_skill tool with the skill name before following it.',
-      '',
-      entries,
-      '</available_skills>',
-    ].join('\n');
-  }
-
   async discoverSkills(dirs = this.getSkillsDirs(), fl0wOnly = false): Promise<SkillSummary[]> {
     const byName = new Map<string, SkillSummary>();
 
@@ -112,12 +98,33 @@ class SkillService {
     if (!body) return {};
 
     const fields: Record<string, string> = {};
-    for (const line of body.split('\n')) {
+    const lines = body.split('\n');
+    let index = 0;
+    while (index < lines.length) {
+      const line = lines[index];
+      if (line === undefined) break;
       const separator = line.indexOf(':');
-      if (separator === -1) continue;
+      if (separator === -1 || /^[ \t]/.test(line)) {
+        index++;
+        continue;
+      }
       const key = line.slice(0, separator).trim();
-      const value = line.slice(separator + 1).trim();
-      if (key) fields[key] = value;
+      const raw = line.slice(separator + 1).trim();
+      if (!BLOCK_SCALAR_PATTERN.test(raw)) {
+        if (key) fields[key] = raw;
+        index++;
+        continue;
+      }
+      const collected: string[] = [];
+      for (let end = index; ; end++) {
+        const next = lines[end + 1];
+        if (next === undefined || (!next.startsWith(' ') && next.trim() !== '')) break;
+        collected.push(next);
+      }
+      fields[key] = raw.startsWith('>')
+        ? collected.map((line) => line.trim()).filter((line) => line !== '').join(' ')
+        : collected.map((line) => line.trim()).join('\n').replace(/\n{2,}/g, '\n\n').trim();
+      index = index + collected.length + 1;
     }
     return fields;
   }

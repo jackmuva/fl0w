@@ -30,7 +30,7 @@ The installer downloads a standalone binary and installs it as `fl0w` (default `
 
 ## Setup
 
-**Sign in**: run `fl0w login` and approve the code in your browser. Model calls go through your fl0w account (fl0w-work's AI proxy), so there's no API key to manage. `fl0w whoami` shows the account; `fl0w logout` signs out. Signing in is required for the TUI and the `workflow`/`session` commands, because sessions and workflows are stored on fl0w-work; `fl0w capabilities` works signed out. Run `fl0w sync` anytime to pull and push config, skills, and user tools, and to push any pending session and workflow writes.
+**Sign in**: run `fl0w login` and approve the code in your browser. Model calls go through your fl0w account (fl0w-work's AI proxy), so there's no API key to manage. Signing in immediately syncs config files with fl0w-work and pushes any session and workflow writes left pending. `fl0w whoami` shows the account (it exits `1` when signed out); `fl0w logout` signs out. Signing in is required for the TUI and the `workflow`/`session` commands, because sessions and workflows are stored on fl0w-work; `fl0w capabilities` works signed out. Run `fl0w sync` anytime to pull and push config, skills, and user tools, and to push any pending session and workflow writes.
 
 On first launch fl0w creates `~/.fl0w/` with `mcp.json`, `tools/`, `skills/`, and `workspace/`. Sign-in tokens and MCP OAuth credentials are stored in `~/.fl0w/auth.json` (mode 0600).
 
@@ -61,7 +61,7 @@ When signed in, fl0w syncs with your fl0w-work account so you can move between m
 - **Workflows and TUI sessions** — stored on fl0w-work; `/sessions` and the workflow picker read from there. TUI message changes settle for about 400 ms, then enter `~/.fl0w/outbox/` and are pushed about 2 seconds later in the background. Temporary failures retry with backoff, and pending writes remain on disk for a later run; permanent HTTP errors are discarded. Headless `fl0w session` and `fl0w workflow` commands do not persist transcripts through the CLI: callers provide prior turns with `--messages` and handle any external persistence themselves.
 - **Skills and user tools** — every local skill and user tool syncs both ways in the background at startup and by `fl0w sync`, whether or not a workflow uses it (skills outside `~/.fl0w/skills` are mirrored there). Edits made on your cloud computer are pulled into the skill's own folder. Files merge one by one: a file changed on one side takes that side's copy; a file changed on both keeps the newer copy and saves the other under `~/.fl0w/sync-conflicts`. A skill or tool deleted on one side is deleted on the other (a copy of anything deleted here is kept in `~/.fl0w/sync-conflicts`). Merge bases live in `~/.fl0w/bundle-sync-state.json`.
 
-Use **`fl0w sync`** for a full manual sync (config files, every discovered skill, and every user tool in `~/.fl0w/tools`, plus pending session and workflow writes).
+Use **`fl0w sync`** for a full manual sync (config files, every discovered skill, and every user tool in `~/.fl0w/tools`, plus pending session and workflow writes). It accepts `-h` for its usage text, and exits `1` if any part fails — a config file, skill, or tool errored, pending session/workflow writes could not be pushed, or sync was skipped (not signed in, or `sync: false` in `config.json`; the skip reason goes to stderr).
 
 ## Usage
 
@@ -88,10 +88,10 @@ Type `/` in the input for completions:
 Run the agent from scripts, cron, or sandboxes without the TUI. Headless commands print **JSON lines on stdout** (one object per line). MCP connection progress and warnings go to **stderr**.
 
 ```bash
-fl0w help | -h | --help    # list commands and flags
+fl0w help | -h | --help       # list commands and flags
 fl0w login | logout | whoami
-fl0w sync                  # manual full sync with fl0w-work
-fl0w reauth                # connect to every MCP server, re-running OAuth where needed
+fl0w sync                     # manual full sync with fl0w-work
+fl0w reauth [server...]       # connect to all (or the named) MCP servers, re-running OAuth where needed
 ```
 
 `workflow` and `session` require `fl0w login`. They run startup config sync before the agent runs, then push pending session and config writes on exit.
@@ -158,6 +158,23 @@ Each line is JSON, for example:
 {"kind":"mcpServers","name":"github","description":"42 tools"}
 ```
 
+
+#### `fl0w reauth`
+
+Connect to MCP servers and run the OAuth browser flow for any that need authorization.
+
+```bash
+fl0w reauth [server...]
+```
+
+With no arguments, every server in `~/.fl0w/mcp.json` is connected; passing server names connects only those (unknown names are rejected). Servers connect one at a time so their OAuth callbacks don't collide. When signed in, `mcp.json`/`auth.json` sync with fl0w-work before and after the run. Exits `1` if any server fails to connect (or a name is unknown), `0` otherwise — including when `mcp.json` has no servers.
+
+Example:
+
+```bash
+fl0w reauth                  # all servers
+fl0w reauth github linear    # only these servers
+```
 
 #### `fl0w session`
 

@@ -1,6 +1,5 @@
 import type { ModelMessage } from 'ai';
 import { join, resolve } from 'path';
-import { skillService } from '../../external-tools/skill-service';
 import type { WorkflowRecord } from '../../../models/workflow';
 import {
   activeWorkflowStore,
@@ -55,7 +54,7 @@ export const formatWorkflowInstructions = ({ workflow, userInstructions }: Activ
   ].join('\n');
 };
 
-export const frontLoadMessages = async (rootDir = process.cwd(), options?: { skillsDirs?: string[] }): Promise<ModelMessage[]> => {
+export const frontLoadMessages = async (rootDir = process.cwd()): Promise<ModelMessage[]> => {
   const workspace = resolve(rootDir);
   const messages: ModelMessage[] = [{
     role: 'system',
@@ -74,13 +73,6 @@ export const frontLoadMessages = async (rootDir = process.cwd(), options?: { ski
     }
   }
 
-  const skills = (await skillService.discoverSkills(options?.skillsDirs ?? skillService.getSkillsDirs(rootDir)))
-    .filter((skill) => isCapabilityEnabled('skills', skill.name));
-  skillService.setActiveSkills(skills);
-  if (skills.length > 0) {
-    messages.push({ role: 'system', content: skillService.formatSkillsCatalog(skills) });
-  }
-
   const workflow = activeWorkflowStore.get();
   if (workflow) {
     messages.push({ role: 'system', content: formatWorkflowInstructions(workflow) });
@@ -89,10 +81,7 @@ export const frontLoadMessages = async (rootDir = process.cwd(), options?: { ski
   return messages;
 };
 
-export const frontLoadInstructions = async (
-  rootDir = process.cwd(),
-  options?: { skillsDirs?: string[] },
-): Promise<string> => {
-  const messages = await frontLoadMessages(rootDir, options);
+export const frontLoadInstructions = async (rootDir = process.cwd()): Promise<string> => {
+  const messages = await frontLoadMessages(rootDir);
   return messages.map((message) => String(message.content)).join('\n\n');
 };

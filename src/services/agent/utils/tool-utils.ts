@@ -38,7 +38,7 @@ export const describeToolCallGenerationFailure = (
 /** `unattended` (default: a `fl0w workflow` run) withholds ask_question, since nobody is there to answer it. */
 export const listAllTools = async (unattended = WORKFLOW_RUN) => [
   ...listDefaultTools().filter((entry) => {
-    if (entry.name === 'load_skill' && skillService.listSkills().length === 0) return false;
+    if ((entry.name === 'load_skill' || entry.name === 'search_skills') && skillService.listSkills().length === 0) return false;
     if (unattended && entry.name === 'ask_question') return false;
     return true;
   }),

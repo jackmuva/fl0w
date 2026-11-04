@@ -10,7 +10,7 @@ const loadSkillInputSchema = jsonSchema<LoadSkillInput>({
   properties: {
     name: {
       type: 'string',
-      description: 'The skill name from the available skills catalog',
+      description: 'The skill name as returned by search_skills',
     },
   },
   required: ['name'],
@@ -18,7 +18,7 @@ const loadSkillInputSchema = jsonSchema<LoadSkillInput>({
 
 export const loadSkillDescription =
   'Load the full instructions for a skill by name. ' +
-  'Call this when a task matches a skill listed in the available skills catalog.';
+  'Search for matching skills first with search_skills, then call this with the chosen name.';
 
 export const loadSkillToolSchema = loadSkillInputSchema.jsonSchema as Record<string, unknown>;
 

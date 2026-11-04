@@ -179,6 +179,8 @@ const phraseFor = (step: JournalStep): Phrase => {
       return { past: "searched the web for", present: "searching the web for", plural: "queries", objects: [`"${short(field("query"))}"`] }
     case "load_skill":
       return { past: "loaded skill", present: "loading skill", plural: "skills", objects: [field("name")] }
+    case "search_skills":
+      return { past: "searched skills", present: "searching skills", plural: "skills", objects: [short(field("query")) || "skills"] }
     default:
       return { past: "used", present: "using", plural: "tools", objects: [name] }
   }

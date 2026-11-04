@@ -34,6 +34,7 @@ import { DEFAULT_TOOL_SERVER } from './tool-utils';
 import { executeWebFetch, webFetchDescription, webFetchTool, webFetchToolSchema } from './web-fetch';
 import { executeWebSearch, webSearchDescription, webSearchTool, webSearchToolSchema } from './web-search';
 import { executeLoadSkill, loadSkillDescription, loadSkillTool, loadSkillToolSchema } from './load-skill';
+import { executeSearchSkills, searchSkillsDescription, searchSkillsTool, searchSkillsToolSchema } from './search-skills';
 
 export type DefaultToolExecutor = (args: Record<string, unknown>) => Promise<string>;
 
@@ -151,6 +152,13 @@ const defaultToolEntries: DefaultToolEntry[] = [
     inputSchema: loadSkillToolSchema,
     execute: (args) => executeLoadSkill(args as Parameters<typeof executeLoadSkill>[0]),
     tool: loadSkillTool,
+  },
+  {
+    name: 'search_skills',
+    description: searchSkillsDescription,
+    inputSchema: searchSkillsToolSchema,
+    execute: (args) => executeSearchSkills(args as Parameters<typeof executeSearchSkills>[0]),
+    tool: searchSkillsTool,
   },
 ];
 

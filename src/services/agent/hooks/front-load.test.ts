@@ -19,34 +19,44 @@ afterEach(async () => {
   await rm(tempRoot, { recursive: true, force: true });
 });
 
-describe('frontLoadMessages skills', () => {
-  test('front-loads skill catalog without full skill bodies', async () => {
-    const skillsDir = join(tempRoot, 'skills', 'demo-skill');
-    await mkdir(skillsDir, { recursive: true });
-    await writeFile(
-      join(skillsDir, 'SKILL.md'),
-      [
-        '---',
-        'name: demo-skill',
-        'description: Use for demo tasks.',
-        '---',
-        '# Demo Skill',
-        'Follow these detailed steps.',
-      ].join('\n'),
-    );
+describe('skillService discovery', () => {
+  test('parses folded block scalar descriptions as one line', async () => {
+    const dir = join(tempRoot, 'block', 'folded-skill');
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, 'SKILL.md'), [
+      '---',
+      'name: folded-skill',
+      'description: >-',
+      '  Guide for writing weekly updates.',
+      '  Covers Review and Executive Summary sections.',
+      '---',
+      '# Folded',
+    ].join('\n'));
 
-    setCapabilitySelection({ skills: ['demo-skill'], mcpServers: [], userTools: [], agentsMd: [] });
-    const messages = await frontLoadMessages(tempRoot, { skillsDirs: [join(tempRoot, 'skills')] });
-    const catalog = messages.find(
-      (message) => message.role === 'system' && String(message.content).includes('<available_skills>'),
-    );
+    const skills = await skillService.discoverSkills([join(tempRoot, 'block')]);
+    expect(skills).toEqual([{
+      name: 'folded-skill',
+      description: 'Guide for writing weekly updates. Covers Review and Executive Summary sections.',
+      path: join(dir, 'SKILL.md'),
+    }]);
+  });
 
-    expect(catalog).toBeDefined();
-    expect(String(catalog?.content)).toContain('Use for demo tasks.');
-    expect(String(catalog?.content)).not.toContain('Follow these detailed steps.');
+  test('parses literal block scalar descriptions with paragraph breaks', async () => {
+    const dir = join(tempRoot, 'block', 'literal-skill');
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, 'SKILL.md'), [
+      '---',
+      'description: |',
+      '  First paragraph.',
+      '',
+      '  Second paragraph.',
+      '---',
+      '# Literal',
+    ].join('\n'));
 
-    const content = await skillService.loadSkillContent('demo-skill');
-    expect(content).toContain('Follow these detailed steps.');
+    const skills = await skillService.discoverSkills([join(tempRoot, 'block')]);
+    expect(skills[0]?.name).toBe('literal-skill');
+    expect(skills[0]?.description).toBe('First paragraph.\n\nSecond paragraph.');
   });
 
   test('getSkillsDirs includes the workspace skills directory first', () => {
@@ -77,22 +87,6 @@ describe('frontLoadMessages skills', () => {
     }]);
   });
 
-  test('frontLoadMessages discovers workspace skills without a custom skillsDirs override', async () => {
-    const skillsDir = join(tempRoot, '.agents', 'skills', 'workspace-skill');
-    await mkdir(skillsDir, { recursive: true });
-    await writeFile(
-      join(skillsDir, 'SKILL.md'),
-      '---\nname: workspace-skill\ndescription: Workspace-local skill.\n---\nBody',
-    );
-
-    setCapabilitySelection({ skills: ['workspace-skill'], mcpServers: [], userTools: [], agentsMd: [] });
-    const messages = await frontLoadMessages(tempRoot, { skillsDirs: skillService.getSkillsDirs(tempRoot) });
-    const catalog = messages.map((message) => String(message.content)).join('\n');
-
-    expect(catalog).toContain('Workspace-local skill.');
-    expect(await skillService.loadSkillContent('workspace-skill')).toContain('Body');
-  });
-
   test('discovers skills from a custom directory', async () => {
     const skillsDir = join(tempRoot, 'custom', 'lint-helper');
     await mkdir(skillsDir, { recursive: true });
@@ -107,28 +101,6 @@ describe('frontLoadMessages skills', () => {
       description: 'Run lint before committing.',
       path: join(skillsDir, 'SKILL.md'),
     }]);
-  });
-
-  test('only front-loads enabled skills', async () => {
-    for (const name of ['kept-skill', 'dropped-skill']) {
-      const dir = join(tempRoot, 'skills', name);
-      await mkdir(dir, { recursive: true });
-      await writeFile(join(dir, 'SKILL.md'), `---\nname: ${name}\ndescription: ${name} description\n---\nBody`);
-    }
-
-    setCapabilitySelection({
-      skills: ['kept-skill'],
-      mcpServers: [],
-      userTools: [],
-      agentsMd: [],
-    });
-    const messages = await frontLoadMessages(tempRoot, { skillsDirs: [join(tempRoot, 'skills')] });
-    const catalog = messages.map((message) => String(message.content)).join('\n');
-
-    expect(catalog).toContain('kept-skill description');
-    expect(catalog).not.toContain('dropped-skill description');
-    expect(skillService.listSkills().map((skill) => skill.name)).toEqual(['kept-skill']);
-    expect(await skillService.loadSkillContent('dropped-skill')).toBeNull();
   });
 });
 
@@ -189,7 +161,7 @@ describe('frontLoadMessages active workflow', () => {
   };
 
   const workflowMessage = async () =>
-    (await frontLoadMessages(tempRoot, { skillsDirs: [] }))
+    (await frontLoadMessages(tempRoot))
       .find((message) => String(message.content).includes('<workflow'));
 
   test('front-loads the plan, step tools, and user instructions', async () => {
