@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import type { Fl0wMessage, SubagentType } from "../../../models/agent"
 import { fl0wMessage } from "../../../services/agent/utils/message-utils"
 import type { PlanProgress } from "../../lib/format/message"
-import { groupTranscript, isPhaseSubagent } from "../../lib/format/segments"
+import { groupTranscript, isPhaseSubagent, type TranscriptSegment } from "../../lib/format/segments"
 import { MessageContent } from "../primitives/MessageContent"
 import { PlanProgressContext } from "../tools/PlanToolView"
 import { EntryView } from "./JournalEntry"
@@ -16,6 +16,25 @@ type TranscriptProps = {
   streamingText: string | null
 }
 
+const isUserTurnStart = (segment: TranscriptSegment): boolean =>
+  segment.kind === "single" && segment.message.message.role === "user"
+
+// Indices of the final phase segment within each agent turn (turns are delimited by user messages).
+const lastPhasePerTurn = (segments: TranscriptSegment[]): Set<number> => {
+  const indices = new Set<number>()
+  let seenPhaseInTurn = false
+  for (let index = segments.length - 1; index >= 0; index--) {
+    const segment = segments[index]!
+    if (isUserTurnStart(segment)) {
+      seenPhaseInTurn = false
+    } else if (segment.kind === "phase" && !seenPhaseInTurn) {
+      indices.add(index)
+      seenPhaseInTurn = true
+    }
+  }
+  return indices
+}
+
 export const Transcript = ({
   messages,
   toolCallInputs,
@@ -24,6 +43,7 @@ export const Transcript = ({
   streamingText,
 }: TranscriptProps) => {
   const segments = useMemo(() => groupTranscript(messages), [messages])
+  const lastPhaseIndices = useMemo(() => lastPhasePerTurn(segments), [segments])
   const trailing = segments[segments.length - 1]
   // A phase that has started but not yet finished a step still gets its header above the stream.
   const pendingPhase = isPhaseSubagent(activePhase)
@@ -51,12 +71,13 @@ export const Transcript = ({
             subagent={segment.subagent}
             messages={segment.messages}
             live={live}
+            latest={lastPhaseIndices.has(index)}
             toolCallInputs={toolCallInputs}
           />
         )
       })}
       {pendingPhase && (
-        <PhaseFrame subagent={pendingPhase} messages={[]} live={true} toolCallInputs={toolCallInputs} />
+        <PhaseFrame subagent={pendingPhase} messages={[]} live={true} latest={true} toolCallInputs={toolCallInputs} />
       )}
       {streamingText && (
         <MessageContent

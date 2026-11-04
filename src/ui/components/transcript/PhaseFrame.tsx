@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import type { Fl0wMessage } from "../../../models/agent"
 import { describeToolCall } from "../../lib/format/journal"
 import { firstLine, formatMessageContent, truncateLine } from "../../lib/format/message"
@@ -19,6 +19,8 @@ type PhaseFrameProps = {
   subagent: PhaseSubagent
   messages: Fl0wMessage[]
   live: boolean
+  // The final phase of its agent turn; it shows expanded unless the user has toggled it.
+  latest: boolean
   toolCallInputs: Map<string, { toolName: string; input: unknown }>
 }
 
@@ -49,13 +51,9 @@ const compactEntry = (entry: TranscriptEntry): ReactNode => {
   return labels.length ? <MutedLine text={`~ ${labels.join(", ")}`} /> : null
 }
 
-export const PhaseFrame = ({ subagent, messages, live, toolCallInputs }: PhaseFrameProps) => {
-  const [expanded, setExpanded] = useState(live)
-  const wasLive = useRef(live)
-  useEffect(() => {
-    if (wasLive.current && !live) setExpanded(true)
-    wasLive.current = live
-  }, [live])
+export const PhaseFrame = ({ subagent, messages, live, latest, toolCallInputs }: PhaseFrameProps) => {
+  const [expandedOverride, setExpandedOverride] = useState<boolean | null>(null)
+  const expanded = expandedOverride ?? latest
   const entries = useMemo(() => groupEntries(messages), [messages])
   const accent = PHASE_ACCENT[subagent]
   const name = subagent.toLowerCase()
@@ -84,7 +82,7 @@ export const PhaseFrame = ({ subagent, messages, live, toolCallInputs }: PhaseFr
   return (
     <box flexDirection="column" flexShrink={0} width="100%" marginBottom={1}>
       <box marginBottom={1}>
-        <ExpandableRow expanded={expanded} onToggle={() => setExpanded((value) => !value)} chevronFg={accent}>
+        <ExpandableRow expanded={expanded} onToggle={() => setExpandedOverride(!expanded)} chevronFg={accent}>
           <text selectable={false}>
             <span fg={accent}>{name}</span>
             <span fg={MUTED_FG}>{` · ${steps} ${steps === 1 ? "step" : "steps"}`}</span>
