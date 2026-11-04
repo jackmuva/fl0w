@@ -1,3 +1,4 @@
+import type { ReasoningLevel } from "./reasoning-agent";
 import { isStepCount, streamText, type ModelMessage, type StopCondition, type ToolSet } from "ai";
 import type { Fl0wMessage } from "../../../models/agent";
 import type { ToolOptions } from "../tool-search";
@@ -10,11 +11,12 @@ import { DEFAULT_CREATE_PLAN_TOOL } from "../default-tools/tool-utils";
 const planCreated: StopCondition<ToolSet> = ({ steps }) =>
   steps.at(-1)?.toolResults.some((result) => result.toolName === DEFAULT_CREATE_PLAN_TOOL) ?? false;
 
-export const planAgent = async (messages: Fl0wMessage[], model: string, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolOptions | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
+export const planAgent = async (messages: Fl0wMessage[], model: string, reasoning: ReasoningLevel, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolOptions | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
   const systemPrompt = `You are a planning agent. Based on the as-needed background research and problem clarification, use the default/create_plan tool to map a plan for an execution-focused agent to complete step-by-step. Give each step a 1-based \`index\` and a concise \`description\`; the execution agent marks steps complete by index.`;
   const instructions = `${await frontLoadInstructions()}\n\n${systemPrompt}`;
   return retryModelCall(async () => streamText({
     model,
+    reasoning,
     instructions,
     messages: toModelMessages(messages),
     ...tools,

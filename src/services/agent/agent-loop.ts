@@ -6,6 +6,7 @@ import { planAgent } from "./subagents/plan-agent";
 import { executeAgent } from "./subagents/execution-agent";
 import { fl0wMessage, type AgentResult } from "./utils/message-utils";
 import { routingAgent } from "./subagents/routing-agent";
+import { reasoningAgent, type ReasoningLevel } from "./subagents/reasoning-agent";
 import { compactionHook } from "./hooks/compaction";
 import { planCheckHook } from "./hooks/plan-check";
 import { modelStore } from "../../store/model-store";
@@ -18,6 +19,7 @@ import { activeWorkflowStore } from "../../store/active-workflow-store";
 export type Phase = (
   messages: Fl0wMessage[],
   model: string,
+  reasoning: ReasoningLevel,
   abort: AbortSignal,
   onStreamText: (text: string) => void,
   tools: ToolOptions | undefined,
@@ -37,6 +39,7 @@ const runPhase = async (
   subagent: SubagentType,
   agent: Phase,
   model: string,
+  reasoning: ReasoningLevel,
   onMessages: (messages: Fl0wMessage[]) => void,
   onStreamText: (text: string | null) => void,
   transcript: Fl0wMessage[],
@@ -53,7 +56,7 @@ const runPhase = async (
     onStreamText(null);
     onMessages([...transcript, ...stepped]);
   };
-  const result = await agent(transcript, model, abort, (delta) => {
+  const result = await agent(transcript, model, reasoning, abort, (delta) => {
     streamed += delta;
     onStreamText(streamed);
   }, await toolsFor(subagent), onStep);
@@ -88,7 +91,12 @@ export const agentLoop = async (
 ): Promise<AgentResult> => {
   try {
     const models = resolveModels(selection);
-    let state = activeWorkflowStore.get() ? "execute" : await routingAgent(messages, models.ROUTER, abort, onStreamText, { plan: true, execute: true, taskComplete: false });
+    // Decide the reasoning level once per user message, alongside the first routing decision.
+    const [reasoning, initialState] = await Promise.all([
+      reasoningAgent(messages, models.ROUTER, abort),
+      activeWorkflowStore.get() ? "execute" : routingAgent(messages, models.ROUTER, abort, onStreamText, { plan: true, execute: true, taskComplete: false }),
+    ]);
+    let state = initialState;
 
     const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
       abort.throwIfAborted();
@@ -100,7 +108,7 @@ export const agentLoop = async (
     let transcript = messages;
     if (state === "plan") {
       transcript = await compact(transcript, models.DISCOVERY);
-      const discovery = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, onMessages, onStreamText, transcript, abort, onPhase);
+      const discovery = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, reasoning, onMessages, onStreamText, transcript, abort, onPhase);
       transcript = discovery.transcript;
       if (findPendingAskQuestion(transcript)) return discovery.result;
 
@@ -108,12 +116,12 @@ export const agentLoop = async (
       if (state === "taskComplete") return discovery.result;
 
       transcript = await compact(transcript, models.PLAN);
-      ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, onMessages, onStreamText, transcript, abort, onPhase));
+      ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, reasoning, onMessages, onStreamText, transcript, abort, onPhase));
     }
 
     transcript = await compact(transcript, models.EXECUTE);
     let result: AgentResult;
-    ({ result, transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
+    ({ result, transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, reasoning, onMessages, onStreamText, transcript, abort, onPhase));
     for (let attempt = 0; attempt < PLAN_CHECK_MAX_RETRIES; attempt++) {
       if (findPendingAskQuestion(transcript)) break;
       const reminder = planCheckHook(transcript);
@@ -121,7 +129,7 @@ export const agentLoop = async (
       transcript = [...transcript, reminder];
       onMessages(transcript);
       transcript = await compact(transcript, models.EXECUTE);
-      ({ result, transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, onMessages, onStreamText, transcript, abort, onPhase));
+      ({ result, transcript } = await runPhase("EXECUTE", executeAgent, models.EXECUTE, reasoning, onMessages, onStreamText, transcript, abort, onPhase));
     }
     return result;
   } finally {
