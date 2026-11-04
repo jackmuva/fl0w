@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import type { Fl0wMessage } from "../../../models/agent"
 import { describeToolCall } from "../../lib/format/journal"
 import { firstLine, formatMessageContent, truncateLine } from "../../lib/format/message"
@@ -49,9 +49,13 @@ const compactEntry = (entry: TranscriptEntry): ReactNode => {
   return labels.length ? <MutedLine text={`~ ${labels.join(", ")}`} /> : null
 }
 
-// A running phase streams in full; once finished it collapses to the first and last of its entries.
 export const PhaseFrame = ({ subagent, messages, live, toolCallInputs }: PhaseFrameProps) => {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(live)
+  const wasLive = useRef(live)
+  useEffect(() => {
+    if (wasLive.current && !live) setExpanded(true)
+    wasLive.current = live
+  }, [live])
   const entries = useMemo(() => groupEntries(messages), [messages])
   const accent = PHASE_ACCENT[subagent]
   const name = subagent.toLowerCase()
