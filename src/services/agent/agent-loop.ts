@@ -15,6 +15,7 @@ import type { ToolOptions } from "./tool-search";
 import { sessionUsageStore } from "../../store/session-usage-store";
 import { findPendingAskQuestion } from "./utils/question-utils";
 import { activeWorkflowStore } from "../../store/active-workflow-store";
+import { runContextStore } from "../../store/run-context-store";
 
 export type Phase = (
   messages: Fl0wMessage[],
@@ -96,6 +97,7 @@ export const agentLoop = async (
       reasoningAgent(messages, models.ROUTER, abort),
       activeWorkflowStore.get() ? "execute" : routingAgent(messages, models.ROUTER, abort, onStreamText, { plan: true, execute: true, taskComplete: false }),
     ]);
+    runContextStore.set({ model: models.EXECUTE, reasoning });
     let state = initialState;
 
     const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
@@ -134,6 +136,7 @@ export const agentLoop = async (
     return result;
   } finally {
     activeWorkflowStore.clear();
+    runContextStore.clear();
     onPhase?.(null);
   }
 }

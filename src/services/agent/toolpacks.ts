@@ -7,6 +7,8 @@ import { withToolSearch, type ToolOptions } from "./tool-search";
 
 type Toolpack = 'all' | { exclude: string[] } | { default: string[], mcp?: boolean };
 
+const EXECUTE_EXCLUDE = ['ask_question', 'create_plan'];
+
 export const TOOLPACKS: Record<SubagentType, Toolpack> = {
   ROUTER: { default: [] },
   DISCOVERY: {
@@ -14,7 +16,7 @@ export const TOOLPACKS: Record<SubagentType, Toolpack> = {
     mcp: true,
   },
   PLAN: { default: ['create_plan'] },
-  EXECUTE: { exclude: ['ask_question', 'create_plan'] },
+  EXECUTE: { exclude: EXECUTE_EXCLUDE },
 };
 
 const inToolpack = (pack: Toolpack, entry: McpTool) => {
@@ -24,9 +26,13 @@ const inToolpack = (pack: Toolpack, entry: McpTool) => {
   return entry.server !== USER_TOOL_SERVER && pack.mcp === true;
 };
 
-export const toolsFor = async (subagent: SubagentType): Promise<ToolOptions | undefined> => {
-  const pack = TOOLPACKS[subagent];
+const toolsForPack = async (pack: Toolpack): Promise<ToolOptions | undefined> => {
   if (pack !== 'all' && 'default' in pack && pack.default.length === 0 && !pack.mcp) return undefined;
   const tools = (await listAllTools()).filter((entry) => inToolpack(pack, entry));
   return tools.length > 0 ? withToolSearch(tools, toAiSdkTools(tools)) : undefined;
 };
+
+export const toolsFor = (subagent: SubagentType) => toolsForPack(TOOLPACKS[subagent]);
+
+/** Tools for a child agent started by the `subagent` tool: EXECUTE's tools minus delegation and plan tracking. */
+export const toolsForSubagent = () => toolsForPack({ exclude: [...EXECUTE_EXCLUDE, 'subagent', 'mark_step_complete'] });

@@ -17,6 +17,7 @@ import {
   PlanToolCallView,
   PlanToolResultView,
 } from "./components/tools/PlanToolView"
+import { SubagentToolCallView, SubagentToolResultView } from "./components/tools/SubagentToolView"
 import { WebFetchToolCallView, WebFetchToolResultView } from "./components/tools/WebFetchToolView"
 import { WebSearchToolCallView, WebSearchToolResultView } from "./components/tools/WebSearchToolView"
 import { WriteToolCallView, WriteToolResultView } from "./components/tools/WriteToolView"
@@ -38,6 +39,7 @@ const toolResultComponents: Record<string, ToolComponent> = {
   "default__ask_question": AskQuestionToolResultView,
   "default__create_plan": PlanToolResultView,
   "default__mark_step_complete": MarkStepCompleteToolResultView,
+  "default__subagent": SubagentToolResultView,
 }
 
 const toolCallComponents: Record<string, ToolComponent> = {
@@ -55,6 +57,7 @@ const toolCallComponents: Record<string, ToolComponent> = {
   "default__ask_question": AskQuestionToolCallView,
   "default__create_plan": PlanToolCallView,
   "default__mark_step_complete": MarkStepCompleteToolCallView,
+  "default__subagent": SubagentToolCallView,
 }
 
 const lookupComponent = (

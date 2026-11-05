@@ -28,7 +28,7 @@ export type SentenceFragment = {
 
 const LABEL_MAX_LENGTH = 96
 const OBJECT_MAX_LENGTH = 40
-const PRIMARY_INPUT_FIELDS = ["command", "filePath", "path", "file_path", "pattern", "url", "query", "name"]
+const PRIMARY_INPUT_FIELDS = ["command", "filePath", "path", "file_path", "pattern", "url", "query", "name", "description"]
 
 // Tools that keep their own view in the transcript instead of joining a journal sentence.
 export const STANDALONE_TOOLS = new Set(["ask_question", "create_plan", "mark_step_complete", "message_answer"])
@@ -179,6 +179,8 @@ const phraseFor = (step: JournalStep): Phrase => {
       return { past: "searched the web for", present: "searching the web for", plural: "queries", objects: [`"${short(field("query"))}"`] }
     case "load_skill":
       return { past: "loaded skill", present: "loading skill", plural: "skills", objects: [field("name")] }
+    case "subagent":
+      return { past: "delegated", present: "delegating", plural: "tasks to sub-agents", objects: [`"${short(field("description")) || "a task"}"`] }
     case "search_skills":
       return { past: "searched skills", present: "searching skills", plural: "skills", objects: [short(field("query")) || "skills"] }
     default:

@@ -100,6 +100,32 @@ describe("diffStats", () => {
   })
 })
 
+describe("subagent journal entries", () => {
+  test("joins the journal instead of standing alone", () => {
+    const steps = buildJournalSteps([call("s1", "default__subagent", { description: "Audit tests", prompt: "..." })])
+    expect(steps.map((step) => step.toolCallId)).toEqual(["s1"])
+  })
+
+  test("names each delegated task, in the present tense while running", () => {
+    expect(sentence([
+      call("s1", "default__subagent", { description: "Audit tests", prompt: "..." }),
+      call("s2", "default__subagent", { description: "Update docs", prompt: "..." }),
+    ])).toBe('delegating "Audit tests" and "Update docs"…')
+  })
+
+  test("counts parallel sub-agents once they finish, including failures", () => {
+    const messages = ["a", "b", "c"].flatMap((id) => [
+      call(id, "default__subagent", { description: `task ${id}`, prompt: "..." }),
+      result(id, "default__subagent", "report", id === "c"),
+    ])
+    expect(sentence(messages)).toBe("delegated 3 tasks to sub-agents (1 failed)")
+  })
+
+  test("labels the step with its description", () => {
+    expect(describeToolCall("default__subagent", { prompt: "long brief", description: "Audit tests" })).toBe("subagent · Audit tests")
+  })
+})
+
 describe("describeToolCall", () => {
   test("labels calls by their primary input", () => {
     expect(describeToolCall("default__bash", { command: "ls src\nls test" })).toBe("bash · ls src")
