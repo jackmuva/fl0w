@@ -28,6 +28,7 @@ const SWAY = 1
 const BODY_WIDTH = BODY[0]!.length
 const SPRITE_WIDTH = ARM_SIDE * 2 + BODY_WIDTH
 const WIDTH = SPRITE_WIDTH + SWAY * 2
+export const MASCOT_WIDTH = WIDTH
 const BODY_ROWS = BODY.length / 2
 const HEIGHT = BODY_ROWS + 2
 const ARM_ROW = 2

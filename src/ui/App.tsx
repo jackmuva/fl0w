@@ -29,7 +29,7 @@ import { ChatInput } from "./components/input/ChatInput"
 import { ClarifyQuestionBox } from "./components/primitives/ClarifyQuestionBox"
 import { ContextCostStatusBar } from "./components/primitives/ContextCostStatusBar"
 import { WorkingIndicator } from "./components/primitives/WorkingIndicator"
-import { Mascot } from "./components/primitives/Mascot"
+import { Mascot, MASCOT_WIDTH } from "./components/primitives/Mascot"
 import { useCopyOnSelection } from "./hooks/useCopyOnSelection"
 import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
@@ -125,6 +125,8 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
   }, [visibleMessages, session.id])
 
   const showPlanSidebar = planProgress !== undefined && fitsPlanSidebar(width)
+  // Mascot sits in the transcript's corner; keep it only where there's room to spare.
+  const showMascot = width >= 80
 
   const refreshWorkflows = useCallback(async () => {
     try {
@@ -365,6 +367,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
               flexShrink={1}
               minHeight={0}
               width="100%"
+              paddingRight={showMascot ? MASCOT_WIDTH + 1 : 0}
               stickyScroll={true}
               stickyStart="bottom"
             >
@@ -378,7 +381,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
                 streamingText={streamingText}
               />
             </scrollbox>
-            {width >= 64 && (
+            {showMascot && (
               <box position="absolute" right={1} bottom={0} zIndex={1}>
                 <Mascot working={status === "working" || generating} />
               </box>
