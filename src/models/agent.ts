@@ -77,6 +77,8 @@ export type ModelMetadata = {
   /** USD per 1M input tokens */
   inputTokenPrice: number,
   type: "text" | "decision",
+  /** Whether the model accepts image input; screenshots stay text markers when false. */
+  supportsImages?: boolean,
 }
 
 export type ModelSelection = Record<SubagentType, string>

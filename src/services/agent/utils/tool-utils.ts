@@ -10,6 +10,7 @@ import { userToolLoader } from "../../external-tools/user-tool-service";
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { toolOutputFileNotice } from "../default-tools/read-full-tool-output";
+import { browserEnabled } from "../../browser/browser-session";
 
 export const CREATE_PLAN_ACTION = DEFAULT_CREATE_PLAN_TOOL;
 export const ASK_QUESTION_ACTION = DEFAULT_ASK_QUESTION_TOOL;
@@ -40,6 +41,7 @@ export const listAllTools = async (unattended = WORKFLOW_RUN) => [
   ...listDefaultTools().filter((entry) => {
     if ((entry.name === 'load_skill' || entry.name === 'search_skills') && skillService.listSkills().length === 0) return false;
     if (unattended && entry.name === 'ask_question') return false;
+    if (entry.name.startsWith('browser_') && !browserEnabled()) return false;
     return true;
   }),
   ...userToolLoader.listUserTools().filter((entry) => isCapabilityEnabled('userTools', entry.name)),

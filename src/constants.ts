@@ -61,6 +61,15 @@ export const TOOL_RESULT_MIN_KEEP = 120;
 
 export const USER_TOOL_SERVER = 'user';
 
+export const BROWSERBASE_API_URL = 'https://api.browserbase.com/v1';
+
+export const BROWSER_SNAPSHOT_MAX_CHARS = 15_000;
+
+export const BROWSER_LOG_LIMIT = 200;
+
+/** Screenshots ([image:path] markers) sent to vision models as images; older ones stay text markers. */
+export const MAX_IMAGES_IN_CONTEXT = 3;
+
 export const OUTBOX_DIR = join(FL0W_HOME, 'outbox');
 
 export const FL0W_API_URL = 'https://www.fl0w.work';

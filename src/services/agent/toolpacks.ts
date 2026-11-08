@@ -4,6 +4,8 @@ import { USER_TOOL_SERVER } from "../../constants";
 import { DEFAULT_TOOL_SERVER } from "./default-tools/tool-utils";
 import { listAllTools, toAiSdkTools } from "./utils/tool-utils";
 import { withToolSearch, type ToolOptions } from "./tool-search";
+import { withImageParts } from "./utils/message-utils";
+import { modelStore } from "../../store/model-store";
 
 type Toolpack = 'all' | { exclude: string[] } | { default: string[], mcp?: boolean };
 
@@ -12,7 +14,10 @@ const EXECUTE_EXCLUDE = ['ask_question', 'create_plan'];
 export const TOOLPACKS: Record<SubagentType, Toolpack> = {
   ROUTER: { default: [] },
   DISCOVERY: {
-    default: ['read', 'grep', 'glob', 'list_dir', 'read_full_tool_output', 'load_skill', 'search_skills', 'websearch', 'webfetch', 'ask_question'],
+    default: [
+      'read', 'grep', 'glob', 'list_dir', 'read_full_tool_output', 'load_skill', 'search_skills', 'websearch', 'webfetch', 'ask_question',
+      'browser_navigate', 'browser_snapshot', 'browser_screenshot', 'browser_tabs', 'browser_scroll', 'browser_wait',
+    ],
     mcp: true,
   },
   PLAN: { default: ['create_plan'] },
@@ -29,7 +34,18 @@ const inToolpack = (pack: Toolpack, entry: McpTool) => {
 const toolsForPack = async (pack: Toolpack): Promise<ToolOptions | undefined> => {
   if (pack !== 'all' && 'default' in pack && pack.default.length === 0 && !pack.mcp) return undefined;
   const tools = (await listAllTools()).filter((entry) => inToolpack(pack, entry));
-  return tools.length > 0 ? withToolSearch(tools, toAiSdkTools(tools)) : undefined;
+  if (tools.length === 0) return undefined;
+  const options = withToolSearch(tools, toAiSdkTools(tools));
+  return {
+    ...options,
+    prepareStep: async (step) => {
+      const prepared = await options.prepareStep?.(step);
+      const model = typeof step.model === 'string' ? step.model : step.model.modelId;
+      if (!(await modelStore.supportsImages(model))) return prepared;
+      const messages = await withImageParts(step.messages);
+      return messages === step.messages ? prepared : { ...prepared, messages };
+    },
+  };
 };
 
 export const toolsFor = (subagent: SubagentType) => toolsForPack(TOOLPACKS[subagent]);

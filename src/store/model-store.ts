@@ -17,6 +17,12 @@ class ModelStore {
   async contextWindowFor(model: string): Promise<number> {
     return (await this.loadModels()).get(model)?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
   }
+
+  /** Models are assumed to accept images unless their metadata says otherwise. */
+  async supportsImages(model: string): Promise<boolean> {
+    const models = await this.loadModels().catch(() => new Map<string, ModelMetadata>());
+    return models.get(model)?.supportsImages !== false;
+  }
 }
 
 export const modelStore = new ModelStore();

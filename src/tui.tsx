@@ -1,5 +1,6 @@
 import { userToolLoader } from './services/external-tools/user-tool-service';
 import { mcpClient } from './services/external-tools/mcp-client';
+import { browserSession } from './services/browser/browser-session';
 import { buildCapabilityCatalog } from './services/capabilities';
 import { modelStore } from './store/model-store';
 import type { StoredSession } from './models/session';
@@ -70,6 +71,7 @@ export async function runTui({ syncWarning }: { syncWarning: string | null }): P
   process.on('exit', () => {
     void mcpClient.close();
     void disposeAppClipboard();
+    void browserSession.close();
   });
 
   const renderer = await createCliRenderer({
