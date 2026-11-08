@@ -56,6 +56,14 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
   only when given a session id — the current adapter doesn't pass one, so full output isn't saved.
   `default/read_full_tool_output` reads saved outputs; compaction keeps their references; deleting a
   session removes its folder.
+- **Browser** — `browser_*` default tools (`default-tools/browser.ts`) drive a Browserbase session over
+ CDP (`services/browser/cdp.ts`, `browser-session.ts`; Bun WebSocket, no Playwright), listed only when
+ `BROWSERBASE_API_KEY` is set. Snapshots are accessibility trees whose refs are `e<backendNodeId>`; actions
+ return a fresh interactive snapshot. Closed on exit (`finishHeadlessRun()`, `tui.tsx`). Tests use
+ `browserSession.setConnector()` with a local headless Chrome (skipped without one).
+- **Images** — `[image:path]` markers in tool results (screenshots, `read`, `webfetch`) become image parts at
+ model-call time via `withImageParts()` (`utils/message-utils.ts`, wired in `toolpacks.ts` `prepareStep`):
+ the newest `MAX_IMAGES_IN_CONTEXT` only, skipped for models with `supportsImages: false`.
 - **Workflows** — sessions distill into workflows (`/generate`, `/workflow`; headless `fl0w workflow`).
 
 ## Agent Loop

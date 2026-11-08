@@ -53,6 +53,12 @@ Skills are discovered in `<workspace>/.agents/skills`, `~/.cursor/skills-cursor`
 
 Skills, MCPs, tools, and `AGENTS.md` can be toggled per session to keep the context window focused.
 
+### Browser
+
+Set `BROWSERBASE_API_KEY` (and optionally `BROWSERBASE_PROJECT_ID`) to give the agent a cloud browser on [Browserbase](https://www.browserbase.com). The `browser_*` tools only appear when the key is set. The agent opens pages, reads them as accessibility snapshots whose interactive elements carry refs (`[ref=e12]`), and then clicks, types, fills forms, picks options, presses keys, scrolls, waits, manages tabs, runs JavaScript, and reads console and network logs. Discovery gets the read-only subset: navigate, snapshot, screenshot, tabs, scroll, and wait.
+
+A Browserbase session starts on the first browser call and stays open (tabs and logins included) until `browser_close` or exit. Its first result includes a live view URL that you can open to watch, or to take over for logins and 2FA. `browser_screenshot` attaches the screenshot as an image for vision models. The three newest screenshots in a conversation are sent as images, and older ones remain as file references. Models whose metadata sets `supportsImages: false` only get the file path.
+
 ### Keeping your setup in sync
 
 When signed in, fl0w syncs with your fl0w-work account so you can move between machines:
