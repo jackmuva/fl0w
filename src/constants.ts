@@ -24,6 +24,8 @@ export const FL0W_SKILLS_DIR = join(FL0W_HOME, 'skills');
 
 export const WORKSPACE_DIR = join(FL0W_HOME, 'workspace');
 
+export const BROWSER_PROFILES_DIR = join(FL0W_HOME, 'browser-profiles');
+
 export const sessionWorkspacePath = (sessionId: string): string => join(WORKSPACE_DIR, sessionId);
 
 export const DEFAULT_MODELS: ModelSelection = {

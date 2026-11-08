@@ -15,6 +15,7 @@ import { buildWorkflowPlanMessages, buildWorkflowUserMessage } from "../services
 import { generateWorkflowFromSession, WorkflowGenerationError } from "../services/workflow/generate"
 import { deleteWorkflow, listWorkflows, saveWorkflow } from "../store/workflow-store"
 import { outboxStore } from "../services/sync/outbox"
+import { closeBrowser } from "../services/browser/browser-session"
 import type { WorkflowRecord } from "../models/workflow"
 import type { SessionListEntry, StoredSession } from "../models/session"
 import { useSessionPersistence } from "./hooks/useSessionPersistence"
@@ -265,7 +266,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
       } else {
         // anything still unsent stays in the outbox for the next run
         void outboxStore.flushOutbox()
-        renderer.destroy()
+        void closeBrowser().finally(() => renderer.destroy())
       }
       return
     }

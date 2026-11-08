@@ -56,6 +56,12 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
   only when given a session id — the current adapter doesn't pass one, so full output isn't saved.
   `default/read_full_tool_output` reads saved outputs; compaction keeps their references; deleting a
   session removes its folder.
+- **Browser** — `default/browser_*` tools drive one local Chrome over CDP (`services/browser/`, no
+ dependencies; in-page JS in `page-scripts.ts`). Profiles are user data dirs in
+ `BROWSER_PROFILES_DIR` (`~/.fl0w/browser-profiles`); `chrome_profile` copies one of the user's Chrome
+ profiles there (Chrome 136+ blocks CDP on its default dir). Snapshots number interactive elements;
+ click/fill target those refs. `closeBrowser()` quits via `Browser.close` (signals drop unflushed
+ cookies) from `finishHeadlessRun()` and TUI Ctrl+C; a sync kill on `exit` is the fallback.
 - **Workflows** — sessions distill into workflows (`/generate`, `/workflow`; headless `fl0w workflow`).
 
 ## Agent Loop
@@ -103,6 +109,7 @@ src/
 ├── services/
 │   ├── agent/         # agent-loop, subagents, toolpacks, hooks, default-tools, utils
 │   ├── auth/          # login/logout/whoami, auth-service
+│   ├── browser/       # Chrome launch, profiles, CDP page actions
 │   ├── external-tools/ # mcp-client, oauth-provider, user-tool-service, callback-server
 │   ├── remote-api/    # fl0w-work HTTP: ai-api, sync-api
 │   ├── sync/          # config sync, bundle sync, full-sync, outbox, sync-state

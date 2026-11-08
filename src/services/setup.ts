@@ -3,6 +3,7 @@ import { syncToolService } from './sync/sync-tools';
 import { configSyncStore } from './sync/config-sync';
 import { outboxStore } from './sync/outbox';
 import { authService } from './auth/auth-service';
+import { closeBrowser } from './browser/browser-session';
 import { mkdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -45,6 +46,6 @@ export async function runStartupSync(options: StartupSyncOptions = {}): Promise<
 }
 
 export async function finishHeadlessRun(code: number): Promise<number> {
-  await Promise.all([configSyncStore.flushPendingPushes(), outboxStore.flushOutbox()]);
+  await Promise.all([configSyncStore.flushPendingPushes(), outboxStore.flushOutbox(), closeBrowser()]);
   return code;
 }

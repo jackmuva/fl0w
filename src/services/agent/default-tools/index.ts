@@ -36,6 +36,7 @@ import { executeWebSearch, webSearchDescription, webSearchTool, webSearchToolSch
 import { executeLoadSkill, loadSkillDescription, loadSkillTool, loadSkillToolSchema } from './load-skill';
 import { executeSubagent, subagentDescription, subagentTool, subagentToolSchema } from './subagent';
 import { executeSearchSkills, searchSkillsDescription, searchSkillsTool, searchSkillsToolSchema } from './search-skills';
+import { browserToolEntries } from './browser';
 
 export type DefaultToolExecutor = (args: Record<string, unknown>) => Promise<string>;
 
@@ -168,6 +169,7 @@ const defaultToolEntries: DefaultToolEntry[] = [
     execute: (args) => executeSubagent(args as Parameters<typeof executeSubagent>[0]),
     tool: subagentTool,
   },
+  ...browserToolEntries,
 ];
 
 const defaultToolMap = new Map(defaultToolEntries.map((entry) => [entry.name, entry]));
