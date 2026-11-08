@@ -18,6 +18,9 @@ export type OAuthOptions = {
   clientId?: string,
   clientSecret?: string,
   scope?: string,
+  // static endpoints for servers without OAuth discovery metadata; set both to skip discovery
+  authorizationUrl?: string,
+  tokenUrl?: string,
   // must match the redirect URI registered with the authorization server
   callbackPort?: number,
 }

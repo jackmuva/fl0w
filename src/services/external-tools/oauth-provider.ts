@@ -98,11 +98,28 @@ export class FileOAuthProvider implements OAuthClientProvider {
   }
 
   async saveDiscoveryState(discoveryState: OAuthDiscoveryState) {
+    if (this.staticDiscoveryState) return;
     await this.write({ discoveryState });
   }
 
   async discoveryState() {
-    return (await this.read()).discoveryState;
+    return this.staticDiscoveryState ?? (await this.read()).discoveryState;
+  }
+
+  /** Configured endpoints stand in for RFC 8414 metadata, so the SDK never runs discovery. */
+  private get staticDiscoveryState(): OAuthDiscoveryState | undefined {
+    const { authorizationUrl, tokenUrl } = this.options;
+    if (!authorizationUrl || !tokenUrl) return undefined;
+    const issuer = new URL(authorizationUrl).origin;
+    return {
+      authorizationServerUrl: issuer,
+      authorizationServerMetadata: {
+        issuer,
+        authorization_endpoint: authorizationUrl,
+        token_endpoint: tokenUrl,
+        response_types_supported: ['code'],
+      },
+    };
   }
 
   async invalidateCredentials(scope: 'all' | 'client' | 'tokens' | 'verifier' | 'discovery') {

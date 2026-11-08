@@ -1,4 +1,4 @@
-const CALLBACK_PATH = '/oauth/callback';
+const CALLBACK_PATH = '/callback';
 const AUTH_TIMEOUT_MS = 5 * 60 * 1000;
 
 type PendingAuth = {
@@ -9,7 +9,7 @@ type PendingAuth = {
 
 const callbackServers = new Map<number, { server: ReturnType<typeof Bun.serve>, pending: Map<string, PendingAuth> }>();
 
-export const callbackUrl = (port: number) => `http://127.0.0.1:${port}${CALLBACK_PATH}`;
+export const callbackUrl = (port: number) => `http://localhost:${port}${CALLBACK_PATH}`;
 
 const callbackPage = (message: string) => new Response(
   `<html><body style="font-family: sans-serif; padding: 2rem"><p>${message}</p></body></html>`,

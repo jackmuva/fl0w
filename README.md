@@ -49,6 +49,27 @@ Phases you leave unassigned fall back to those defaults. The router needs a deci
 
 Optional capabilities: local skills in `~/.fl0w/skills/`; MCP servers in `~/.fl0w/mcp.json` (using [Cursor's MCP config format](https://cursor.com/docs/mcp#installing-mcp-servers)); an `AGENTS.md` in the workspace root; and custom TypeScript tools in `~/.fl0w/tools/`. A user tool is a `.ts` file exporting `name`, `description`, `inputSchema`, and `execute` (or a default export with those fields).
 
+HTTP MCP servers run OAuth automatically when they respond `401` (set `"oauth": false` to disable). Servers that don't support dynamic client registration or OAuth discovery can be configured statically with a pre-registered OAuth app. Its redirect URI must be `http://localhost:<callbackPort>/callback`, with a default port of `33418`:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "oauth": {
+        "clientId": "<client id>",
+        "clientSecret": "<client secret>",
+        "scope": "repo read:org",
+        "authorizationUrl": "https://github.com/login/oauth/authorize",
+        "tokenUrl": "https://github.com/login/oauth/access_token"
+      }
+    }
+  }
+}
+```
+
+`clientId`/`clientSecret` replace dynamic registration. Setting both `authorizationUrl` and `tokenUrl` skips authorization-server discovery; with only one set, discovery still runs. `scope` is used when the server doesn't advertise one, and `callbackPort` changes the local redirect port.
+
 Skills are discovered in `<workspace>/.agents/skills`, `~/.cursor/skills-cursor`, `~/.claude/skills`, and `~/.fl0w/skills`; the agent reads one with the `load_skill` tool when it looks relevant. Only the `AGENTS.md` at your workspace root is loaded.
 
 Skills, MCPs, tools, and `AGENTS.md` can be toggled per session to keep the context window focused.
