@@ -285,11 +285,11 @@ bun run build:all # release binaries for all platforms
 Create and push a new version tag (the release workflow picks it up):
 
 ```bash
-git tag -a v0.1.93 -m "v0.1.93"
-git push origin v0.1.93
+git tag -a v0.2.1 -m "v0.2.1"
+git push origin v0.2.1
 ```
 
-Replace `v0.1.93` with the version you are releasing.
+Replace `v0.2.1` with the version you are releasing.
 
 ## Project Structure
 
@@ -331,3 +331,4 @@ src/
    discovery, plan, and execute, using the execute model. Saved workflows skip routing,
    discovery, and planning and go directly to execute.
 6. **Shutdown** — starts MCP connection cleanup and attempts to flush pending writes; headless commands await MCP close and the outbox flus   
+    
