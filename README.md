@@ -17,7 +17,7 @@ curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | bas
 Specific version:
 
 ```bash
-FL0W_VERSION=v0.1.93 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | bash
+FL0W_VERSION=v0.2.0 curl -fsSL https://raw.githubusercontent.com/jackmuva/fl0w/main/install.sh | bash
 ```
 
 Windows (PowerShell):
@@ -331,4 +331,4 @@ src/
    first routing can't end the turn, so you always get a reply. Compaction checks happen before
    discovery, plan, and execute, using the execute model. Saved workflows skip routing,
    discovery, and planning and go directly to execute.
-6. **Shutdown** — starts MCP connection cleanup and attempts to flush pending writes; headless commands await MCP close and the outbox flush.
+6. **Shutdown** — starts MCP connection cleanup and attempts to flush pending writes; headless commands await MCP close and the outbox flus   
