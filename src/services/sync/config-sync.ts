@@ -87,10 +87,11 @@ class ConfigSyncStore {
     return run;
   }
 
-  async syncOnStartup(): Promise<string | null> {
+  /** Syncs with a timeout; returns a warning on failure. Also used by `fl0w secrets`/`fl0w mcp` for their own files. */
+  async syncOnStartup(filenames: readonly SyncFilename[] = SYNC_FILENAMES): Promise<string | null> {
     try {
       const results = await Promise.race([
-        this.syncConfigFiles(),
+        this.syncConfigFiles(filenames),
         new Promise<'timeout'>((resolve) => setTimeout(resolve, STARTUP_TIMEOUT_MS, 'timeout').unref()),
       ]);
       if (results === 'timeout') return 'Config sync with fl0w-work timed out; continuing with local config.';

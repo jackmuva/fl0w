@@ -1,12 +1,10 @@
 export type StdioServerConfig = {
-  enabled?: boolean,
   command: string,
   args?: string[],
   env?: Record<string, string>,
 }
 
 export type HttpServerConfig = {
-  enabled?: boolean,
   url: string,
   headers?: Record<string, string>,
   // OAuth runs automatically when the server responds 401; set false to disable

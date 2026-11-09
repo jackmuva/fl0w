@@ -37,7 +37,8 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
   `FL0W_HOME/outbox`, one JSON file per write): pushes ~2s after a write, retries transient failures
   with backoff, discards permanent HTTP errors, drains at startup/exit; reads overlay unpushed writes.
   Headless commands emit transcripts but don't persist them.
-- **MCP** — servers auto-connect at startup (with OAuth); failure only warns. On auth/connection
+- **MCP** — servers auto-connect at startup (with OAuth); failure only warns.
+  `fl0w mcp` (`cli/mcp.ts`) lists/adds/removes `mcp.json` servers, syncing `mcp.json`/`auth.json` around each change; remove (or a URL change) clears the server's OAuth state. On auth/connection
   tool-call failures, config is synced and the server reconnects once.
 - **Capabilities** — skills, MCP servers, `AGENTS.md`, and user tools are toggleable.
   `services/capabilities.ts` builds the catalog (also `fl0w capabilities`), holds the selection

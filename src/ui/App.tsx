@@ -82,6 +82,8 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     () => (!isCatalogEmpty(capabilityCatalog) || models.length > 0) && session.capabilities === null,
   )
   const runAbortRef = useRef<AbortController | null>(null)
+  // set the moment Ctrl+C aborts a run, so the indicator says so while the loop unwinds
+  const [stopping, setStopping] = useState(false)
   const renderer = useRenderer()
   const copiedVisible = useCopyOnSelection()
 
@@ -262,7 +264,10 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
   useKeyboard((key) => {
     if (key.ctrl && key.name === "c") {
       if (status === "working" || generating) {
-        runAbortRef.current?.abort()
+        if (runAbortRef.current && !runAbortRef.current.signal.aborted) {
+          setStopping(true)
+          runAbortRef.current.abort()
+        }
       } else {
         // anything still unsent stays in the outbox for the next run
         void outboxStore.flushOutbox()
@@ -293,6 +298,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
       }
     } finally {
       setStreamingText(null)
+      setStopping(false)
       runAbortRef.current = null
     }
   }
@@ -393,9 +399,11 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
               {(status === "working" || generating) ? (
                 <WorkingIndicator
                   label={
-                    generating
-                      ? "Generating workflow…"
-                      : "Generating next step… (Ctrl+C to stop)"
+                    stopping
+                      ? "Stopping…"
+                      : generating
+                        ? "Generating workflow…"
+                        : "Generating next step… (Ctrl+C to stop)"
                   }
                 />
               ) : copiedVisible ? (

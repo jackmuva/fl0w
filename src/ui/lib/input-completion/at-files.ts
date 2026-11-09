@@ -7,7 +7,7 @@ import type { ModelMessage } from "ai"
 
 const FILE_REFERENCE_PATTERN = /@([^\s@]+)/g
 const MAX_ATTACHMENT_BYTES = 32_000
-const EXCLUDED_DIRS = new Set(["node_modules", ".git", "dist", ".cache"])
+const EXCLUDED_DIRS = new Set(["node_modules", "dist"])
 
 let cachedFiles: string[] | null = null
 let cachedRoot: string | null = null
@@ -96,7 +96,7 @@ const walkDirectory = async (dir: string, root: string, files: string[]): Promis
   }
 
   for (const entry of entries) {
-    if (EXCLUDED_DIRS.has(entry.name)) continue
+    if (entry.name.startsWith(".") || EXCLUDED_DIRS.has(entry.name)) continue
 
     const absolutePath = join(dir, entry.name)
     if (entry.isDirectory()) {

@@ -51,6 +51,10 @@ switch (command) {
     const { runSecretsCommand } = await import("./cli/secrets")
     process.exit(await runSecretsCommand(rest))
   }
+  case "mcp": {
+    const { runMcpCommand } = await import("./cli/mcp")
+    process.exit(await runMcpCommand(rest))
+  }
   case "reauth": {
     const { runReauthCli } = await import("./cli/reauth")
     process.exit(await runReauthCli(rest))

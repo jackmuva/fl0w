@@ -5,7 +5,7 @@ import { configSyncStore } from '../services/sync/config-sync';
 
 const USAGE = `Usage:
   fl0w secrets [list]
-  fl0w secrets add <name> [--domain <site>]... [--description "<text>"] [--field <field>]... [--env | --no-env]
+  fl0w secrets add <name> [--domain <site>] [--description "<text>"] [--field <field>]... [--env | --no-env]
   fl0w secrets remove <name>
 
 Stores credentials the agent may use without seeing them, in ${SECRETS_PATH} (mode 0600). When signed in,
