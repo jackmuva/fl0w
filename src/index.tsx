@@ -47,6 +47,10 @@ switch (command) {
     const { runSyncCommand } = await import("./cli/sync")
     process.exit(await runSyncCommand(rest))
   }
+  case "secrets": {
+    const { runSecretsCommand } = await import("./cli/secrets")
+    process.exit(await runSecretsCommand(rest))
+  }
   case "reauth": {
     const { runReauthCli } = await import("./cli/reauth")
     process.exit(await runReauthCli(rest))

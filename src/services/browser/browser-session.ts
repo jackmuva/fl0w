@@ -6,6 +6,7 @@ import type { Subprocess } from 'bun';
 import { BROWSER_PROFILES_DIR } from '../../constants';
 import type { BrowserFillField, BrowserProfile, BrowserTarget, ChromeProfile } from '../../models/browser';
 import { pageScript } from './page-scripts';
+import { readSecrets, resolveSecretRef } from '../secrets/secret-store';
 
 const PROFILE_META_FILE = 'fl0w-profile.json';
 const DEFAULT_PROFILE = 'default';
@@ -465,17 +466,18 @@ export const click = async (t: BrowserTarget) => {
 const TRUTHY = new Set(['true', 'yes', 'on', 'checked', '1', 'y']);
 
 const fillOne = async (field: BrowserFillField): Promise<string> => {
-  const kind = await evaluate<{ kind: 'text' | 'native' | 'select' | 'toggle' | 'aria-toggle' | 'file', description: string }>(`
+  const kind = await evaluate<{ kind: 'text' | 'native' | 'select' | 'toggle' | 'aria-toggle' | 'file', description: string, url: string }>(`
     const el = window.__fl0w.resolve(${target(field)});
     window.__fl0wTarget = el;
     window.__fl0w.center(el);
     const description = window.__fl0w.brief(el);
+    const url = location.href;
     const type = el.tagName === 'INPUT' ? el.type : '';
-    if (el.tagName === 'SELECT') return { kind: 'select', description };
-    if (type === 'checkbox' || type === 'radio') return { kind: 'toggle', description };
-    if (type === 'file') return { kind: 'file', description };
-    if (['date', 'time', 'datetime-local', 'month', 'week', 'color', 'range'].includes(type)) return { kind: 'native', description };
-    if (el.hasAttribute('aria-checked')) return { kind: 'aria-toggle', description };
+    if (el.tagName === 'SELECT') return { kind: 'select', description, url };
+    if (type === 'checkbox' || type === 'radio') return { kind: 'toggle', description, url };
+    if (type === 'file') return { kind: 'file', description, url };
+    if (['date', 'time', 'datetime-local', 'month', 'week', 'color', 'range'].includes(type)) return { kind: 'native', description, url };
+    if (el.hasAttribute('aria-checked')) return { kind: 'aria-toggle', description, url };
     el.focus();
     if (el.isContentEditable) {
       const range = document.createRange();
@@ -486,9 +488,11 @@ const fillOne = async (field: BrowserFillField): Promise<string> => {
     } else if (typeof el.select === 'function') {
       el.select();
     }
-    return { kind: 'text', description };
+    return { kind: 'text', description, url };
   `);
-  const value = field.value;
+  if (field.secret && !['text', 'native', 'select'].includes(kind.kind)) throw new Error(`Secrets can only fill text fields and selects, not ${kind.description}`);
+  const value = field.secret ? resolveSecretRef(await readSecrets(), field.secret, kind.url) : field.value;
+  if (value === undefined) throw new Error('Provide a value or a secret for each field');
   const text = Array.isArray(value) ? value.join(', ') : String(value);
   const json = JSON.stringify(value);
   const cdp = await currentPage();
@@ -507,6 +511,7 @@ const fillOne = async (field: BrowserFillField): Promise<string> => {
         el.dispatchEvent(new Event('change', { bubbles: true }));
         return el.isContentEditable ? el.innerText : el.value;
       `);
+      if (field.secret) return `Filled ${kind.description} with secret ${field.secret}`;
       return `Filled ${kind.description} → "${kind.description.includes('input[password]') ? '••••' : current}"`;
     }
     case 'native':
@@ -516,7 +521,7 @@ const fillOne = async (field: BrowserFillField): Promise<string> => {
         el.dispatchEvent(new Event('input', { bubbles: true }));
         el.dispatchEvent(new Event('change', { bubbles: true }));
       `);
-      return `Set ${kind.description} → "${text}"`;
+      return `Set ${kind.description} → ${field.secret ? `secret ${field.secret}` : `"${text}"`}`;
     case 'select': {
       const selected = await evaluate<string[]>(`
         const el = window.__fl0wTarget;
@@ -568,7 +573,7 @@ export const fill = async (fields: BrowserFillField[]) => {
     try {
       results.push(await fillOne(field));
     } catch (error) {
-      results.push(`Failed ${target(field)}: ${error instanceof Error ? error.message : error}`);
+      results.push(`Failed ${field.secret ? `${target(field)} (secret ${field.secret})` : target(field)}: ${error instanceof Error ? error.message : error}`);
     }
   }
   return results.join('\n');

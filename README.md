@@ -82,6 +82,31 @@ The agent can drive Google Chrome to read pages, click, and fill out forms (`bro
 - **Your Chrome profiles** can be used by asking for one by name or email ("use my Work Chrome profile"). `browser_profiles` lists them. Chrome doesn't allow automation of its own profile folder, so fl0w copies the profile, minus caches, into `~/.fl0w/browser-profiles/chrome-<name>` the first time and reuses that copy afterwards (`refresh_profile` re-copies it). The copy starts with your cookies and logins; later changes in either browser don't sync back. On Windows, quit Chrome before the first import, because Chrome locks its cookie files while running.
 - Chrome opens in a visible window unless the agent asks for headless mode, `FL0W_BROWSER_HEADLESS=1` is set, or (on Linux) there's no display. fl0w closes the browser when it exits.
 
+### Secrets
+
+Give the agent usernames, passwords, and tokens it can use without ever seeing them:
+
+```bash
+fl0w secrets add github --domain github.com --description "Work GitHub"   # prompts for username and password (hidden)
+fl0w secrets add openai --field token --env                               # a token for the bash tool
+fl0w secrets                                                              # list (never shows values)
+fl0w secrets remove github
+```
+
+Secrets live in `~/.fl0w/secrets.json` (mode `0600`; fl0w tightens looser permissions). You can also edit it by hand: each top-level key is a secret name, and every string property except `description` is a field.
+
+```json
+{
+  "github": { "description": "Work GitHub", "domains": ["github.com"], "username": "ada", "password": "…" }
+}
+```
+
+- The agent's `list_secrets` tool shows names, fields, and allowed sites, never values.
+- `browser_fill` takes `{"secret": "github.password"}` in place of a value, and fl0w types the stored value into the page itself. A secret is only typed on its `domains` (subdomains included; `"*"` allows any site), and only on `https` pages (or `localhost`). That stops a malicious page from talking the agent into entering your password somewhere else.
+- With `"env": true`, a secret's fields are also available to the `bash` tool as `FL0W_SECRET_<NAME>_<FIELD>` environment variables. This has no site restriction, so only enable it for tokens you're comfortable letting commands use.
+- Any secret value (4+ characters) that shows up in tool output is replaced with `[secret <name>.<field>]` before it reaches the model, so it isn't sent to the model provider or saved in the session.
+- `secrets.json` is never synced to fl0w-work. Add secrets separately on each machine that needs them.
+
 ### Keeping your setup in sync
 
 When signed in, fl0w syncs with your fl0w-work account so you can move between machines:

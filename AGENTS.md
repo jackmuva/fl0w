@@ -62,6 +62,12 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
  profiles there (Chrome 136+ blocks CDP on its default dir). Snapshots number interactive elements;
  click/fill target those refs. `closeBrowser()` quits via `Browser.close` (signals drop unflushed
  cookies) from `finishHeadlessRun()` and TUI Ctrl+C; a sync kill on `exit` is the fallback.
+- **Secrets** — `SECRETS_PATH` (`~/.fl0w/secrets.json`, 0600, not synced) holds named credentials
+ (`services/secrets/secret-store.ts`, managed by `fl0w secrets`). The model never sees values:
+ `list_secrets` shows names/fields/sites, `browser_fill` resolves `secret: "<name>.<field>"` only on
+ the secret's `domains` over https, and `env: true` secrets become `FL0W_SECRET_*` vars for `bash`.
+ `redactSecrets()` masks values in every tool result and error (`toAiSdkTools` wraps default tools;
+ `executeTool` covers MCP/user tools) — keep new tool paths behind one of those.
 - **Workflows** — sessions distill into workflows (`/generate`, `/workflow`; headless `fl0w workflow`).
 
 ## Agent Loop
@@ -110,6 +116,7 @@ src/
 │   ├── agent/         # agent-loop, subagents, toolpacks, hooks, default-tools, utils
 │   ├── auth/          # login/logout/whoami, auth-service
 │   ├── browser/       # Chrome launch, profiles, CDP page actions
+│   ├── secrets/       # secrets.json store, secret refs, output redaction
 │   ├── external-tools/ # mcp-client, oauth-provider, user-tool-service, callback-server
 │   ├── remote-api/    # fl0w-work HTTP: ai-api, sync-api
 │   ├── sync/          # config sync, bundle sync, full-sync, outbox, sync-state

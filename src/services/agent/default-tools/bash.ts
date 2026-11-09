@@ -1,5 +1,6 @@
 import { jsonSchema, tool } from 'ai';
 import { resolveWorkspacePath, truncateOutput } from './tool-utils';
+import { readSecrets, secretEnv } from '../../secrets/secret-store';
 
 export type BashInput = {
   command: string;
@@ -47,7 +48,7 @@ export const executeBash = async ({ command, timeout, workdir }: BashInput): Pro
     cwd,
     stdout: 'pipe',
     stderr: 'pipe',
-    env: process.env,
+    env: { ...process.env, ...secretEnv(await readSecrets().catch(() => ({}))) },
   });
 
   const timer = setTimeout(() => proc.kill(), timeoutMs);

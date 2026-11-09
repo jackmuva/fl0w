@@ -10,6 +10,7 @@ import { userToolLoader } from "../../external-tools/user-tool-service";
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { toolOutputFileNotice } from "../default-tools/read-full-tool-output";
+import { redactSecrets } from "../../secrets/secret-store";
 
 export const CREATE_PLAN_ACTION = DEFAULT_CREATE_PLAN_TOOL;
 export const ASK_QUESTION_ACTION = DEFAULT_ASK_QUESTION_TOOL;
@@ -50,7 +51,19 @@ export const toAiSdkTools = (tools: McpTool[]) =>
   Object.fromEntries(tools.map((entry) => {
     const key = mcpToolKey(entry);
     const defaultEntry = entry.server === 'default' ? getDefaultTool(entry.name) : undefined;
-    if (defaultEntry?.tool) return [key, defaultEntry.tool];
+    if (defaultEntry?.tool) {
+      const { execute } = defaultEntry.tool as { execute?: (input: unknown, options: unknown) => Promise<unknown> };
+      return [key, execute ? {
+        ...defaultEntry.tool,
+        execute: async (input: unknown, options: unknown) => {
+          try {
+            return await redactSecrets(await execute(input, options));
+          } catch (error) {
+            throw new Error(await redactSecrets(error instanceof Error ? error.message : String(error)));
+          }
+        },
+      } : defaultEntry.tool];
+    }
     return [key, tool({
       description: entry.description ?? `Call the ${key} tool`,
       inputSchema: jsonSchema<Record<string, unknown>>(entry.inputSchema as Record<string, unknown>),
@@ -98,11 +111,11 @@ export const executeTool = async (
   input: Record<string, unknown>,
   context?: ToolCallContext,
 ): Promise<McpToolResult> => {
-  const result = server === DEFAULT_TOOL_SERVER
+  const result = await redactSecrets(server === DEFAULT_TOOL_SERVER
     ? await executeDefaultTool(name, input)
     : server === USER_TOOL_SERVER
       ? await userToolLoader.executeUserTool(name, input)
-      : await mcpClient.callTool(server, name, input);
+      : await mcpClient.callTool(server, name, input));
   if (!context || UNCAPPED_TOOLS.has(mcpToolKey({ server, name }))) return result;
   return capToolOutput(result, context.toolCallId, context.sessionId);
 };

@@ -133,6 +133,7 @@ Refs in the output are what browser_click, browser_fill, and browser_press_key t
 - checkbox/radio/switch: true/false (or "yes"/"no") sets the checked state
 - date/time/color/range inputs: value in the input's native format (e.g. "2026-01-31")
 - file inputs: file path, or array of paths
+For usernames, passwords, and other credentials, pass secret ("<name>.<field>" from list_secrets) instead of value; fl0w types the stored value without showing it to you, and only on sites the user allowed for that secret.
 Does not submit the form; use browser_click on the submit button or browser_press_key Enter.`,
     {
       type: 'object',
@@ -145,10 +146,10 @@ Does not submit the form; use browser_click on the submit button or browser_pres
               ...targetProperties,
               value: {
                 anyOf: [{ type: 'string' }, { type: 'boolean' }, { type: 'array', items: { type: 'string' } }],
-                description: 'Value to set',
+                description: 'Value to set (omit when using secret)',
               },
+              secret: { type: 'string', description: 'Stored secret to type instead of value, as "<name>.<field>" (see list_secrets)' },
             },
-            required: ['value'],
           },
         },
       },

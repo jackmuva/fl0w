@@ -22,5 +22,7 @@ export type BrowserTarget = {
 }
 
 export type BrowserFillField = BrowserTarget & {
-  value: string | boolean | string[],
+  value?: string | boolean | string[],
+  /** `<name>.<field>` from secrets.json, typed in place of `value` so the model never sees it. */
+  secret?: string,
 }

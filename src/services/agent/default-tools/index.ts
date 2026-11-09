@@ -37,6 +37,7 @@ import { executeLoadSkill, loadSkillDescription, loadSkillTool, loadSkillToolSch
 import { executeSubagent, subagentDescription, subagentTool, subagentToolSchema } from './subagent';
 import { executeSearchSkills, searchSkillsDescription, searchSkillsTool, searchSkillsToolSchema } from './search-skills';
 import { browserToolEntries } from './browser';
+import { executeListSecrets, listSecretsDescription, listSecretsTool, listSecretsToolSchema } from './list-secrets';
 
 export type DefaultToolExecutor = (args: Record<string, unknown>) => Promise<string>;
 
@@ -168,6 +169,13 @@ const defaultToolEntries: DefaultToolEntry[] = [
     inputSchema: subagentToolSchema,
     execute: (args) => executeSubagent(args as Parameters<typeof executeSubagent>[0]),
     tool: subagentTool,
+  },
+  {
+    name: 'list_secrets',
+    description: listSecretsDescription,
+    inputSchema: listSecretsToolSchema,
+    execute: () => executeListSecrets(),
+    tool: listSecretsTool,
   },
   ...browserToolEntries,
 ];
