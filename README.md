@@ -78,8 +78,7 @@ Skills, MCPs, tools, and `AGENTS.md` can be toggled per session to keep the cont
 
 The agent can drive Google Chrome to read pages, click, and fill out forms (`browser_open`, `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_fill`, `browser_press_key`, `browser_screenshot`, `browser_close`). It talks to Chrome over the DevTools protocol, so the only requirement is a local Chrome install (set `FL0W_CHROME_PATH` if it isn't in the standard location).
 
-- **fl0w profiles** live in `~/.fl0w/browser-profiles/<name>` (default `default`). They persist, so anything you sign into once stays signed in for later runs.
-- **Your Chrome profiles** can be used by asking for one by name or email ("use my Work Chrome profile"). `browser_profiles` lists them. Chrome doesn't allow automation of its own profile folder, so fl0w copies the profile, minus caches, into `~/.fl0w/browser-profiles/chrome-<name>` the first time and reuses that copy afterwards (`refresh_profile` re-copies it). The copy starts with your cookies and logins; later changes in either browser don't sync back. On Windows, quit Chrome before the first import, because Chrome locks its cookie files while running.
+- The browser uses one persistent profile in `~/.fl0w/browser-profile`, so anything you sign into once stays signed in for later runs.
 - Chrome opens in a visible window unless the agent asks for headless mode, `FL0W_BROWSER_HEADLESS=1` is set, or (on Linux) there's no display. fl0w closes the browser when it exits.
 
 ### Secrets

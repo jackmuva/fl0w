@@ -1,12 +1,14 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { readdir, readFile, realpath, stat } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { jsonSchema, tool } from 'ai';
+import { SECRETS_PATH } from '../../../constants';
 import {
-  assertReadablePath,
   formatLineNumbered,
   IMAGE_MIMES,
   mimeFromExtension,
   pathExists,
+  resolveWorkspacePath,
 } from './tool-utils';
 
 export type ReadFileInput = {
@@ -17,12 +19,33 @@ export type ReadFileInput = {
 
 const DEFAULT_READ_LIMIT = 2000;
 
+const expandHome = (filePath: string) => {
+  const trimmed = filePath.trim().replace(/^['"]|['"]$/g, '');
+  if (trimmed === '~') return homedir();
+  if (trimmed.startsWith('~/')) return join(homedir(), trimmed.slice(2));
+  return trimmed;
+};
+
+const canonicalPath = async (filePath: string) => realpath(filePath).catch(() => resolve(filePath));
+
+/** Reads may target any path. Real absolute paths are taken as-is; anything else resolves against the workspace. */
+const resolveReadPath = async (filePath: string) => {
+  const expanded = expandHome(filePath);
+  const resolved = isAbsolute(expanded) && (await pathExists(expanded))
+    ? resolve(expanded)
+    : resolveWorkspacePath(expanded);
+  if ((await canonicalPath(resolved)) === (await canonicalPath(SECRETS_PATH))) {
+    throw new Error('The secrets file cannot be read. Use the list_secrets tool to see available secret names.');
+  }
+  return resolved;
+};
+
 const readFileInputSchema = jsonSchema<ReadFileInput>({
   type: 'object',
   properties: {
     filePath: {
       type: 'string',
-      description: 'Path to the file or directory, relative to the workspace root (e.g. "src/index.ts")',
+      description: 'Path to the file or directory. Relative paths resolve against the workspace root (e.g. "src/index.ts"); absolute and ~ paths are also allowed.',
     },
     offset: {
       type: 'number',
@@ -39,8 +62,8 @@ const readFileInputSchema = jsonSchema<ReadFileInput>({
 export const readFileDescription = `Read a file or directory from the local filesystem. If the path does not exist, an error is returned.
 
 Usage:
-- Prefer workspace-relative paths (e.g. "src/index.ts"). Do not use root-relative paths like "/src/index.ts".
-- Files inside a loaded skill's base directory can be read with their absolute path.
+- Prefer workspace-relative paths (e.g. "src/index.ts") for files in the workspace. Do not use root-relative paths like "/src/index.ts" to mean workspace files.
+- Files outside the workspace can be read with an absolute path (e.g. "/etc/hosts") or a home-relative path (e.g. "~/.zshrc").
 - By default, this tool returns up to 2000 lines from the start of the file.
 - The offset parameter is the line number to start from (1-indexed).
 - To read later sections, call this tool again with a larger offset.
@@ -48,10 +71,10 @@ Usage:
 - If you are unsure of the correct file path, use the glob tool to look up filenames by glob pattern.
 - Contents are returned with each line prefixed by its line number as \`<line>: <content>\`.
 - Any line longer than 2000 characters is truncated.
-- This tool can read image files (jpeg, png, gif, webp) and return them as base64 data URLs.`;
+- This tool can read image files (jpeg, png, gif, webp); the image is attached so you can see it.`;
 
 export const executeReadFile = async ({ filePath, offset = 1, limit = DEFAULT_READ_LIMIT }: ReadFileInput): Promise<string> => {
-  const resolved = await assertReadablePath(filePath);
+  const resolved = await resolveReadPath(filePath);
 
   if (!(await pathExists(resolved))) {
     const dir = dirname(resolved);

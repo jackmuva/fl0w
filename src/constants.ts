@@ -24,7 +24,7 @@ export const FL0W_SKILLS_DIR = join(FL0W_HOME, 'skills');
 
 export const WORKSPACE_DIR = join(FL0W_HOME, 'workspace');
 
-export const BROWSER_PROFILES_DIR = join(FL0W_HOME, 'browser-profiles');
+export const BROWSER_PROFILE_DIR = join(FL0W_HOME, 'browser-profile');
 
 export const SECRETS_PATH = join(FL0W_HOME, 'secrets.json');
 
@@ -62,6 +62,12 @@ export const MAX_PARALLEL_SUBAGENTS = 4;
 export const TOOL_TRUNCATE_STEPS = [12_000, 8_000, 4_000, 2_000, 800, 400];
 
 export const TOOL_RESULT_MIN_KEEP = 120;
+
+/** Only the most recent image-bearing tool results get their images attached to model calls. */
+export const MAX_ATTACHED_IMAGES = 3;
+
+/** Images larger than this stay as a path reference (most providers reject bigger inline images). */
+export const MAX_ATTACHED_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export const USER_TOOL_SERVER = 'user';
 

@@ -44,9 +44,14 @@ describe('skill directory access', () => {
     expect(await executeGrep({ pattern: 'Reference', path: skillDir })).toContain('Reference body');
   });
 
-  test('read-only tools still reject paths outside workspace and skill directories', async () => {
+  test('list_dir still rejects paths outside workspace and skill directories', async () => {
     skillService.setActiveSkills([]);
-    await expect(executeReadFile({ filePath: referencePath })).rejects.toThrow('outside the workspace');
+    await expect(executeListDir({ path: skillDir })).rejects.toThrow('outside the workspace');
+  });
+
+  test('read_file reads absolute paths outside workspace and skill directories', async () => {
+    skillService.setActiveSkills([]);
+    expect(await executeReadFile({ filePath: referencePath })).toContain('Reference body');
   });
 
   test('write tools cannot modify skill directories', async () => {

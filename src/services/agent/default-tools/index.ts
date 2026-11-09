@@ -36,7 +36,14 @@ import { executeWebSearch, webSearchDescription, webSearchTool, webSearchToolSch
 import { executeLoadSkill, loadSkillDescription, loadSkillTool, loadSkillToolSchema } from './load-skill';
 import { executeSubagent, subagentDescription, subagentTool, subagentToolSchema } from './subagent';
 import { executeSearchSkills, searchSkillsDescription, searchSkillsTool, searchSkillsToolSchema } from './search-skills';
-import { browserToolEntries } from './browser';
+import { browserOpenTool } from './browser/open';
+import { browserNavigateTool } from './browser/navigate';
+import { browserSnapshotTool } from './browser/snapshot';
+import { browserClickTool } from './browser/click';
+import { browserFillTool } from './browser/fill';
+import { browserPressKeyTool } from './browser/press-key';
+import { browserScreenshotTool } from './browser/screenshot';
+import { browserCloseTool } from './browser/close';
 import { executeListSecrets, listSecretsDescription, listSecretsTool, listSecretsToolSchema } from './list-secrets';
 
 export type DefaultToolExecutor = (args: Record<string, unknown>) => Promise<string>;
@@ -177,7 +184,14 @@ const defaultToolEntries: DefaultToolEntry[] = [
     execute: () => executeListSecrets(),
     tool: listSecretsTool,
   },
-  ...browserToolEntries,
+  browserOpenTool,
+  browserNavigateTool,
+  browserSnapshotTool,
+  browserClickTool,
+  browserFillTool,
+  browserPressKeyTool,
+  browserScreenshotTool,
+  browserCloseTool,
 ];
 
 const defaultToolMap = new Map(defaultToolEntries.map((entry) => [entry.name, entry]));

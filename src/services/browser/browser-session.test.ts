@@ -1,16 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { rm } from 'node:fs/promises';
-import { join } from 'node:path';
-import { BROWSER_PROFILES_DIR } from '../../constants';
-import { click, closeBrowser, fill, findChromeExecutable, navigate, openBrowser, profileSlug, snapshot } from './browser-session';
-
-describe('profileSlug', () => {
-  test('makes Chrome profile names safe folder names', () => {
-    expect(profileSlug('Work Profile')).toBe('work-profile');
-    expect(profileSlug('ada@example.com')).toBe('ada-example.com');
-    expect(profileSlug('..//')).toBe('default');
-  });
-});
+import { click, closeBrowser, fill, findChromeExecutable, navigate, openBrowser, snapshot } from './browser-session';
 
 const FORM = `<!doctype html><title>Form</title>
 <form action="/submit">
@@ -21,7 +10,6 @@ const FORM = `<!doctype html><title>Form</title>
 </form>`;
 
 describe.skipIf(!findChromeExecutable())('browser automation (requires Chrome)', () => {
-  const profile = `test-${crypto.randomUUID().slice(0, 8)}`;
   let server: ReturnType<typeof Bun.serve>;
 
   beforeAll(() => {
@@ -35,11 +23,10 @@ describe.skipIf(!findChromeExecutable())('browser automation (requires Chrome)',
   afterAll(async () => {
     await closeBrowser();
     server.stop(true);
-    await rm(join(BROWSER_PROFILES_DIR, profile), { recursive: true, force: true });
   });
 
   test('fills and submits a form', async () => {
-    const opened = await openBrowser({ profile, headless: true, url: server.url.href });
+    const opened = await openBrowser({ headless: true, url: server.url.href });
     expect(opened).toContain('input[text] "Name"');
 
     const filled = await fill([
