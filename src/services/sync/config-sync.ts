@@ -1,5 +1,5 @@
 import { stat } from 'node:fs/promises';
-import { AUTH_PATH, MCP_CONFIG_PATH } from '../../constants';
+import { AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH } from '../../constants';
 import type { AuthFile } from '../../models/auth';
 import { SYNC_FILENAMES, type JsonObject, type RemoteFile, type RemoteFileMeta, type SyncFilename, type SyncState } from '../../models/sync';
 import { authService } from '../auth/auth-service';
@@ -14,6 +14,7 @@ const PUSH_DEBOUNCE_MS = 1_000;
 const PATHS: Record<SyncFilename, string> = {
   get 'mcp.json'() { return MCP_CONFIG_PATH; },
   get 'auth.json'() { return AUTH_PATH; },
+  get 'browser-state.json'() { return BROWSER_STATE_PATH; },
 };
 
 export type FileSyncResult = 'unchanged' | 'pulled' | 'pushed' | 'merged' | Error;

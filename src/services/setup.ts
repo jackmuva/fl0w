@@ -46,6 +46,8 @@ export async function runStartupSync(options: StartupSyncOptions = {}): Promise<
 }
 
 export async function finishHeadlessRun(code: number): Promise<number> {
-  await Promise.all([configSyncStore.flushPendingPushes(), outboxStore.flushOutbox(), closeBrowser()]);
+  // closing exports browser logins to browser-state.json, so it goes before the pushes that upload it
+  await closeBrowser();
+  await Promise.all([configSyncStore.flushPendingPushes(), outboxStore.flushOutbox()]);
   return code;
 }

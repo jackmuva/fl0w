@@ -12,10 +12,11 @@ mock.module('../../constants', () => ({
   MCP_CONFIG_PATH: join(home, 'mcp.json'),
   AUTH_PATH: join(home, 'auth.json'),
   SYNC_STATE_PATH: join(home, 'sync-state.json'),
+  BROWSER_STATE_PATH: join(home, 'browser-state.json'),
 }));
-const { APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH } = await import('../../constants');
+const { APP_CONFIG_PATH, AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH } = await import('../../constants');
 // these tests write config files; never let them reach the real ~/.fl0w
-if (![APP_CONFIG_PATH, AUTH_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('config-sync test is not isolated');
+if (![APP_CONFIG_PATH, AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('config-sync test is not isolated');
 const { configSyncStore } = await import('./config-sync');
 
 type Row = { version: number, updatedAt: string, content: unknown };
@@ -113,7 +114,7 @@ describe('syncConfigFiles', () => {
   });
 
   test('first sync pushes local files that the server lacks', async () => {
-    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'pushed' });
+    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'pushed', 'browser-state.json': 'unchanged' });
     expect(server.get('mcp.json')?.content).toEqual({ mcpServers: {} });
     // the fl0w login stays on this device
     expect(server.get('auth.json')?.content).toEqual({});
@@ -159,7 +160,7 @@ describe('syncConfigFiles', () => {
     requests = [];
 
     await write('mcp.json', { mcpServers: { demo: { url: 'https://demo' } } });
-    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'unchanged' });
+    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'unchanged', 'browser-state.json': 'unchanged' });
     expect(requests.filter((r) => r.startsWith('GET /api/sync/config-files/'))).toEqual([]);
     expect(server.get('mcp.json')).toMatchObject({ version: 2, content: { mcpServers: { demo: { url: 'https://demo' } } } });
   });
@@ -203,5 +204,33 @@ describe('syncConfigFiles', () => {
     expect(results?.['mcp.json']).toBeInstanceOf(Error);
     expect(await Bun.file(join(home, 'mcp.json')).text()).toBe('{ not json');
     expect(results?.['auth.json']).toBe('pushed');
+  });
+});
+
+describe('browser-state.json', () => {
+  const cookie = (value: string) => ({ name: 'sid', value, domain: 'example.com', path: '/' });
+  const state = (value: string) => ({ version: 1, cookies: [cookie(value)], localStorage: {} });
+
+  test('pushes exported browser logins and pulls them onto another device', async () => {
+    await write('browser-state.json', state('local'));
+    expect((await configSyncStore.syncConfigFiles())?.['browser-state.json']).toBe('pushed');
+    expect(server.get('browser-state.json')?.content).toEqual(state('local'));
+
+    await rm(join(home, 'browser-state.json'));
+    await rm(join(home, 'sync-state.json'));
+    expect((await configSyncStore.syncConfigFiles())?.['browser-state.json']).toBe('pulled');
+    expect(await read('browser-state.json')).toEqual(state('local'));
+    expect((await stat(join(home, 'browser-state.json'))).mode & 0o777).toBe(0o600);
+  });
+
+  test('when both sides changed, the newer file wins whole', async () => {
+    await write('browser-state.json', { ...state('base'), localStorage: { 'https://a.test': { k: 'base' } } });
+    await configSyncStore.syncConfigFiles();
+    server.set('browser-state.json', { version: 2, updatedAt: new Date().toISOString(), content: state('remote') });
+    await write('browser-state.json', { ...state('local'), localStorage: { 'https://a.test': { k: 'local' } } });
+    await backdate('browser-state.json');
+
+    expect((await configSyncStore.syncConfigFiles())?.['browser-state.json']).toBe('pulled');
+    expect(await read('browser-state.json')).toEqual(state('remote'));
   });
 });

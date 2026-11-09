@@ -63,8 +63,9 @@ export const runSyncCommand = async (argv: string[]): Promise<number> => {
     if (HELP_FLAGS.has(arg)) {
       console.log(`Usage: fl0w sync
 
-Pull and push mcp.json and auth.json, skills, and user tools with fl0w-work, and push any
-session and workflow writes still waiting in ~/.fl0w/outbox (fl0w-work is where TUI sessions and workflows live).
+Pull and push mcp.json, auth.json, browser-state.json (browser logins), skills, and user tools with
+fl0w-work, and push any session and workflow writes still waiting in ~/.fl0w/outbox (fl0w-work is where
+TUI sessions and workflows live).
 
 Skills and tools merge file by file: a file changed on one side takes that side's copy, and a file changed on
 both keeps the newer copy and saves the other under ~/.fl0w/sync-conflicts. Deleting a skill or tool on one

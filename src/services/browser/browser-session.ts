@@ -6,9 +6,11 @@ import type { Subprocess } from 'bun';
 import { BROWSER_PROFILE_DIR } from '../../constants';
 import type { BrowserFillField, BrowserTarget } from '../../models/browser';
 import { pageScript } from './page-scripts';
+import { exportBrowserState, importBrowserState } from './browser-state';
 import { readSecrets, resolveSecretRef } from '../secrets/secret-store';
 
 const LAUNCH_TIMEOUT_MS = 20_000;
+const BROWSER_STATE_TIMEOUT_MS = 15_000;
 const COMMAND_TIMEOUT_MS = 30_000;
 const NAVIGATION_TIMEOUT_MS = 20_000;
 const SNAPSHOT_MAX_ELEMENTS = 300;
@@ -86,6 +88,11 @@ class CdpConnection {
     });
   }
 
+  onEvent(listener: (method: string, params: Record<string, unknown>) => void) {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+
   waitForEvent(method: string, timeoutMs: number) {
     return new Promise<boolean>((resolve) => {
       const listener = (name: string) => {
@@ -141,17 +148,53 @@ const attachPage = async (target: PageTarget) => {
   return state.page;
 };
 
-/** Quits Chrome through CDP so it flushes cookies (logins) to disk; a signal would drop recent ones. */
+const withTimeout = <T>(work: Promise<T>, timeoutMs: number) =>
+  Promise.race([work, Bun.sleep(timeoutMs).then(() => { throw new Error('timed out'); })]);
+
+/** localStorage of each open http(s) tab, by origin. */
+const readOpenTabsLocalStorage = async (port: number, page: BrowserState['page']) => {
+  const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json() as Promise<PageTarget[]>);
+  const storage: Record<string, Record<string, string>> = {};
+  for (const target of targets) {
+    if (target.type !== 'page' || !/^https?:/.test(target.url)) continue;
+    const attached = page?.id === target.id && !page.cdp.closed ? page.cdp : undefined;
+    if (!attached && !target.webSocketDebuggerUrl) continue;
+    const cdp = attached ?? await CdpConnection.connect(target.webSocketDebuggerUrl!);
+    try {
+      const { result } = await cdp.send<EvaluateResult>('Runtime.evaluate', {
+        expression: 'JSON.stringify([location.origin, Object.fromEntries(Object.entries(localStorage))])',
+        returnByValue: true,
+      }, 5_000);
+      const [origin, items] = JSON.parse(String(result.value)) as [string, Record<string, string>];
+      storage[origin] = items;
+    } catch {
+      // a tab that is mid-navigation or blocks storage keeps its last exported entries
+    } finally {
+      if (!attached) cdp.close();
+    }
+  }
+  return storage;
+};
+
+/**
+ * Quits Chrome through CDP so it flushes cookies (logins) to disk; a signal would drop recent ones. First exports
+ * cookies and localStorage to browser-state.json, which syncs them to fl0w-work.
+ */
 export const closeBrowser = async () => {
   if (!state) return false;
   const { process: chrome, page, port, browserPath } = state;
   state = undefined;
-  page?.cdp.close();
   try {
     const browser = await CdpConnection.connect(`ws://127.0.0.1:${port}${browserPath}`);
+    await withTimeout(
+      (async () => exportBrowserState(browser, await readOpenTabsLocalStorage(port, page)))(),
+      BROWSER_STATE_TIMEOUT_MS,
+    ).catch(() => undefined);
+    page?.cdp.close();
     await browser.send('Browser.close', {}, 3_000).catch(() => undefined);
     browser.close();
   } catch {
+    page?.cdp.close();
     // fall through to the kill below
   }
   if (!(await Promise.race([chrome.exited.then(() => true), Bun.sleep(5_000).then(() => false)]))) chrome.kill();
@@ -207,7 +250,21 @@ const launchBrowser = async (headless: boolean) => {
   chrome.unref();
   state = { process: chrome, port, browserPath, headless, knownTargets: new Set() };
   const [first] = await listPages();
-  if (first) await attachPage(first);
+  const page = first ? await attachPage(first) : undefined;
+  await loadBrowserState(port, browserPath, page?.cdp);
+};
+
+/** Loads logins synced from fl0w-work (browser-state.json) into the profile; a failure only leaves them signed out. */
+const loadBrowserState = async (port: number, browserPath: string, page: CdpConnection | undefined) => {
+  let browser: CdpConnection | undefined;
+  try {
+    browser = await CdpConnection.connect(`ws://127.0.0.1:${port}${browserPath}`);
+    await withTimeout(importBrowserState(browser, page), BROWSER_STATE_TIMEOUT_MS);
+  } catch {
+    // the browser still works without the synced state
+  } finally {
+    browser?.close();
+  }
 };
 
 /** Ensures a browser and an attached tab exist, launching one if needed. */

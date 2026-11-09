@@ -26,6 +26,12 @@ export const WORKSPACE_DIR = join(FL0W_HOME, 'workspace');
 
 export const BROWSER_PROFILE_DIR = join(FL0W_HOME, 'browser-profile');
 
+/** Cookies and localStorage exported from the browser profile; synced with fl0w-work like auth.json. */
+export const BROWSER_STATE_PATH = join(FL0W_HOME, 'browser-state.json');
+
+/** sha256 of the browser-state.json last exported from or imported into the profile. */
+export const BROWSER_STATE_APPLIED_PATH = join(FL0W_HOME, 'browser-state.applied');
+
 export const SECRETS_PATH = join(FL0W_HOME, 'secrets.json');
 
 export const sessionWorkspacePath = (sessionId: string): string => join(WORKSPACE_DIR, sessionId);

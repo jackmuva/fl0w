@@ -3,6 +3,7 @@ import type { JsonObject, SyncFilename } from '../../../models/sync';
 const LOCAL_ONLY: Record<SyncFilename, readonly string[]> = {
   'mcp.json': [],
   'auth.json': ['fl0w'],
+  'browser-state.json': [],
 };
 
 const isObject = (value: unknown): value is JsonObject =>

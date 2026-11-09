@@ -23,7 +23,7 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
   `index.tsx` sets `AI_SDK_DEFAULT_PROVIDER` to `fl0wModelProvider`, a gateway proxied through
   `/api/cli/ai` with the fl0w token. Model calls, the TUI, and headless agent commands require login.
 - **Sync** — when signed in:
-  - `mcp.json`/`auth.json` (`SYNC_FILENAMES`, `models/sync.ts`) reconcile at startup (`syncOnStartup()`,
+  - `mcp.json`/`auth.json`/`browser-state.json` (`SYNC_FILENAMES`, `models/sync.ts`) reconcile at startup (`syncOnStartup()`,
     8s timeout); app-written `auth.json` changes push ~1s later (`watchLocalConfigWrites()`); manual
     edits sync at startup or via `fl0w sync`. `sync-state.json` (0600) stores the last agreed content;
     on conflict the newer file wins. fl0w account tokens never leave the machine.
@@ -61,6 +61,12 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
  `BROWSER_PROFILE_DIR` (`~/.fl0w/browser-profile`). Snapshots number interactive elements;
  click/fill target those refs. `closeBrowser()` quits via `Browser.close` (signals drop unflushed
  cookies) from `finishHeadlessRun()` and TUI Ctrl+C; a sync kill on `exit` is the fallback.
+ Logins sync through `BROWSER_STATE_PATH` (`~/.fl0w/browser-state.json`, a `SYNC_FILENAMES` config
+ file; whole-file newer-wins), not the profile, whose cookies are OS-key encrypted (`browser-state.ts`).
+ `closeBrowser()` exports cookies + open tabs' localStorage and calls `notifyLocalWrite`, so
+ `finishHeadlessRun()` closes the browser before flushing pushes. Launch imports the file only when
+ its hash differs from `browser-state.applied` (so a stale file can't overwrite newer cookies);
+ localStorage is seeded by loading each origin with `Fetch` answering locally.
 - **Secrets** — `SECRETS_PATH` (`~/.fl0w/secrets.json`, 0600, not synced) holds named credentials
  (`services/secrets/secret-store.ts`, managed by `fl0w secrets`). The model never sees values:
  `list_secrets` shows names/fields/sites, `browser_fill` resolves `secret: "<name>.<field>"` only on
