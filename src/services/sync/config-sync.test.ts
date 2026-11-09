@@ -13,10 +13,11 @@ mock.module('../../constants', () => ({
   AUTH_PATH: join(home, 'auth.json'),
   SYNC_STATE_PATH: join(home, 'sync-state.json'),
   BROWSER_STATE_PATH: join(home, 'browser-state.json'),
+  SECRETS_PATH: join(home, 'secrets.json'),
 }));
-const { APP_CONFIG_PATH, AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH } = await import('../../constants');
+const { APP_CONFIG_PATH, AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, SECRETS_PATH, SYNC_STATE_PATH } = await import('../../constants');
 // these tests write config files; never let them reach the real ~/.fl0w
-if (![APP_CONFIG_PATH, AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, SYNC_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('config-sync test is not isolated');
+if (![APP_CONFIG_PATH, AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, SECRETS_PATH, SYNC_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('config-sync test is not isolated');
 const { configSyncStore } = await import('./config-sync');
 
 type Row = { version: number, updatedAt: string, content: unknown };
@@ -114,7 +115,7 @@ describe('syncConfigFiles', () => {
   });
 
   test('first sync pushes local files that the server lacks', async () => {
-    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'pushed', 'browser-state.json': 'unchanged' });
+    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'pushed', 'browser-state.json': 'unchanged', 'secrets.json': 'unchanged' });
     expect(server.get('mcp.json')?.content).toEqual({ mcpServers: {} });
     // the fl0w login stays on this device
     expect(server.get('auth.json')?.content).toEqual({});
@@ -160,9 +161,31 @@ describe('syncConfigFiles', () => {
     requests = [];
 
     await write('mcp.json', { mcpServers: { demo: { url: 'https://demo' } } });
-    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'unchanged', 'browser-state.json': 'unchanged' });
+    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'unchanged', 'browser-state.json': 'unchanged', 'secrets.json': 'unchanged' });
     expect(requests.filter((r) => r.startsWith('GET /api/sync/config-files/'))).toEqual([]);
     expect(server.get('mcp.json')).toMatchObject({ version: 2, content: { mcpServers: { demo: { url: 'https://demo' } } } });
+  });
+
+  test('secrets.json syncs whole-file, newest writer wins', async () => {
+    await write('secrets.json', { github: { domains: ['github.com'], username: 'ada', password: 'local' } });
+    expect((await configSyncStore.syncConfigFiles(['secrets.json']))?.['secrets.json']).toBe('pushed');
+    expect(server.get('secrets.json')?.content).toEqual({ github: { domains: ['github.com'], username: 'ada', password: 'local' } });
+
+    // both sides changed: the newer remote replaces the whole file, with no key-level merge
+    await write('secrets.json', { github: { domains: ['github.com'], username: 'ada', password: 'older' }, extra: { token: 'x' } });
+    await backdate('secrets.json');
+    const newer = { github: { domains: ['github.com'], username: 'ada', password: 'newer' } };
+    server.set('secrets.json', { version: 2, updatedAt: new Date().toISOString(), content: newer });
+    expect((await configSyncStore.syncConfigFiles(['secrets.json']))?.['secrets.json']).toBe('pulled');
+    expect(await read('secrets.json')).toEqual(newer);
+    expect((await stat(join(home, 'secrets.json'))).mode & 0o777).toBe(0o600);
+
+    // a newer local edit wins the other way
+    const local = { github: { domains: ['github.com'], username: 'ada', password: 'latest' } };
+    server.set('secrets.json', { version: 3, updatedAt: new Date(Date.now() - 60_000).toISOString(), content: { stale: { token: 'y' } } });
+    await write('secrets.json', local);
+    expect((await configSyncStore.syncConfigFiles(['secrets.json']))?.['secrets.json']).toBe('pushed');
+    expect(server.get('secrets.json')).toMatchObject({ version: 4, content: local });
   });
 
   test('pulls a remote change when the local file is untouched', async () => {

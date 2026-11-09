@@ -4,6 +4,7 @@ const LOCAL_ONLY: Record<SyncFilename, readonly string[]> = {
   'mcp.json': [],
   'auth.json': ['fl0w'],
   'browser-state.json': [],
+  'secrets.json': [],
 };
 
 const isObject = (value: unknown): value is JsonObject =>

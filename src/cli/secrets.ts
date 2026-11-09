@@ -1,13 +1,15 @@
 import { SECRETS_PATH } from '../constants';
 import type { SecretEntry } from '../models/secrets';
 import { readSecrets, SECRET_NAME_PATTERN, secretEnvName, secretFields, writeSecrets } from '../services/secrets/secret-store';
+import { configSyncStore } from '../services/sync/config-sync';
 
 const USAGE = `Usage:
   fl0w secrets [list]
   fl0w secrets add <name> [--domain <site>]... [--description "<text>"] [--field <field>]... [--env | --no-env]
   fl0w secrets remove <name>
 
-Stores credentials the agent may use without seeing them, in ${SECRETS_PATH} (mode 0600, never synced).
+Stores credentials the agent may use without seeing them, in ${SECRETS_PATH} (mode 0600). When signed in,
+the file syncs with fl0w-work (encrypted at rest); if two machines change it, the newer file wins.
 add prompts for each field (default: username, password; passwords are not echoed). With an existing
 secret, empty input keeps a field's current value and omitted options keep their current setting.
   --domain        Site where browser_fill may type the secret (subdomains included; repeatable; "*" = any site)
@@ -53,7 +55,24 @@ const readInput = async (label: string, hidden: boolean): Promise<string> => {
   });
 };
 
+const SYNC_TIMEOUT_MS = 8_000;
+
+/** Syncs secrets.json with fl0w-work (newer file wins). A no-op when signed out; failures only warn, the local file still works. */
+const syncSecrets = async () => {
+  try {
+    const results = await Promise.race([
+      configSyncStore.syncConfigFiles(['secrets.json']),
+      new Promise<'timeout'>((resolve) => setTimeout(resolve, SYNC_TIMEOUT_MS, 'timeout').unref()),
+    ]);
+    if (results === 'timeout') console.error('Secrets sync with fl0w-work timed out; using the local file.');
+    else if (results?.['secrets.json'] instanceof Error) console.error(`Secrets sync: ${results['secrets.json'].message}`);
+  } catch (error) {
+    console.error(`Secrets sync with fl0w-work failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+};
+
 const listSecrets = async () => {
+  await syncSecrets();
   const entries = Object.entries(await readSecrets());
   if (entries.length === 0) {
     console.log(`No secrets yet. Add one with: fl0w secrets add <name> --domain <site>`);
@@ -92,6 +111,7 @@ const addSecret = async (argv: string[]) => {
   if (badField !== undefined) return usageError(`Invalid field name: "${badField}"`);
   if (domains.some((domain) => !domain)) return usageError('--domain needs a site, e.g. --domain github.com');
 
+  await syncSecrets();
   const secrets = await readSecrets();
   const existing = secrets[name];
   const entry: SecretEntry = { ...existing };
@@ -113,6 +133,7 @@ const addSecret = async (argv: string[]) => {
   }
 
   await writeSecrets({ ...secrets, [name]: entry });
+  await syncSecrets();
   console.log(`${existing ? 'Updated' : 'Saved'} secret "${name}" (${secretFields(entry).map(([field]) => `${name}.${field}`).join(', ')}).`);
   if (!entry.domains?.length) console.log(`It has no sites yet, so the agent can't type it in the browser. Add one with --domain <site>.`);
   return 0;
@@ -120,6 +141,7 @@ const addSecret = async (argv: string[]) => {
 
 const removeSecret = async (name: string | undefined) => {
   if (!name) return usageError('remove needs a secret name');
+  await syncSecrets();
   const secrets = await readSecrets();
   if (!secrets[name]) {
     console.error(`No secret named "${name}".`);
@@ -127,6 +149,7 @@ const removeSecret = async (name: string | undefined) => {
   }
   delete secrets[name];
   await writeSecrets(secrets);
+  await syncSecrets();
   console.log(`Removed secret "${name}".`);
   return 0;
 };

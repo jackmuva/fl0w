@@ -23,7 +23,7 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
   `index.tsx` sets `AI_SDK_DEFAULT_PROVIDER` to `fl0wModelProvider`, a gateway proxied through
   `/api/cli/ai` with the fl0w token. Model calls, the TUI, and headless agent commands require login.
 - **Sync** — when signed in:
-  - `mcp.json`/`auth.json`/`browser-state.json` (`SYNC_FILENAMES`, `models/sync.ts`) reconcile at startup (`syncOnStartup()`,
+  - `mcp.json`/`auth.json`/`browser-state.json`/`secrets.json` (`SYNC_FILENAMES`, `models/sync.ts`) reconcile at startup (`syncOnStartup()`,
     8s timeout); app-written `auth.json` changes push ~1s later (`watchLocalConfigWrites()`); manual
     edits sync at startup or via `fl0w sync`. `sync-state.json` (0600) stores the last agreed content;
     on conflict the newer file wins. fl0w account tokens never leave the machine.
@@ -67,7 +67,7 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
  `finishHeadlessRun()` closes the browser before flushing pushes. Launch imports the file only when
  its hash differs from `browser-state.applied` (so a stale file can't overwrite newer cookies);
  localStorage is seeded by loading each origin with `Fetch` answering locally.
-- **Secrets** — `SECRETS_PATH` (`~/.fl0w/secrets.json`, 0600, not synced) holds named credentials
+- **Secrets** — `SECRETS_PATH` (`~/.fl0w/secrets.json`, 0600, a `SYNC_FILENAMES` config file; whole-file newer-wins, synced by `fl0w secrets` itself) holds named credentials
  (`services/secrets/secret-store.ts`, managed by `fl0w secrets`). The model never sees values:
  `list_secrets` shows names/fields/sites, `browser_fill` resolves `secret: "<name>.<field>"` only on
  the secret's `domains` over https, and `env: true` secrets become `FL0W_SECRET_*` vars for `bash`.
