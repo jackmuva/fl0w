@@ -114,9 +114,6 @@ export const agentLoop = async (
       transcript = discovery.transcript;
       if (findPendingAskQuestion(transcript)) return discovery.result;
 
-      state = activeWorkflowStore.get() ? "execute" : await routingAgent(transcript, models.ROUTER, abort, onStreamText, { plan: true, execute: true, taskComplete: true });
-      if (state === "taskComplete") return discovery.result;
-
       transcript = await compact(transcript, models.PLAN);
       ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, reasoning, onMessages, onStreamText, transcript, abort, onPhase));
     }
