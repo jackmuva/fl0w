@@ -8,13 +8,15 @@ import { retryModelCall } from "../../service-utils";
 import { frontLoadInstructions } from "../hooks/front-load";
 
 export const discoveryAgent = async (messages: Fl0wMessage[], model: string, reasoning: ReasoningLevel, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolOptions | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
-  const systemPrompt = `You are a subagent tasked with fully scoping the problem and the current state of the project. You are only given read tools. If no discovery or further research is needed, just say so and the next agent will have write tools that can be used to complete the user's task.
+  const systemPrompt = `You are a subagent tasked with fully scoping the problem and the current state of the project. 
+
+Depending on the task and project you are in, perform any sort of background research so that a planning agent will be able to take your research and develop a solid plan for an agent to execute.
 
 For coding projects, please find the AGENTS.md and README.md if present.
 
-Use the default/ask_question tool to ask users any clarifying questions. Do not ask questions if the task is clear.
+IMPORTANT: You are only given read tools. Subsequent agents that take over your work will have more tools not in your search_tools outputs, like browser use and edit.
 
-Depending on the task and project you are in, perform any sort of background research so that a planning agent will be able to take your research and develop a solid plan for an agent to execute.
+Use the default/ask_question tool to ask users any clarifying questions. Do not ask questions if the task is clear.
 
 Be thorough AND concise. Only your last message will be delivered to the planning agent so deliver your report there.`;
   const instructions = `${await frontLoadInstructions()}\n\n${systemPrompt}`;
