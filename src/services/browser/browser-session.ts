@@ -6,7 +6,7 @@ import type { Subprocess } from 'bun';
 import { BROWSER_PROFILE_DIR } from '../../constants';
 import type { BrowserFillField, BrowserTarget } from '../../models/browser';
 import { pageScript } from './page-scripts';
-import { exportBrowserState, importBrowserState } from './browser-state';
+import { exportBrowserState, importBrowserState, type OriginStorage } from './browser-state';
 import { readSecrets, resolveSecretRef } from '../secrets/secret-store';
 
 const LAUNCH_TIMEOUT_MS = 20_000;
@@ -151,10 +151,10 @@ const attachPage = async (target: PageTarget) => {
 const withTimeout = <T>(work: Promise<T>, timeoutMs: number) =>
   Promise.race([work, Bun.sleep(timeoutMs).then(() => { throw new Error('timed out'); })]);
 
-/** localStorage of each open http(s) tab, by origin. */
-const readOpenTabsLocalStorage = async (port: number, page: BrowserState['page']) => {
+/** localStorage and sessionStorage of each open http(s) tab, by origin. */
+const readOpenTabsStorage = async (port: number, page: BrowserState['page']) => {
   const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json() as Promise<PageTarget[]>);
-  const storage: Record<string, Record<string, string>> = {};
+  const storage: OriginStorage = { localStorage: {}, sessionStorage: {} };
   for (const target of targets) {
     if (target.type !== 'page' || !/^https?:/.test(target.url)) continue;
     const attached = page?.id === target.id && !page.cdp.closed ? page.cdp : undefined;
@@ -162,11 +162,13 @@ const readOpenTabsLocalStorage = async (port: number, page: BrowserState['page']
     const cdp = attached ?? await CdpConnection.connect(target.webSocketDebuggerUrl!);
     try {
       const { result } = await cdp.send<EvaluateResult>('Runtime.evaluate', {
-        expression: 'JSON.stringify([location.origin, Object.fromEntries(Object.entries(localStorage))])',
+        expression: 'JSON.stringify([location.origin, Object.fromEntries(Object.entries(localStorage)), Object.fromEntries(Object.entries(sessionStorage))])',
         returnByValue: true,
       }, 5_000);
-      const [origin, items] = JSON.parse(String(result.value)) as [string, Record<string, string>];
-      storage[origin] = items;
+      const [origin, local, session] = JSON.parse(String(result.value)) as [string, Record<string, string>, Record<string, string>];
+      storage.localStorage[origin] = local;
+      // two tabs on one origin can hold different sessionStorage; keep whichever has entries
+      if (Object.keys(session).length > 0 || !storage.sessionStorage[origin]) storage.sessionStorage[origin] = session;
     } catch {
       // a tab that is mid-navigation or blocks storage keeps its last exported entries
     } finally {
@@ -178,7 +180,7 @@ const readOpenTabsLocalStorage = async (port: number, page: BrowserState['page']
 
 /**
  * Quits Chrome through CDP so it flushes cookies (logins) to disk; a signal would drop recent ones. First exports
- * cookies and localStorage to browser-state.json, which syncs them to fl0w-work.
+ * cookies, localStorage and sessionStorage to browser-state.json, which syncs them to fl0w-work.
  */
 export const closeBrowser = async () => {
   if (!state) return false;
@@ -187,7 +189,7 @@ export const closeBrowser = async () => {
   try {
     const browser = await CdpConnection.connect(`ws://127.0.0.1:${port}${browserPath}`);
     await withTimeout(
-      (async () => exportBrowserState(browser, await readOpenTabsLocalStorage(port, page)))(),
+      (async () => exportBrowserState(browser, await readOpenTabsStorage(port, page)))(),
       BROWSER_STATE_TIMEOUT_MS,
     ).catch(() => undefined);
     page?.cdp.close();

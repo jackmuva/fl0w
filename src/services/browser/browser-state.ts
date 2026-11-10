@@ -5,7 +5,7 @@ import { configSyncStore } from '../sync/config-sync';
 import { jsonEqual } from '../sync/merge/config-merge';
 
 /**
- * Logins move between machines as plain cookies and localStorage, not profile files: Chrome encrypts the profile's
+ * Logins move between machines as plain cookies, localStorage and sessionStorage, not profile files: Chrome encrypts the profile's
  * cookies with an OS key (the macOS Keychain), so a copied profile can't be read on another machine or in the sandbox.
  */
 
@@ -31,7 +31,14 @@ export type BrowserState = {
   cookies: BrowserCookie[];
   /** Origin -> localStorage entries. */
   localStorage: Record<string, Record<string, string>>;
+  /**
+   * Origin -> sessionStorage entries (e.g. MSAL keeps its tokens there). Chrome scopes sessionStorage to one tab, so
+   * import seeds it into the tab fl0w drives, where it lasts until that tab closes.
+   */
+  sessionStorage: Record<string, Record<string, string>>;
 };
+
+export type OriginStorage = Pick<BrowserState, 'localStorage' | 'sessionStorage'>;
 
 /** The CdpConnection methods this module needs. */
 export type Cdp = {
@@ -61,16 +68,20 @@ export function toStoredCookies(cookies: Record<string, unknown>[], now = Date.n
     .sort((a, b) => a.domain.localeCompare(b.domain) || a.path.localeCompare(b.path) || a.name.localeCompare(b.name));
 }
 
+const parseOriginStorage = (raw: unknown) => {
+  const storage: Record<string, Record<string, string>> = {};
+  for (const [origin, items] of Object.entries(isRecord(raw) ? raw : {})) {
+    if (!isWebOrigin(origin) || !isRecord(items)) continue;
+    storage[origin] = Object.fromEntries(Object.entries(items).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+  }
+  return storage;
+};
+
 /** Parses browser-state.json leniently; anything unusable reads as empty. */
 export function parseBrowserState(raw: unknown): BrowserState {
   const value = isRecord(raw) ? raw : {};
   const cookies = Array.isArray(value.cookies) ? toStoredCookies(value.cookies.filter(isRecord)) : [];
-  const localStorage: BrowserState['localStorage'] = {};
-  for (const [origin, items] of Object.entries(isRecord(value.localStorage) ? value.localStorage : {})) {
-    if (!isWebOrigin(origin) || !isRecord(items)) continue;
-    localStorage[origin] = Object.fromEntries(Object.entries(items).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
-  }
-  return { version: 1, cookies, localStorage };
+  return { version: 1, cookies, localStorage: parseOriginStorage(value.localStorage), sessionStorage: parseOriginStorage(value.sessionStorage) };
 }
 
 const sha256 = (text: string) => new Bun.CryptoHasher('sha256').update(text).digest('hex');
@@ -89,18 +100,23 @@ const readAppliedHash = () => readFile(BROWSER_STATE_APPLIED_PATH, 'utf8').then(
 
 const writeAppliedHash = (text: string) => writeFile(BROWSER_STATE_APPLIED_PATH, `${sha256(text)}\n`, { mode: 0o600 });
 
+const mergeOpen = (previous: Record<string, Record<string, string>>, open: Record<string, Record<string, string>>) =>
+  ({ ...previous, ...Object.fromEntries(Object.entries(open).filter(([origin]) => isWebOrigin(origin))) });
+
 /**
- * Writes the profile's cookies and the localStorage of `openOrigins` to browser-state.json and queues a push to
- * fl0w-work. Origins not open now keep their last exported entries. Returns whether the file changed.
+ * Writes the profile's cookies and the localStorage and sessionStorage of the open tabs (`open`) to browser-state.json
+ * and queues a push to fl0w-work. Origins not open now keep their last exported entries. Returns whether the file
+ * changed.
  */
-export async function exportBrowserState(browser: Cdp, openOrigins: Record<string, Record<string, string>>): Promise<boolean> {
+export async function exportBrowserState(browser: Cdp, open: OriginStorage): Promise<boolean> {
   const { cookies } = await browser.send<{ cookies: Record<string, unknown>[] }>('Storage.getCookies');
   const text = await readStateText();
   const previous = parseBrowserState(parseJson(text));
   const next: BrowserState = {
     version: 1,
     cookies: toStoredCookies(cookies),
-    localStorage: { ...previous.localStorage, ...Object.fromEntries(Object.entries(openOrigins).filter(([origin]) => isWebOrigin(origin))) },
+    localStorage: mergeOpen(previous.localStorage, open.localStorage),
+    sessionStorage: mergeOpen(previous.sessionStorage, open.sessionStorage),
   };
   if (text && jsonEqual(next, parseJson(text))) {
     await writeAppliedHash(text);
@@ -114,15 +130,21 @@ export async function exportBrowserState(browser: Cdp, openOrigins: Record<strin
 
 /**
  * Loads browser-state.json into a freshly launched profile when it changed since the profile last saw it (e.g. it was
- * pulled from fl0w-work). An unchanged file is skipped so it can't overwrite newer cookies the profile kept on its own.
- * `page` must be a blank tab; it is used to seed localStorage and left on about:blank.
+ * pulled from fl0w-work). An unchanged file is skipped so it can't overwrite newer cookies the profile kept on its own,
+ * except for sessionStorage: Chrome never keeps it past the tab, so the file is its only copy and it is always seeded.
+ * `page` must be a blank tab; it is used to seed localStorage and sessionStorage and left on about:blank. Pass the tab
+ * fl0w goes on to drive, since sessionStorage seeded into it stays with that tab.
  */
 export async function importBrowserState(browser: Cdp, page: Cdp | undefined): Promise<boolean> {
   const text = await readStateText();
-  if (!text || sha256(text) === await readAppliedHash()) return false;
+  if (!text) return false;
   const state = parseBrowserState(parseJson(text));
+  if (sha256(text) === await readAppliedHash()) {
+    if (page) await seedStorage(page, { localStorage: {}, sessionStorage: state.sessionStorage });
+    return false;
+  }
   await setCookies(browser, state.cookies);
-  if (page) await seedLocalStorage(page, state.localStorage);
+  if (page) await seedStorage(page, state);
   await writeAppliedHash(text);
   return true;
 }
@@ -138,11 +160,14 @@ async function setCookies(browser: Cdp, cookies: BrowserCookie[]): Promise<void>
 }
 
 /**
- * Chrome only writes localStorage from a frame of that origin, so each origin is loaded in `page` with the request
- * answered locally by an empty page (nothing goes over the network) and its entries are set from there.
+ * Chrome only writes storage from a frame of that origin, so each origin is loaded in `page` with the request answered
+ * locally by an empty page (nothing goes over the network) and its entries are set from there. sessionStorage set this
+ * way survives the tab's later navigations, so the site finds it when fl0w opens it in the same tab.
  */
-async function seedLocalStorage(page: Cdp, localStorage: BrowserState['localStorage']): Promise<void> {
-  const origins = Object.entries(localStorage).filter(([origin, items]) => isWebOrigin(origin) && Object.keys(items).length > 0);
+async function seedStorage(page: Cdp, storage: OriginStorage): Promise<void> {
+  const hasEntries = (items: Record<string, string> | undefined) => !!items && Object.keys(items).length > 0;
+  const origins = [...new Set([...Object.keys(storage.localStorage), ...Object.keys(storage.sessionStorage)])]
+    .filter((origin) => isWebOrigin(origin) && (hasEntries(storage.localStorage[origin]) || hasEntries(storage.sessionStorage[origin])));
   if (origins.length === 0) return;
   const stopListening = page.onEvent((method, params) => {
     if (method !== 'Fetch.requestPaused') return;
@@ -155,13 +180,16 @@ async function seedLocalStorage(page: Cdp, localStorage: BrowserState['localStor
   });
   try {
     await page.send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
-    for (const [origin, items] of origins) {
+    for (const origin of origins) {
       try {
         const loaded = page.waitForEvent('Page.loadEventFired', SEED_LOAD_TIMEOUT_MS);
         await page.send('Page.navigate', { url: `${origin}/` });
         if (!(await loaded)) continue;
+        const entries = JSON.stringify({ localStorage: storage.localStorage[origin] ?? {}, sessionStorage: storage.sessionStorage[origin] ?? {} });
         await page.send('Runtime.evaluate', {
-          expression: `for (const [k, v] of Object.entries(${JSON.stringify(items)})) localStorage.setItem(k, v)`,
+          expression: `{ const e = ${entries};
+            for (const [k, v] of Object.entries(e.localStorage)) localStorage.setItem(k, v);
+            for (const [k, v] of Object.entries(e.sessionStorage)) sessionStorage.setItem(k, v); }`,
         });
       } catch {
         // skip an origin Chrome won't load or store; the rest still seed

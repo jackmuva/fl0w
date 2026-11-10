@@ -38,9 +38,12 @@ describe('toStoredCookies', () => {
 
 describe('parseBrowserState', () => {
   test('reads anything unusable as empty and ignores non-web origins', () => {
-    expect(parseBrowserState(null)).toEqual({ version: 1, cookies: [], localStorage: {} });
-    expect(parseBrowserState({ cookies: 'x', localStorage: { 'chrome://x': { a: 'b' }, 'https://a.test': { k: 'v', n: 1 } } }))
-      .toEqual({ version: 1, cookies: [], localStorage: { 'https://a.test': { k: 'v' } } });
+    expect(parseBrowserState(null)).toEqual({ version: 1, cookies: [], localStorage: {}, sessionStorage: {} });
+    expect(parseBrowserState({
+      cookies: 'x',
+      localStorage: { 'chrome://x': { a: 'b' }, 'https://a.test': { k: 'v', n: 1 } },
+      sessionStorage: { 'https://a.test': { s: 'v', n: 1 }, 'about:blank': { a: 'b' } },
+    })).toEqual({ version: 1, cookies: [], localStorage: { 'https://a.test': { k: 'v' } }, sessionStorage: { 'https://a.test': { s: 'v' } } });
   });
 });
 
@@ -63,6 +66,7 @@ describe.skipIf(!findChromeExecutable())('export and import (requires Chrome)', 
     version: 1,
     cookies: [{ name: 'sid', value, domain: '127.0.0.1', path: '/', expires: Math.floor(Date.now() / 1000) + 3600 }],
     localStorage: { [origin()]: { k: value } },
+    sessionStorage: { [origin()]: { s: value } },
   });
   const relaunch = async () => {
     await openBrowser({ headless: true, url: `${origin()}/` });
@@ -71,7 +75,7 @@ describe.skipIf(!findChromeExecutable())('export and import (requires Chrome)', 
   };
 
   test('closing exports the profile; a file pulled from fl0w-work is loaded on the next launch', async () => {
-    expect(await relaunch()).toEqual({ version: 1, cookies: [], localStorage: { [origin()]: {} } });
+    expect(await relaunch()).toEqual({ version: 1, cookies: [], localStorage: { [origin()]: {} }, sessionStorage: { [origin()]: {} } });
     expect(await Bun.file(BROWSER_STATE_APPLIED_PATH).exists()).toBe(true);
 
     // as if `fl0w sync` pulled a newer file
@@ -79,6 +83,8 @@ describe.skipIf(!findChromeExecutable())('export and import (requires Chrome)', 
     const loaded = await relaunch();
     expect(loaded.cookies.map(({ name, value }) => [name, value])).toEqual([['sid', 'pulled']]);
     expect(loaded.localStorage[origin()]).toEqual({ k: 'pulled' });
+    // exported from the page fl0w navigated to after launch, so the seeded sessionStorage survived into the site
+    expect(loaded.sessionStorage[origin()]).toEqual({ s: 'pulled' });
   }, 60_000);
 
   test('a file the profile already saw is not loaded again over its own cookies', async () => {
@@ -88,5 +94,7 @@ describe.skipIf(!findChromeExecutable())('export and import (requires Chrome)', 
     const kept = await relaunch();
     expect(kept.cookies.map(({ value }) => value)).toEqual(['pulled']);
     expect(kept.localStorage[origin()]).toEqual({ k: 'pulled' });
+    // Chrome drops sessionStorage with the tab, so the file's copy is seeded even when the rest is skipped
+    expect(kept.sessionStorage[origin()]).toEqual({ s: 'stale' });
   }, 60_000);
 });
