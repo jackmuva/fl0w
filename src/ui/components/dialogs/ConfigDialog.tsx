@@ -79,7 +79,7 @@ const EMPTY_MESSAGES: Record<TabKind, string> = {
 type Row =
   | { type: "selectAll" }
   | { type: "item", name: string, description?: string }
-  | { type: "model", name: string, contextWindow: number, inputTokenPrice: number }
+  | { type: "model", name: string, inputTokenPrice: number }
   | { type: "section", label: string }
 
 type PhasePopup = {
@@ -102,13 +102,6 @@ type ConfigDialogProps = {
 
 const truncate = (text: string, width: number) =>
   text.length > width ? `${text.slice(0, Math.max(0, width - 1))}…` : text
-
-const formatContextWindow = (value: number) => {
-  if (!Number.isFinite(value) || value <= 0) return "—"
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
-  if (value >= 1_000) return `${Math.round(value / 1_000)}K`
-  return `${value}`
-}
 
 const layoutInstructions = (segments: string[], width: number) => {
   const lines: string[] = []
@@ -197,7 +190,6 @@ export const ConfigDialog = ({
           ...sectionModels.map((entry) => ({
             type: "model" as const,
             name: entry.model,
-            contextWindow: entry.contextWindow,
             inputTokenPrice: entry.inputTokenPrice,
           })),
         ]
@@ -578,9 +570,8 @@ export const ConfigDialog = ({
               }
               if (row.type === "model") {
                 const phases = assignedPhases(row.name).map(({ short }) => short).join(INSTRUCTION_SEPARATOR)
-                const contextLabel = formatContextWindow(row.contextWindow)
                 const priceLabel = formatSessionCostUsd(row.inputTokenPrice)
-                const meta = `${priceLabel} | ${contextLabel}`
+                const meta = priceLabel
                 const suffix = phases ? `${meta}  ${phases}` : meta
                 const prefix = `${highlighted ? "❯" : " "} `
                 const nameWidth = Math.max(1, innerWidth - prefix.length - (suffix ? suffix.length + 1 : 0))

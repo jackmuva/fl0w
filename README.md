@@ -217,8 +217,8 @@ bun run build     # standalone binary → ./fl0w
 ## Releasing
 
 ```bash
-git tag -a v0.2.6 -m "v0.2.6"
-git push origin v0.2.6
+git tag -a v0.2.7 -m "v0.2.7"
+git push origin v0.2.7
 ```
 
 ## Project Structure
