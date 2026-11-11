@@ -5,7 +5,7 @@ import { formatMessageContent, formatReasoningContent } from "./message"
 
 export type PhaseSubagent = Exclude<SubagentType, "ROUTER">
 
-const PHASE_SUBAGENTS = new Set<SubagentType>(["DISCOVERY", "PLAN", "EXECUTE"])
+const PHASE_SUBAGENTS = new Set<SubagentType>(["PLAN", "EXECUTE"])
 
 export const isPhaseSubagent = (subagent: SubagentType | undefined | null): subagent is PhaseSubagent =>
   subagent !== undefined && subagent !== null && PHASE_SUBAGENTS.has(subagent)

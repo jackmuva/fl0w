@@ -7,7 +7,7 @@ const assistant = (content: string) => fl0wMessage({ role: 'assistant', content 
 const toolCall = fl0wMessage({
   role: 'assistant',
   content: [{ type: 'tool-call', toolCallId: 'c1', toolName: 'default__read', input: { path: 'a.ts' } }],
-}, 'DISCOVERY');
+}, 'PLAN');
 
 const contents = (messages: ModelMessage[]) => messages.map((message) => message.content);
 

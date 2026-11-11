@@ -57,7 +57,6 @@ const TABS: Array<{ kind: TabKind, label: string }> = [
 
 const MODEL_PHASES: Array<{ phase: Phase, label: string, short: string, type: ModelType }> = [
   { phase: "ROUTER", label: "Router agent", short: "Router", type: "decision" },
-  { phase: "DISCOVERY", label: "Discovery subagent", short: "Discovery", type: "text" },
   { phase: "PLAN", label: "Workflow plan agent", short: "Plan", type: "text" },
   { phase: "EXECUTE", label: "Execution agent", short: "Execute", type: "text" },
 ]

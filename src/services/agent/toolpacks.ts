@@ -12,11 +12,10 @@ const EXECUTE_EXCLUDE = ['ask_question', 'create_plan'];
 
 export const TOOLPACKS: Record<SubagentType, Toolpack> = {
   ROUTER: { default: [] },
-  DISCOVERY: {
-    default: ['read', 'grep', 'glob', 'list_dir', 'read_full_tool_output', 'load_skill', 'search_skills', 'websearch', 'webfetch', 'ask_question', 'list_secrets'],
+  PLAN: {
+    default: ['read', 'grep', 'glob', 'list_dir', 'read_full_tool_output', 'load_skill', 'search_skills', 'websearch', 'webfetch', 'ask_question', 'list_secrets', 'create_plan'],
     mcp: true,
   },
-  PLAN: { default: ['create_plan'] },
   EXECUTE: { exclude: EXECUTE_EXCLUDE },
 };
 

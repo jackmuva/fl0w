@@ -199,7 +199,7 @@ Replay the lines in order to rebuild the transcript.
 | `snapshot` | Prior + this turn's messages (also re-sent after compaction) |
 | `message` | One appended message (`index`, `message`) |
 | `stream_delta` / `stream_end` | Live preview text (ignore when replaying) |
-| `phase` | Current phase: `DISCOVERY`, `PLAN`, or `EXECUTE` (live only) |
+| `phase` | Current phase: `PLAN` or `EXECUTE` (live only) |
 | `usage` | Context % and cumulative tokens/cost (live only) |
 | `mcp_auth_required` | Server needs OAuth (emitted once per server) |
 | `result` | Final line: `{"type":"result","status":"ok\|error\|stopped\|needs_input","sessionId":"..."}` |
@@ -217,8 +217,8 @@ bun run build     # standalone binary → ./fl0w
 ## Releasing
 
 ```bash
-git tag -a v0.2.4 -m "v0.2.4"
-git push origin v0.2.4
+git tag -a v0.2.6 -m "v0.2.6"
+git push origin v0.2.6
 ```
 
 ## Project Structure
@@ -245,8 +245,8 @@ Details in `AGENTS.md`.
    saved workflows.
 3. **Seed** — workspace instructions, enabled `AGENTS.md`, and the
    skills catalog seed the conversation.
-4. **Run** — the router picks plan (discovery → plan → execute) or
+4. **Run** — the router picks plan (research + plan → execute) or
    execute directly; saved workflows skip straight to execute. Context
-   compacts before discovery, plan, and execute when it grows large.
+   compacts before plan and execute when it grows large.
 5. **Shutdown** — closes MCP connections and flushes pending
    session/workflow writes (sessions and workflows live on fl0w-work).

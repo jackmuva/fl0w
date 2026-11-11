@@ -1,6 +1,6 @@
 import type { ModelMessage } from "ai";
 
-export const SUBAGENT_TYPES = ["ROUTER", "DISCOVERY", "PLAN", "EXECUTE"] as const;
+export const SUBAGENT_TYPES = ["ROUTER", "PLAN", "EXECUTE"] as const;
 
 export type SubagentType = typeof SUBAGENT_TYPES[number];
 
@@ -18,7 +18,6 @@ export type UserToolDefinition = {
 };
 
 export type StateModel = {
-  "DISCOVERY": string,
   "PLAN": string,
   "EXECUTE": string,
 }

@@ -10,13 +10,12 @@ describe('resolveModels', () => {
   test('falls back per phase for empty strings', () => {
     const resolved = resolveModels({
       ROUTER: '',
-      DISCOVERY: 'openai/gpt-6',
-      PLAN: '  ',
+      PLAN: 'openai/gpt-6',
       EXECUTE: 'anthropic/claude-sonnet-5.5',
         });
     expect(resolved).toEqual({
       ...DEFAULT_MODELS,
-      DISCOVERY: 'openai/gpt-6',
+      PLAN: 'openai/gpt-6',
       EXECUTE: 'anthropic/claude-sonnet-5.5',
     });
   });

@@ -10,7 +10,6 @@ const MUTED_FG = "#565f89"
 const PROSE_PREVIEW_MAX_LENGTH = 96
 
 const PHASE_ACCENT: Record<PhaseSubagent, string> = {
-  DISCOVERY: "#7aa2f7",
   PLAN: "#bb9af7",
   EXECUTE: "#7dcfff",
 }

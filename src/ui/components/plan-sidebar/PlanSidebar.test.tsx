@@ -10,11 +10,11 @@ const LONG_STEP = "Read the existing configuration loader and identify every pla
 const messages: Fl0wMessage[] = [
   { message: { role: "user", content: "do the thing" } },
   {
-    subagent: "DISCOVERY",
+    subagent: "PLAN",
     message: { role: "assistant", content: [{ type: "tool-call", toolCallId: "r1", toolName: "read", input: { filePath: "src/a.ts" } }] },
   },
   {
-    subagent: "DISCOVERY",
+    subagent: "PLAN",
     message: { role: "tool", content: [{ type: "tool-result", toolCallId: "r1", toolName: "read", output: { type: "text", value: "x" } }] },
   },
   {

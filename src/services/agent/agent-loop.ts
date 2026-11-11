@@ -1,7 +1,6 @@
 import { NoOutputGeneratedError, type ModelMessage } from "ai";
 import { SUBAGENT_TYPES, type Fl0wMessage, type ModelSelection, type SubagentType } from "../../models/agent";
 import { DEFAULT_MODELS, PLAN_CHECK_MAX_RETRIES } from "../../constants";
-import { discoveryAgent } from "./subagents/discovery-agent";
 import { planAgent } from "./subagents/plan-agent";
 import { executeAgent } from "./subagents/execution-agent";
 import { fl0wMessage, type AgentResult } from "./utils/message-utils";
@@ -98,7 +97,7 @@ export const agentLoop = async (
       activeWorkflowStore.get() ? "execute" : routingAgent(messages, models.ROUTER, abort, onStreamText, { plan: true, execute: true, taskComplete: false }),
     ]);
     runContextStore.set({ model: models.EXECUTE, reasoning });
-    let state = initialState;
+    const state = initialState;
 
     const compact = async (transcript: Fl0wMessage[], target: string): Promise<Fl0wMessage[]> => {
       abort.throwIfAborted();
@@ -109,16 +108,10 @@ export const agentLoop = async (
 
     let transcript = messages;
     if (state === "plan") {
-      transcript = await compact(transcript, models.DISCOVERY);
-      const discovery = await runPhase("DISCOVERY", discoveryAgent, models.DISCOVERY, reasoning, onMessages, onStreamText, transcript, abort, onPhase);
-      transcript = discovery.transcript;
-      if (findPendingAskQuestion(transcript)) return discovery.result;
-
-      state = activeWorkflowStore.get() ? "execute" : await routingAgent(transcript, models.ROUTER, abort, onStreamText, { plan: true, execute: true, taskComplete: true });
-      if (state === "taskComplete") return discovery.result;
-
       transcript = await compact(transcript, models.PLAN);
-      ({ transcript } = await runPhase("PLAN", planAgent, models.PLAN, reasoning, onMessages, onStreamText, transcript, abort, onPhase));
+      const plan = await runPhase("PLAN", planAgent, models.PLAN, reasoning, onMessages, onStreamText, transcript, abort, onPhase);
+      transcript = plan.transcript;
+      if (findPendingAskQuestion(transcript)) return plan.result;
     }
 
     transcript = await compact(transcript, models.EXECUTE);

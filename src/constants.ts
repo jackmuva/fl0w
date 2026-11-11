@@ -38,7 +38,6 @@ export const sessionWorkspacePath = (sessionId: string): string => join(WORKSPAC
 
 export const DEFAULT_MODELS: ModelSelection = {
   ROUTER: 'typesafe-ai/jev',
-  DISCOVERY: 'deepseek/deepseek-v4.1-flash',
   PLAN: 'deepseek/deepseek-v4.1-flash',
   EXECUTE: 'deepseek/deepseek-v4.1-flash',
 };

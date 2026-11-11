@@ -8,9 +8,11 @@ describe('subagent toolpacks', () => {
     expect(await keys(toolsFor('EXECUTE'))).toContain('default__subagent');
   });
 
-  test('discovery and plan phases cannot', async () => {
-    expect(await keys(toolsFor('DISCOVERY'))).not.toContain('default__subagent');
-    expect(await keys(toolsFor('PLAN'))).not.toContain('default__subagent');
+  test('the plan phase cannot, but can research and create the plan', async () => {
+    const plan = await keys(toolsFor('PLAN'));
+    expect(plan).toContain('default__read');
+    expect(plan).toContain('default__create_plan');
+    expect(plan).not.toContain('default__subagent');
   });
 
   test('sub-agents cannot nest, ask the user, or touch the plan', async () => {

@@ -28,8 +28,8 @@ describe("groupTranscript", () => {
   test("groups contiguous messages of the same phase", () => {
     const segments = groupTranscript([
       user("hi"),
-      text("looking", "DISCOVERY"),
-      call("c1", "default__read", { path: "a.ts" }, "DISCOVERY"),
+      text("looking", "PLAN"),
+      call("c1", "default__read", { path: "a.ts" }, "PLAN"),
       call("p1", "default__create_plan", { steps: [] }, "PLAN"),
       text("doing", "EXECUTE"),
       { ...text("summary"), compacted: true },
@@ -39,8 +39,7 @@ describe("groupTranscript", () => {
       ? `${segment.subagent}@${segment.startIndex}x${segment.messages.length}`
       : segment.kind === "burst" ? `burst@${segment.startIndex}` : `single@${segment.index}`)).toEqual([
       "single@0",
-      "DISCOVERY@1x2",
-      "PLAN@3x1",
+      "PLAN@1x3",
       "EXECUTE@4x1",
       "single@5",
     ])
