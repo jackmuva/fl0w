@@ -2,15 +2,15 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs';
 import { homedir, platform, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import type { Subprocess } from 'bun';
 import { BROWSER_PROFILE_DIR } from '../../constants';
-import type { BrowserFillField, BrowserTarget } from '../../models/browser';
+import type { BrowserFillField, BrowserState, BrowserTarget, Cdp, CdpMessage, EvaluateResult, OriginStorage, PageTarget } from '../../models/browser';
 import { pageScript } from './page-scripts';
-import { exportBrowserState, importBrowserState, type OriginStorage } from './browser-state';
+import { exportBrowserState, importBrowserState, pushBrowserState } from './browser-state';
 import { readSecrets, resolveSecretRef } from '../secrets/secret-store';
 
 const LAUNCH_TIMEOUT_MS = 20_000;
 const BROWSER_STATE_TIMEOUT_MS = 15_000;
+const SNAPSHOT_INTERVAL_MS = 5_000;
 const COMMAND_TIMEOUT_MS = 30_000;
 const NAVIGATION_TIMEOUT_MS = 20_000;
 const SNAPSHOT_MAX_ELEMENTS = 300;
@@ -37,7 +37,6 @@ export const findChromeExecutable = (): string | undefined => {
   return undefined;
 };
 
-type CdpMessage = { id?: number, method?: string, params?: Record<string, unknown>, result?: unknown, error?: { message: string } };
 
 class CdpConnection {
   private nextId = 1;
@@ -112,19 +111,17 @@ class CdpConnection {
   }
 }
 
-type PageTarget = { id: string, type: string, url: string, title: string, webSocketDebuggerUrl?: string };
-
-type BrowserState = {
-  process: Subprocess,
-  port: number,
-  browserPath: string,
-  headless: boolean,
-  page?: { id: string, cdp: CdpConnection },
-  knownTargets: Set<string>,
-};
-
 let state: BrowserState | undefined;
 let exitHookInstalled = false;
+/** A snapshot changed browser-state.json without pushing it; pushed once Chrome exits or is closed. */
+let unpushedSnapshot = false;
+let snapshotInFlight: Promise<void> | undefined;
+
+const pushUnpushedSnapshot = () => {
+  if (!unpushedSnapshot) return;
+  unpushedSnapshot = false;
+  pushBrowserState();
+};
 
 const devtoolsFetch = async <T>(path: string, method = 'GET'): Promise<T> => {
   if (!state) throw new Error('Browser is not running');
@@ -179,13 +176,46 @@ const readOpenTabsStorage = async (port: number, page: BrowserState['page']) => 
 };
 
 /**
+ * Writes the current cookies and open tabs' storage to browser-state.json without pushing it, so routine cookie churn
+ * doesn't push every few seconds. The push happens when Chrome exits or is closed (or at the next startup sync).
+ */
+const snapshotBrowserState = () => {
+  if (!state || snapshotInFlight) return;
+  const { port, browserPath, page } = state;
+  snapshotInFlight = writeSnapshot(port, browserPath, page).finally(() => { snapshotInFlight = undefined; });
+};
+
+const writeSnapshot = async (port: number, browserPath: string, page: BrowserState['page']) => {
+  let browser: CdpConnection | undefined;
+  try {
+    browser = await CdpConnection.connect(`ws://127.0.0.1:${port}${browserPath}`);
+    const connected = browser;
+    const changed = await withTimeout(
+      (async () => exportBrowserState(connected, await readOpenTabsStorage(port, page), { push: false }))(),
+      BROWSER_STATE_TIMEOUT_MS,
+    );
+    if (changed) unpushedSnapshot = true;
+  } catch {
+    // Chrome is busy or quitting; the next snapshot or the final export catches up
+  } finally {
+    browser?.close();
+  }
+};
+
+/**
  * Quits Chrome through CDP so it flushes cookies (logins) to disk; a signal would drop recent ones. First exports
  * cookies, localStorage and sessionStorage to browser-state.json, which syncs them to fl0w-work.
  */
 export const closeBrowser = async () => {
-  if (!state) return false;
-  const { process: chrome, page, port, browserPath } = state;
+  if (!state) {
+    pushUnpushedSnapshot();
+    return false;
+  }
+  const { process: chrome, page, port, browserPath, snapshotTimer } = state;
+  clearInterval(snapshotTimer);
   state = undefined;
+  // let a running snapshot finish so it can't overwrite the final export
+  await snapshotInFlight;
   try {
     const browser = await CdpConnection.connect(`ws://127.0.0.1:${port}${browserPath}`);
     await withTimeout(
@@ -199,6 +229,8 @@ export const closeBrowser = async () => {
     page?.cdp.close();
     // fall through to the kill below
   }
+  // the final export finds the file unchanged when a snapshot already wrote it, so it won't have pushed
+  pushUnpushedSnapshot();
   if (!(await Promise.race([chrome.exited.then(() => true), Bun.sleep(5_000).then(() => false)]))) chrome.kill();
   return true;
 };
@@ -226,7 +258,11 @@ const launchBrowser = async (headless: boolean) => {
   let exited = false;
   void chrome.exited.then(() => {
     exited = true;
-    if (state?.process === chrome) state = undefined;
+    if (state?.process !== chrome) return;
+    // the user quit Chrome: its last snapshot is the only copy of its logins, so push it now
+    clearInterval(state.snapshotTimer);
+    state = undefined;
+    pushUnpushedSnapshot();
   });
 
   const deadline = Date.now() + LAUNCH_TIMEOUT_MS;
@@ -254,10 +290,15 @@ const launchBrowser = async (headless: boolean) => {
   const [first] = await listPages();
   const page = first ? await attachPage(first) : undefined;
   await loadBrowserState(port, browserPath, page?.cdp);
+  // after the import, so a snapshot can't export the profile before it has the synced logins
+  if (!headless && state) {
+    state.snapshotTimer = setInterval(snapshotBrowserState, SNAPSHOT_INTERVAL_MS);
+    state.snapshotTimer.unref();
+  }
 };
 
 /** Loads logins synced from fl0w-work (browser-state.json) into the profile; a failure only leaves them signed out. */
-const loadBrowserState = async (port: number, browserPath: string, page: CdpConnection | undefined) => {
+const loadBrowserState = async (port: number, browserPath: string, page: Cdp | undefined) => {
   let browser: CdpConnection | undefined;
   try {
     browser = await CdpConnection.connect(`ws://127.0.0.1:${port}${browserPath}`);
@@ -280,8 +321,6 @@ const currentPage = async () => {
 
 const defaultHeadless = () =>
   env.FL0W_BROWSER_HEADLESS === '1' || (platform() === 'linux' && !env.DISPLAY && !env.WAYLAND_DISPLAY);
-
-type EvaluateResult = { result: { value?: unknown, objectId?: string }, exceptionDetails?: { exception?: { description?: string }, text: string } };
 
 const evaluate = async <T>(body: string, timeoutMs = COMMAND_TIMEOUT_MS): Promise<T> => {
   const cdp = await currentPage();

@@ -91,7 +91,6 @@ export const agentLoop = async (
 ): Promise<AgentResult> => {
   try {
     const models = resolveModels(selection);
-    // Decide the reasoning level once per user message, alongside the first routing decision.
     const [reasoning, initialState] = await Promise.all([
       reasoningAgent(messages, models.ROUTER, abort),
       activeWorkflowStore.get() ? "execute" : routingAgent(messages, models.ROUTER, abort, onStreamText, { plan: true, execute: true, taskComplete: false }),

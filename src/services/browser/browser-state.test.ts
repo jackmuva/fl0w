@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -17,7 +17,8 @@ mock.module('../../constants', () => ({
 const { BROWSER_PROFILE_DIR, BROWSER_STATE_APPLIED_PATH, BROWSER_STATE_PATH } = await import('../../constants');
 // these tests write the browser profile and its exported logins; never let them reach the real ~/.fl0w
 if (![BROWSER_PROFILE_DIR, BROWSER_STATE_APPLIED_PATH, BROWSER_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('browser-state test is not isolated');
-const { parseBrowserState, toStoredCookies } = await import('./browser-state');
+const { exportBrowserState, parseBrowserState, toStoredCookies } = await import('./browser-state');
+const { configSyncStore } = await import('../sync/config-sync');
 const { closeBrowser, findChromeExecutable, openBrowser } = await import('./browser-session');
 
 describe('toStoredCookies', () => {
@@ -46,6 +47,37 @@ describe('parseBrowserState', () => {
     })).toEqual({ version: 1, cookies: [], localStorage: { 'https://a.test': { k: 'v' } }, sessionStorage: { 'https://a.test': { s: 'v' } } });
   });
 });
+
+describe('exportBrowserState', () => {
+  const browser = {
+    send: async <T>() => ({ cookies: [{ name: 'sid', value: 'v', domain: 'a.test', path: '/', session: true }] }) as T,
+    waitForEvent: async () => true,
+    onEvent: () => () => undefined,
+  };
+  const open = { localStorage: { 'https://a.test': { k: 'v' } }, sessionStorage: { 'https://a.test': { s: 'v' } } };
+
+  test('push: false writes the file without queueing a push to fl0w-work', async () => {
+    const notify = spyOn(configSyncStore, 'notifyLocalWrite').mockImplementation(() => undefined);
+    try {
+      expect(await exportBrowserState(browser, open, { push: false })).toBe(true);
+      expect(notify).not.toHaveBeenCalled();
+      expect(await readStateFile()).toEqual({ version: 1, cookies: [{ name: 'sid', value: 'v', domain: 'a.test', path: '/' }], ...open });
+      // unchanged: nothing to push either way
+      expect(await exportBrowserState(browser, open)).toBe(false);
+      expect(notify).not.toHaveBeenCalled();
+      await writeFile(BROWSER_STATE_PATH, '{}');
+      expect(await exportBrowserState(browser, open)).toBe(true);
+      expect(notify).toHaveBeenCalledWith(BROWSER_STATE_PATH);
+    } finally {
+      notify.mockRestore();
+      // the Chrome tests below start from an empty state
+      await rm(BROWSER_STATE_PATH, { force: true });
+      await rm(BROWSER_STATE_APPLIED_PATH, { force: true });
+    }
+  });
+});
+
+const readStateFile = async () => parseBrowserState(await Bun.file(BROWSER_STATE_PATH).json());
 
 describe.skipIf(!findChromeExecutable())('export and import (requires Chrome)', () => {
   let server: ReturnType<typeof Bun.serve>;

@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { BROWSER_STATE_APPLIED_PATH, BROWSER_STATE_PATH } from '../../constants';
+import type { BrowserCookie, BrowserStateFile, Cdp, OriginStorage } from '../../models/browser';
 import { writeJsonAtomic } from '../service-utils';
 import { configSyncStore } from '../sync/config-sync';
 import { jsonEqual } from '../sync/merge/config-merge';
@@ -8,44 +9,6 @@ import { jsonEqual } from '../sync/merge/config-merge';
  * Logins move between machines as plain cookies, localStorage and sessionStorage, not profile files: Chrome encrypts the profile's
  * cookies with an OS key (the macOS Keychain), so a copied profile can't be read on another machine or in the sandbox.
  */
-
-/** The subset of the CDP `Storage.getCookies` cookie that `Storage.setCookies` accepts back. */
-export type BrowserCookie = {
-  name: string;
-  value: string;
-  domain: string;
-  path: string;
-  /** Seconds since the epoch; absent for session cookies. */
-  expires?: number;
-  httpOnly?: boolean;
-  secure?: boolean;
-  sameSite?: string;
-  priority?: string;
-  sourceScheme?: string;
-  sourcePort?: number;
-  partitionKey?: unknown;
-};
-
-export type BrowserState = {
-  version: 1;
-  cookies: BrowserCookie[];
-  /** Origin -> localStorage entries. */
-  localStorage: Record<string, Record<string, string>>;
-  /**
-   * Origin -> sessionStorage entries (e.g. MSAL keeps its tokens there). Chrome scopes sessionStorage to one tab, so
-   * import seeds it into the tab fl0w drives, where it lasts until that tab closes.
-   */
-  sessionStorage: Record<string, Record<string, string>>;
-};
-
-export type OriginStorage = Pick<BrowserState, 'localStorage' | 'sessionStorage'>;
-
-/** The CdpConnection methods this module needs. */
-export type Cdp = {
-  send: <T = Record<string, unknown>>(method: string, params?: Record<string, unknown>, timeoutMs?: number) => Promise<T>;
-  waitForEvent: (method: string, timeoutMs: number) => Promise<boolean>;
-  onEvent: (listener: (method: string, params: Record<string, unknown>) => void) => () => void;
-};
 
 const COOKIE_FIELDS = ['name', 'value', 'domain', 'path', 'httpOnly', 'secure', 'sameSite', 'priority', 'sourceScheme', 'sourcePort', 'partitionKey'] as const;
 const SEED_LOAD_TIMEOUT_MS = 10_000;
@@ -78,7 +41,7 @@ const parseOriginStorage = (raw: unknown) => {
 };
 
 /** Parses browser-state.json leniently; anything unusable reads as empty. */
-export function parseBrowserState(raw: unknown): BrowserState {
+export function parseBrowserState(raw: unknown): BrowserStateFile {
   const value = isRecord(raw) ? raw : {};
   const cookies = Array.isArray(value.cookies) ? toStoredCookies(value.cookies.filter(isRecord)) : [];
   return { version: 1, cookies, localStorage: parseOriginStorage(value.localStorage), sessionStorage: parseOriginStorage(value.sessionStorage) };
@@ -103,16 +66,19 @@ const writeAppliedHash = (text: string) => writeFile(BROWSER_STATE_APPLIED_PATH,
 const mergeOpen = (previous: Record<string, Record<string, string>>, open: Record<string, Record<string, string>>) =>
   ({ ...previous, ...Object.fromEntries(Object.entries(open).filter(([origin]) => isWebOrigin(origin))) });
 
+/** Queues a push of browser-state.json to fl0w-work. */
+export const pushBrowserState = () => configSyncStore.notifyLocalWrite(BROWSER_STATE_PATH);
+
 /**
  * Writes the profile's cookies and the localStorage and sessionStorage of the open tabs (`open`) to browser-state.json
- * and queues a push to fl0w-work. Origins not open now keep their last exported entries. Returns whether the file
- * changed.
+ * and, unless `push` is false, queues a push to fl0w-work. Origins not open now keep their last exported entries.
+ * Returns whether the file changed.
  */
-export async function exportBrowserState(browser: Cdp, open: OriginStorage): Promise<boolean> {
+export async function exportBrowserState(browser: Cdp, open: OriginStorage, { push = true } = {}): Promise<boolean> {
   const { cookies } = await browser.send<{ cookies: Record<string, unknown>[] }>('Storage.getCookies');
   const text = await readStateText();
   const previous = parseBrowserState(parseJson(text));
-  const next: BrowserState = {
+  const next: BrowserStateFile = {
     version: 1,
     cookies: toStoredCookies(cookies),
     localStorage: mergeOpen(previous.localStorage, open.localStorage),
@@ -124,7 +90,7 @@ export async function exportBrowserState(browser: Cdp, open: OriginStorage): Pro
   }
   await writeJsonAtomic(BROWSER_STATE_PATH, next);
   await writeAppliedHash((await readStateText()) ?? '');
-  configSyncStore.notifyLocalWrite(BROWSER_STATE_PATH);
+  if (push) pushBrowserState();
   return true;
 }
 

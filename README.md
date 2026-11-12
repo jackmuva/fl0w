@@ -17,7 +17,7 @@ irm https://raw.githubusercontent.com/jackmuva/fl0w/main/install.ps1 | iex
 ```
 
 Installs a standalone `fl0w` binary (default `~/.local/bin` on Unix;
-no Bun needed). Set `FL0W_VERSION=v0.2.5` to pin a version;
+no Bun needed). Set `FL0W_VERSION=v0.2.8` to pin a version;
 `FL0W_INSTALL_DIR` / `FL0W_BIN_NAME` override location and name.
 
 ## Setup
