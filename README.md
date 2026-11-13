@@ -132,7 +132,10 @@ key is a name, every other string is a field:
 - **Custom tools** — a `.ts` file in `~/.fl0w/tools/` exporting `name`,
   `description`, `inputSchema`, and `execute`.
 
-Any of the above can be toggled per session with `/configure`.
+Any of the above can be toggled per session with `/configure`. Your last
+confirmed choices (models, MCPs, skills, tools, `AGENTS.md`) are saved to
+`~/.fl0w/preferences.json` and preselected for new sessions; when signed in
+it syncs across devices (the most recent change wins).
 
 ## Usage
 
@@ -185,7 +188,9 @@ using `--messages` plus `--answers` (or `-i` for free text). Other
 flags: `-c/--capabilities` (JSON:
 `{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}` — names
 from `fl0w capabilities`), `--models` (JSON like
-`{"EXECUTE":"provider/model"}`), `-m/--messages`.
+`{"EXECUTE":"provider/model"}`), `-m/--messages`. Without
+`--capabilities`/`--models`, `session` falls back to your saved
+`/configure` choices (`preferences.json`), then the built-in defaults.
 
 **`reauth`** connects every server in `mcp.json`, or only the named
 ones (`fl0w reauth github linear`).

@@ -1,8 +1,9 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
-import { SUBAGENT_TYPES, type CapabilityKind, type CapabilitySelection, type Fl0wMessage, type ModelSelection, type SubagentType } from '../models/agent';
+import type { CapabilitySelection, Fl0wMessage, ModelSelection } from '../models/agent';
 import type { SessionRecord } from '../models/session';
-import { createDraftSession, emptyModelSelection } from '../services/service-utils';
+import { createDraftSession, emptyModelSelection, parseCapabilitySelection, parseModelSelection } from '../services/service-utils';
+import { preferencesStore } from '../store/preferences-store';
 import { applyCapabilitySelection, emptyCapabilitySelection } from '../services/capabilities';
 import { findPendingAskQuestion, formatAskQuestionAnswers, type QuestionAnswer } from '../services/agent/utils/question-utils';
 import { runHeadlessTurn } from './cli-output';
@@ -14,45 +15,12 @@ import { requireLogin, runStartupSync } from '../services/setup';
 
 const USAGE = 'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--models \'{"EXECUTE":"<model>"}\'] [--messages <path.json>]';
 
-const CAPABILITY_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
-
-const parseModelsJson = (raw: string): Partial<ModelSelection> | null => {
-  let parsed: unknown;
+const parseJson = (raw: string): unknown => {
   try {
-    parsed = JSON.parse(raw);
+    return JSON.parse(raw);
   } catch {
     return null;
   }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-  const models: Partial<ModelSelection> = {};
-  for (const [phase, model] of Object.entries(parsed)) {
-    if (!SUBAGENT_TYPES.includes(phase as SubagentType) || typeof model !== 'string') return null;
-    models[phase as SubagentType] = model;
-  }
-  return models;
-};
-
-
-
-const parseCapabilitiesJson = (raw: string): CapabilitySelection | null => {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (!parsed || typeof parsed !== 'object') return null;
-  const obj = parsed as Record<string, unknown>;
-  for (const kind of CAPABILITY_KINDS) {
-    const value = obj[kind];
-    if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string')) return null;
-  }
-  return {
-    skills: obj.skills as string[],
-    mcpServers: obj.mcpServers as string[],
-    userTools: obj.userTools as string[],
-    agentsMd: obj.agentsMd as string[],
-  };
 };
 
 const parseAnswersJson = (raw: string): Record<string, QuestionAnswer> | null => {
@@ -94,7 +62,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
 
   let capabilitiesFromCli: CapabilitySelection | null = null;
   if (values.capabilities) {
-    capabilitiesFromCli = parseCapabilitiesJson(values.capabilities);
+    capabilitiesFromCli = parseCapabilitySelection(parseJson(values.capabilities));
     if (!capabilitiesFromCli) {
       console.error('Invalid --capabilities JSON: expected CapabilitySelection with string arrays for skills, mcpServers, userTools, agentsMd');
       return 1;
@@ -103,7 +71,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
 
   let modelsFromCli: Partial<ModelSelection> | null = null;
   if (values.models) {
-    modelsFromCli = parseModelsJson(values.models);
+    modelsFromCli = parseModelSelection(parseJson(values.models));
     if (!modelsFromCli) {
       console.error('Invalid --models JSON: expected {"<phase>": "<model>"} with phases ROUTER, PLAN, EXECUTE');
       return 1;
@@ -159,8 +127,10 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   }
   await userToolLoader.loadUserTools();
 
+  // a flag wins, then the last /configure choice (preferences.json), then nothing enabled
   const capabilities = capabilitiesFromCli
     ?? session.capabilities
+    ?? preferencesStore.capabilities()
     ?? emptyCapabilitySelection();
   // saved with the session's next save
   if (capabilitiesFromCli) session = { ...session, capabilities };

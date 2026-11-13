@@ -4,6 +4,7 @@ import { configSyncStore } from './sync/config-sync';
 import { outboxStore } from './sync/outbox';
 import { authService } from './auth/auth-service';
 import { closeBrowser } from './browser/browser-session';
+import { preferencesStore } from '../store/preferences-store';
 import { mkdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -38,6 +39,8 @@ export async function runStartupSync(options: StartupSyncOptions = {}): Promise<
 
   log('Syncing config files...');
   const syncWarning = await configSyncStore.syncOnStartup();
+  // after the sync, so a choice made on another device applies here
+  await preferencesStore.load();
   configSyncStore.watchLocalConfigWrites();
   outboxStore.drainOutboxInBackground();
   void syncSkillService.syncAllSkillsInBackground();

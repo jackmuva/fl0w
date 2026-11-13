@@ -1,8 +1,9 @@
 import Bottleneck from "bottleneck";
 import { chmod, rename, writeFile } from "node:fs/promises";
 import { resolve } from 'node:path';
-import { SUBAGENT_TYPES, type ModelSelection } from '../models/agent';
+import { SUBAGENT_TYPES, type CapabilityKind, type CapabilitySelection, type ModelSelection, type SubagentType } from '../models/agent';
 import type { SessionRecord } from '../models/session';
+import { preferencesStore } from '../store/preferences-store';
 
 export const modelRateLimiter = new Bottleneck({
   minTime: 100,
@@ -59,9 +60,41 @@ export const createDraftSession = (workspacePath: string, id: string = crypto.ra
     id,
     workspacePath: resolve(workspacePath),
     title: null,
-    models: emptyModelSelection(),
+    // capabilities stay null so the TUI still opens /configure (preselected from preferences) for a new session
+    models: { ...emptyModelSelection(), ...preferencesStore.models() },
     capabilities: null,
     createdAt: now,
     updatedAt: now,
+  };
+};
+
+const CAPABILITY_KINDS: CapabilityKind[] = ['skills', 'mcpServers', 'userTools', 'agentsMd'];
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** `{ "<phase>": "<model>" }` with known phases only; null when the shape is wrong. */
+export const parseModelSelection = (value: unknown): Partial<ModelSelection> | null => {
+  if (!isPlainObject(value)) return null;
+  const models: Partial<ModelSelection> = {};
+  for (const [phase, model] of Object.entries(value)) {
+    if (!SUBAGENT_TYPES.includes(phase as SubagentType) || typeof model !== 'string') return null;
+    models[phase as SubagentType] = model;
+  }
+  return models;
+};
+
+/** A CapabilitySelection with string arrays for every kind; null when the shape is wrong. */
+export const parseCapabilitySelection = (value: unknown): CapabilitySelection | null => {
+  if (!isPlainObject(value)) return null;
+  for (const kind of CAPABILITY_KINDS) {
+    const list = value[kind];
+    if (!Array.isArray(list) || !list.every((entry) => typeof entry === 'string')) return null;
+  }
+  return {
+    skills: value.skills as string[],
+    mcpServers: value.mcpServers as string[],
+    userTools: value.userTools as string[],
+    agentsMd: value.agentsMd as string[],
   };
 };

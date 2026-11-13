@@ -79,3 +79,9 @@ export type ModelMetadata = {
 }
 
 export type ModelSelection = Record<SubagentType, string>
+
+/** `~/.fl0w/preferences.json`: the last `/configure` confirmation, used as the default for new sessions. */
+export type Preferences = {
+  models?: Partial<ModelSelection>,
+  capabilities?: CapabilitySelection,
+}

@@ -14,10 +14,11 @@ mock.module('../../constants', () => ({
   SYNC_STATE_PATH: join(home, 'sync-state.json'),
   BROWSER_STATE_PATH: join(home, 'browser-state.json'),
   SECRETS_PATH: join(home, 'secrets.json'),
+  PREFERENCES_PATH: join(home, 'preferences.json'),
 }));
-const { APP_CONFIG_PATH, AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, SECRETS_PATH, SYNC_STATE_PATH } = await import('../../constants');
+const { APP_CONFIG_PATH, AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, PREFERENCES_PATH, SECRETS_PATH, SYNC_STATE_PATH } = await import('../../constants');
 // these tests write config files; never let them reach the real ~/.fl0w
-if (![APP_CONFIG_PATH, AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, SECRETS_PATH, SYNC_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('config-sync test is not isolated');
+if (![APP_CONFIG_PATH, AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, PREFERENCES_PATH, SECRETS_PATH, SYNC_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('config-sync test is not isolated');
 const { configSyncStore } = await import('./config-sync');
 
 type Row = { version: number, updatedAt: string, content: unknown };
@@ -115,7 +116,7 @@ describe('syncConfigFiles', () => {
   });
 
   test('first sync pushes local files that the server lacks', async () => {
-    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'pushed', 'browser-state.json': 'unchanged', 'secrets.json': 'unchanged' });
+    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'pushed', 'browser-state.json': 'unchanged', 'secrets.json': 'unchanged', 'preferences.json': 'unchanged' });
     expect(server.get('mcp.json')?.content).toEqual({ mcpServers: {} });
     // the fl0w login stays on this device
     expect(server.get('auth.json')?.content).toEqual({});
@@ -161,7 +162,7 @@ describe('syncConfigFiles', () => {
     requests = [];
 
     await write('mcp.json', { mcpServers: { demo: { url: 'https://demo' } } });
-    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'unchanged', 'browser-state.json': 'unchanged', 'secrets.json': 'unchanged' });
+    expect(await configSyncStore.syncConfigFiles()).toEqual({ 'mcp.json': 'pushed', 'auth.json': 'unchanged', 'browser-state.json': 'unchanged', 'secrets.json': 'unchanged', 'preferences.json': 'unchanged' });
     expect(requests.filter((r) => r.startsWith('GET /api/sync/config-files/'))).toEqual([]);
     expect(server.get('mcp.json')).toMatchObject({ version: 2, content: { mcpServers: { demo: { url: 'https://demo' } } } });
   });
@@ -186,6 +187,27 @@ describe('syncConfigFiles', () => {
     await write('secrets.json', local);
     expect((await configSyncStore.syncConfigFiles(['secrets.json']))?.['secrets.json']).toBe('pushed');
     expect(server.get('secrets.json')).toMatchObject({ version: 4, content: local });
+  });
+
+  test('preferences.json syncs whole-file, last writer wins', async () => {
+    const mine = { models: { PLAN: 'a/plan', EXECUTE: 'a/exec' }, capabilities: { skills: ['s'], mcpServers: [], userTools: [], agentsMd: [] } };
+    await write('preferences.json', mine);
+    expect((await configSyncStore.syncConfigFiles(['preferences.json']))?.['preferences.json']).toBe('pushed');
+    expect(server.get('preferences.json')?.content).toEqual(mine);
+
+    // another device confirmed /configure after our last local write: its whole file wins
+    await write('preferences.json', { ...mine, models: { PLAN: 'a/older' } });
+    await backdate('preferences.json');
+    const theirs = { models: { PLAN: 'b/plan', EXECUTE: 'b/exec' }, capabilities: { skills: [], mcpServers: ['m'], userTools: [], agentsMd: [] } };
+    server.set('preferences.json', { version: 2, updatedAt: new Date().toISOString(), content: theirs });
+    expect((await configSyncStore.syncConfigFiles(['preferences.json']))?.['preferences.json']).toBe('pulled');
+    expect(await read('preferences.json')).toEqual(theirs);
+
+    // and a newer local write wins the other way
+    server.set('preferences.json', { version: 3, updatedAt: new Date(Date.now() - 60_000).toISOString(), content: { models: { PLAN: 'stale' } } });
+    await write('preferences.json', mine);
+    expect((await configSyncStore.syncConfigFiles(['preferences.json']))?.['preferences.json']).toBe('pushed');
+    expect(server.get('preferences.json')).toMatchObject({ version: 4, content: mine });
   });
 
   test('pulls a remote change when the local file is untouched', async () => {

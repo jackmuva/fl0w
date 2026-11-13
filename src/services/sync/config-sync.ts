@@ -1,5 +1,5 @@
 import { stat } from 'node:fs/promises';
-import { AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, SECRETS_PATH } from '../../constants';
+import { AUTH_PATH, BROWSER_STATE_PATH, MCP_CONFIG_PATH, PREFERENCES_PATH, SECRETS_PATH } from '../../constants';
 import type { AuthFile } from '../../models/auth';
 import { SYNC_FILENAMES, type JsonObject, type RemoteFile, type RemoteFileMeta, type SyncFilename, type SyncState } from '../../models/sync';
 import { authService } from '../auth/auth-service';
@@ -16,6 +16,7 @@ const PATHS: Record<SyncFilename, string> = {
   get 'auth.json'() { return AUTH_PATH; },
   get 'browser-state.json'() { return BROWSER_STATE_PATH; },
   get 'secrets.json'() { return SECRETS_PATH; },
+  get 'preferences.json'() { return PREFERENCES_PATH; },
 };
 
 export type FileSyncResult = 'unchanged' | 'pulled' | 'pushed' | 'merged' | Error;

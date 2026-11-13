@@ -14,7 +14,11 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
 - **Models** — each session has a `ModelSelection` (`models/agent.ts`) for `ROUTER` (decision model;
   default `typesafe-ai/jev`) and `PLAN`/`EXECUTE` (default
   `deepseek/deepseek-v4.1-flash`). Unset phases fall back to `DEFAULT_MODELS` via `resolveModels()`;
-  `/configure` edits the selection. Model list/metadata come from `/api/cli/ai/models`
+  `/configure` edits the selection; confirming it also saves models + capabilities to `PREFERENCES_PATH`
+  (`~/.fl0w/preferences.json`, `store/preferences-store.ts`, loaded after the startup sync).
+  `createDraftSession()` seeds new sessions' models from it; TUI drafts keep `capabilities: null` (so
+  `/configure` still opens) but preselect the saved capabilities; headless `fl0w session` falls back to them.
+  Precedence: CLI flag / resumed session / workflow → preferences → `DEFAULT_MODELS` (or no capabilities). Model list/metadata come from `/api/cli/ai/models`
   (`remote-api/ai-api.ts`, cached in `store/model-store.ts`); `contextWindowFor()` (fallback
   `DEFAULT_CONTEXT_WINDOW` = 1M) drives compaction and the usage meter. `MAX_ITERATIONS` (50) caps text
   subagent steps.
@@ -23,7 +27,7 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
   `index.tsx` sets `AI_SDK_DEFAULT_PROVIDER` to `fl0wModelProvider`, a gateway proxied through
   `/api/cli/ai` with the fl0w token. Model calls, the TUI, and headless agent commands require login.
 - **Sync** — when signed in:
-  - `mcp.json`/`auth.json`/`browser-state.json`/`secrets.json` (`SYNC_FILENAMES`, `models/sync.ts`) reconcile at startup (`syncOnStartup()`,
+  - `mcp.json`/`auth.json`/`browser-state.json`/`secrets.json`/`preferences.json` (`SYNC_FILENAMES`, `models/sync.ts`) reconcile at startup (`syncOnStartup()`,
     8s timeout); app-written `auth.json` changes push ~1s later (`watchLocalConfigWrites()`); manual
     edits sync at startup or via `fl0w sync`. `sync-state.json` (0600) stores the last agreed content;
     on conflict the newer file wins. fl0w account tokens never leave the machine.

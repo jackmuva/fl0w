@@ -8,6 +8,7 @@ import {
   isCatalogEmpty,
   mergeCapabilitySelection,
 } from "../services/capabilities"
+import { preferencesStore } from "../store/preferences-store"
 import { findPendingAskQuestion } from "../services/agent/utils/question-utils"
 import { fl0wMessage } from "../services/agent/utils/message-utils"
 import { listAllTools } from "../services/agent/utils/tool-utils"
@@ -171,6 +172,8 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
   const handleConfigConfirm = useCallback(async (selection: { capabilities: CapabilitySelection, models: ModelSelection }) => {
     await applySessionModels(selection.models)
     await applySessionCapabilities(selection.capabilities)
+    // only an explicit confirm becomes the default for new sessions (not resumes or workflow merges)
+    void preferencesStore.save(selection)
     setConfigPickerOpen(false)
   }, [applySessionCapabilities, applySessionModels])
 
@@ -498,7 +501,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
         <ConfigDialog
           models={models}
           catalog={capabilityCatalog}
-          initialSelection={getCapabilitySelection() ?? session.capabilities ?? emptyCapabilitySelection()}
+          initialSelection={getCapabilitySelection() ?? session.capabilities ?? preferencesStore.capabilities() ?? emptyCapabilitySelection()}
           initialModels={session.models ?? null}
           onConfirm={handleConfigConfirm}
           onDismiss={() => setConfigPickerOpen(false)}

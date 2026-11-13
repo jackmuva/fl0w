@@ -1,5 +1,5 @@
 
-export const SYNC_FILENAMES = ['mcp.json', 'auth.json', 'browser-state.json', 'secrets.json'] as const;
+export const SYNC_FILENAMES = ['mcp.json', 'auth.json', 'browser-state.json', 'secrets.json', 'preferences.json'] as const;
 
 export type SyncFilename = (typeof SYNC_FILENAMES)[number];
 

@@ -34,6 +34,9 @@ export const BROWSER_STATE_APPLIED_PATH = join(FL0W_HOME, 'browser-state.applied
 
 export const SECRETS_PATH = join(FL0W_HOME, 'secrets.json');
 
+/** Last confirmed `/configure` choices; new sessions start from them. Synced with fl0w-work like mcp.json. */
+export const PREFERENCES_PATH = join(FL0W_HOME, 'preferences.json');
+
 export const sessionWorkspacePath = (sessionId: string): string => join(WORKSPACE_DIR, sessionId);
 
 export const DEFAULT_MODELS: ModelSelection = {
