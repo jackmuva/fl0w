@@ -135,6 +135,11 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   // saved with the session's next save
   if (capabilitiesFromCli) session = { ...session, capabilities };
   if (modelsFromCli) session = { ...session, models: { ...(session.models ?? emptyModelSelection()), ...modelsFromCli } };
+  // a turn's explicit choice becomes the default for new sessions everywhere, like the TUI's /configure;
+  // finishHeadlessRun pushes it before exit
+  if (capabilitiesFromCli || modelsFromCli) {
+    await preferencesStore.save({ models: { ...emptyModelSelection(), ...session.models }, capabilities });
+  }
 
   const inputIsAnswer = Boolean(pendingAsk && !answers && input);
   const answerText = pendingAsk && answers ? formatAskQuestionAnswers(pendingAsk.input.questions, answers) : inputIsAnswer ? input : null;

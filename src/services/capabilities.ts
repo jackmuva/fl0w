@@ -5,6 +5,7 @@ import { skillService } from './external-tools/skill-service';
 import { userToolLoader } from './external-tools/user-tool-service';
 import { mcpClient } from './external-tools/mcp-client';
 import { runStartupSync,finishHeadlessRun } from './setup';
+import { preferencesStore } from '../store/preferences-store';
 import { frontLoadMessages } from "./agent/hooks/front-load";
 import { fl0wMessage } from "./agent/utils/message-utils";
 
@@ -48,6 +49,8 @@ export const runCapabilitiesCommand = async (_argv: string[]): Promise<number> =
   await userToolLoader.loadUserTools();
 
   printCatalogLines(await buildCapabilityCatalog());
+  // always printed, so fl0w-work can tell "no preferences" from an older CLI that never prints it
+  console.log(JSON.stringify({ kind: 'preferences', ...preferencesStore.preferences() }));
   await mcpClient.close();
   return 0;
 };
