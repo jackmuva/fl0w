@@ -74,6 +74,7 @@ export async function runTui({ syncWarning }: { syncWarning: string | null }): P
 
   const renderer = await createCliRenderer({
     exitOnCtrlC: false,
+    backgroundColor: '#efede6',
     openConsoleOnError: false,
     exitSignals: [
       'SIGTERM',

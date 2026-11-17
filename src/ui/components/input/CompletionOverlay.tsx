@@ -1,6 +1,6 @@
 import type { SelectOption } from "@opentui/core"
 import type { CompletionItem, CompletionKind } from "../../../models/ui"
-import { AGENT_BORDER_COLOR } from "../primitives/MessageFrame"
+import { selectColors, theme } from "../../theme"
 
 const MAX_VISIBLE_ITEMS = 6
 const DIALOG_WIDTH = 56
@@ -50,8 +50,8 @@ export const CompletionOverlayDialog = ({
         width="100%"
         height="100%"
         zIndex={5}
-        backgroundColor="#000000"
-        opacity={0.45}
+        backgroundColor={theme.shade}
+        opacity={0.18}
       />
       <box
         position="absolute"
@@ -60,15 +60,17 @@ export const CompletionOverlayDialog = ({
         width={dialogWidth}
         height={dialogHeight}
         zIndex={10}
-        border={true}
-        borderColor={AGENT_BORDER_COLOR}
-        backgroundColor="#1a1b26"
+        backgroundColor={theme.paperRaised}
         flexDirection="column"
-        padding={1}
+        paddingX={2}
+        paddingY={1}
       >
-        <text fg={AGENT_BORDER_COLOR}>{kindTitle(kind)}</text>
-        <text fg="#565f89">↑/↓ to navigate · Tab/Enter to accept · Esc to dismiss</text>
+        <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
+          <text fg={theme.ink}><strong>{kindTitle(kind)}</strong></text>
+        </box>
+        <text fg={theme.muted}>↑/↓ to navigate · Tab/Enter to accept · Esc to dismiss</text>
         <select
+          {...selectColors}
           options={options}
           selectedIndex={selectedIndex}
           showDescription={true}

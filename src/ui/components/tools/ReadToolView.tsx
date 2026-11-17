@@ -10,6 +10,7 @@ import {
 import { CodeToolView } from "../primitives/CodeToolView"
 import { ListToolView } from "../primitives/ListToolView"
 import { MessageFrame } from "../primitives/MessageFrame"
+import { theme } from "../../theme"
 
 export const ReadToolCallView = ({ toolName, input }: ToolViewProps) => {
   const filePath = readStringField(input, "filePath") ?? "unknown file"
@@ -21,7 +22,7 @@ export const ReadToolCallView = ({ toolName, input }: ToolViewProps) => {
       title={callTitle(toolName)}
       subtitle={`${filePath} (offset ${offset}, limit ${limit})`}
     >
-      <text>Reading file...</text>
+      <text fg={theme.ink}>Reading file...</text>
     </MessageFrame>
   )
 }

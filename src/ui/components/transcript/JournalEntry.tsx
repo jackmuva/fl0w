@@ -12,12 +12,13 @@ import type { TranscriptEntry } from "../../lib/format/segments"
 import { renderToolCall, renderToolResult } from "../../tool-renderers"
 import { ExpandableRow } from "../primitives/ExpandableRow"
 import { MessageContent } from "../primitives/MessageContent"
-import { CREAM_FG, GREEN_FG, MessageFrameKindContext } from "../primitives/MessageFrame"
+import { GRAPHITE_FG, GREEN_FG, MessageFrameKindContext } from "../primitives/MessageFrame"
+import { theme } from "../../theme"
 
-const JOURNAL_FG = "#a59d8f"
-const MUTED_FG = "#565f89"
-const ERROR_FG = "#f7768e"
-const ERROR_PEEK_FG = "#c0687b"
+const JOURNAL_FG = theme.inkSoft
+const MUTED_FG = theme.muted
+const ERROR_FG = theme.error
+const ERROR_PEEK_FG = theme.errorSoft
 const ERROR_PEEK_MAX_LENGTH = 96
 
 const STEP_GLYPH: Record<StepStatus, string> = {
@@ -61,7 +62,7 @@ const StepRow = ({ step }: { step: JournalStep }) => {
   return (
     <box flexDirection="column" width="100%" paddingLeft={2}>
       <ExpandableRow expanded={open} onToggle={() => setOpen((value) => !value)}>
-        <text selectable={false}>
+        <text fg={theme.ink} selectable={false}>
           <span fg={STEP_FG[step.status]}>{STEP_GLYPH[step.status]}</span>
           {` ${describeToolCall(step.toolName, step.input)}`}
         </text>
@@ -89,7 +90,7 @@ export const JournalEntry = ({ messages }: { messages: Fl0wMessage[] }) => {
       <ExpandableRow expanded={expanded} onToggle={() => setExpanded((value) => !value)}>
         <text fg={JOURNAL_FG} selectable={false}>
           {fragments.map((fragment, index) => fragment.noun
-            ? <span key={index} fg={CREAM_FG}>{fragment.text}</span>
+            ? <span key={index} fg={GRAPHITE_FG}>{fragment.text}</span>
             : fragment.text)}
         </text>
       </ExpandableRow>

@@ -5,6 +5,7 @@ import { listWorkspaceFiles } from "../../lib/input-completion/at-files"
 import { useInputCompletion } from "../../hooks/useInputCompletion"
 import type { SlashCommandActions } from "../../lib/input-completion/slash-commands"
 import type { CompletionState } from "../../../models/ui"
+import { textareaColors, theme } from "../../theme"
 
 const chatKeyBindings: KeyBinding[] = [
   { name: "return", action: "submit" },
@@ -97,7 +98,7 @@ export const ChatInput = ({
   }
 
   return (
-    <box backgroundColor={"#1e1e2e"}
+    <box backgroundColor={theme.paperDeep}
       paddingLeft={BOX_PADDING_X}
       paddingRight={BOX_PADDING_X}
       paddingTop={1}
@@ -112,6 +113,7 @@ export const ChatInput = ({
         flexShrink={0}
         wrapMode="word"
         placeholder={placeholder}
+        {...textareaColors}
         keyBindings={chatKeyBindings}
         onSubmit={handleSubmit}
         onContentChange={handleContentChange}

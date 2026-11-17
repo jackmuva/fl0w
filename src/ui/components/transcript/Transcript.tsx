@@ -7,6 +7,7 @@ import { MessageContent } from "../primitives/MessageContent"
 import { PlanProgressContext } from "../tools/PlanToolView"
 import { EntryView } from "./JournalEntry"
 import { PhaseFrame } from "./PhaseFrame"
+import { theme } from "../../theme"
 
 type TranscriptProps = {
   messages: Fl0wMessage[]
@@ -55,12 +56,17 @@ export const Transcript = ({
     <PlanProgressContext.Provider value={planProgress}>
       {segments.map((segment, index) => {
         if (segment.kind !== "phase") {
+          const key = segment.kind === "burst" ? `b${segment.startIndex}` : segment.index
+          const entry = <EntryView key={key} entry={segment} toolCallInputs={toolCallInputs} />
+          // A section-break asterism opens every turn after the first, like the space between scenes in a book.
+          if (index === 0 || !isUserTurnStart(segment)) return entry
           return (
-            <EntryView
-              key={segment.kind === "burst" ? `b${segment.startIndex}` : segment.index}
-              entry={segment}
-              toolCallInputs={toolCallInputs}
-            />
+            <box key={key} flexDirection="column" width="100%" flexShrink={0}>
+              <box width="100%" alignItems="center" marginBottom={1}>
+                <text fg={theme.faint} selectable={false}>⁂</text>
+              </box>
+              {entry}
+            </box>
           )
         }
 

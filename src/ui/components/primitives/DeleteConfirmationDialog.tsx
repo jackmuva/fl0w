@@ -1,10 +1,11 @@
 import { useKeyboard } from "@opentui/react"
+import { theme } from "../../theme"
 const DIALOG_WIDTH = 52
 const DIALOG_PADDING = 2
 const DIALOG_BORDER = 2
-const MUTED_FG = "#565f89"
-const TEXT_FG = "#c0caf5"
-const WARNING_FG = "#f7768e"
+const MUTED_FG = theme.muted
+const TEXT_FG = theme.ink
+const WARNING_FG = theme.error
 
 type DeleteConfirmationDialogProps = {
   title: string
@@ -54,7 +55,7 @@ export const DeleteConfirmationDialog = ({
         width="100%"
         height="100%"
         zIndex={15}
-        backgroundColor="#000000"
+        backgroundColor={theme.shade}
         opacity={0.55}
       />
       <box
@@ -64,13 +65,14 @@ export const DeleteConfirmationDialog = ({
         width={dialogWidth}
         height={dialogHeight}
         zIndex={20}
-        border={true}
-        borderColor={WARNING_FG}
-        backgroundColor="#1a1b26"
+        backgroundColor={theme.paperRaised}
         flexDirection="column"
-        padding={1}
+        paddingX={2}
+        paddingY={1}
       >
-        <text fg={WARNING_FG} flexShrink={0}>{title}</text>
+        <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
+          <text fg={WARNING_FG}><strong>{title}</strong></text>
+        </box>
         <text fg={TEXT_FG} flexShrink={0} wrapMode="word">{message}</text>
         <text fg={MUTED_FG} flexShrink={0}>Enter to delete · Esc to cancel</text>
       </box>

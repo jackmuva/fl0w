@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react"
-import { CREAM_FG } from "./MessageFrame"
+import { theme } from "../../theme"
 
 type Cell = { ch: string; fg?: string; bg?: string }
 
-const LIMB_FG = "#8a9a46"
+const LIMB_FG = theme.olive
 
 const PIXEL_FG: Record<string, string> = {
-  o: CREAM_FG,
-  d: "#1f2414",
-  h: "#ffffff",
+  o: theme.stone,
+  d: theme.ink,
+  h: theme.paperRaised,
 }
 
 // Two pixel rows per terminal row, drawn with half blocks.
@@ -128,7 +128,7 @@ export const Mascot = ({ working }: MascotProps) => {
   return (
     <box flexDirection="column" flexShrink={0} width={WIDTH} height={HEIGHT}>
       {grid.map((cells, row) => (
-        <text key={row} selectable={false}>
+        <text fg={theme.ink} key={row} selectable={false}>
           {cells.map((cell, col) => (
             <span key={col} fg={cell.fg} bg={cell.bg}>{cell.ch}</span>
           ))}

@@ -1,1 +1,2 @@
-export const EDGE_FG = "#3b4261"
+import { theme } from "../../theme"
+export const EDGE_FG = theme.edge

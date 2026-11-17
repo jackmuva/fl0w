@@ -21,10 +21,11 @@ import { HighlightedCode } from "./HighlightedCode"
 import { syntaxStyle } from "../../lib/syntax-style"
 import {
   AGENT_BORDER_COLOR,
-  CREAM_FG,
+  GRAPHITE_FG,
   MessageFrame,
   MessageFrameKindContext,
 } from "./MessageFrame"
+import { theme } from "../../theme"
 
 const REASONING_PREVIEW_MAX_LENGTH = 72
 
@@ -83,8 +84,8 @@ const ReasoningLine = ({ message }: { message: ModelMessage }) => {
 
 const UserLine = ({ text }: { text: string }) => (
   <box flexDirection="row" width="100%">
-    <text fg={CREAM_FG} selectable={false} flexShrink={0}>{"› "}</text>
-    <text flexGrow={1} flexShrink={1}>{text}</text>
+    <text fg={GRAPHITE_FG} selectable={false} flexShrink={0}>{"› "}</text>
+    <text fg={theme.ink} flexGrow={1} flexShrink={1}>{text}</text>
   </box>
 )
 
@@ -107,7 +108,7 @@ export const MessageContent = ({ message: entry, toolCallInputs, hideToolCalls =
       <box width="100%" paddingLeft={2}>
         <MessageFrameKindContext.Provider value="summary">
           <MessageFrame title="Conversation summary">
-            <text>{text}</text>
+            <text fg={theme.ink}>{text}</text>
           </MessageFrame>
         </MessageFrameKindContext.Provider>
       </box>
@@ -159,7 +160,7 @@ export const MessageContent = ({ message: entry, toolCallInputs, hideToolCalls =
         <box width="100%" paddingLeft={2}>
           <MessageFrameKindContext.Provider value="workflow">
             <MessageFrame title={workflow.title}>
-              <text>{workflow.content}</text>
+              <text fg={theme.ink}>{workflow.content}</text>
             </MessageFrame>
           </MessageFrameKindContext.Provider>
         </box>
@@ -193,8 +194,8 @@ export const MessageContent = ({ message: entry, toolCallInputs, hideToolCalls =
       {message.role === "assistant" && <ReasoningLine message={message} />}
       <box paddingLeft={isAgent ? 2 : 0} marginBottom={1} width="100%">
         {message.role === "assistant"
-          ? <markdown content={text} syntaxStyle={syntaxStyle} />
-          : message.role === "user" ? <UserLine text={text} /> : <text>{text}</text>}
+          ? <markdown content={text} syntaxStyle={syntaxStyle} fg={theme.ink} />
+          : message.role === "user" ? <UserLine text={text} /> : <text fg={theme.ink}>{text}</text>}
       </box>
       {/* Assistant messages can mix text with tool calls; show the calls after the text. */}
       {message.role === "assistant" && !hideToolCalls && <ToolCalls message={message} />}

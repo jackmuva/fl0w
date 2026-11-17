@@ -9,8 +9,9 @@ import {
 } from "../../lib/format/message"
 import { GREEN_FG, MessageFrame } from "../primitives/MessageFrame"
 import { PLAN_PENDING_FG, PLAN_STEP_FG, PLAN_STEP_GLYPH, planStepStates } from "../plan-sidebar/plan-style"
+import { theme } from "../../theme"
 
-const ERROR_FG = "#f7768e"
+const ERROR_FG = theme.error
 
 // Progress of the session's latest plan; only that plan's frame tracks completion.
 export const PlanProgressContext = createContext<PlanProgress | undefined>(undefined)
@@ -19,7 +20,7 @@ export const PlanToolCallView = (props: ToolViewProps) => {
   const count = readPlanSteps(props.input).length
   return (
     <MessageFrame title={callTitle(props.toolName)}>
-      <text>{count > 0 ? `Creating plan with ${count} steps…` : "Creating plan…"}</text>
+      <text fg={theme.ink}>{count > 0 ? `Creating plan with ${count} steps…` : "Creating plan…"}</text>
     </MessageFrame>
   )
 }
@@ -55,7 +56,7 @@ export const PlanToolResultView = (props: ToolViewProps) => {
       {tracked.map((step, index) => {
         const state = states[index]!
         return (
-          <text key={step.index}>
+          <text fg={theme.ink} key={step.index}>
             <span fg={PLAN_STEP_FG[state]}>{PLAN_STEP_GLYPH[state]}</span>
             {` ${step.index}. ${step.description}`}
           </text>
@@ -72,7 +73,7 @@ export const MarkStepCompleteToolResultView = (props: ToolViewProps) => {
   const index = readNumberField(props.input, "index", 0)
   const note = readStringField(props.input, "note")
   return (
-    <text>
+    <text fg={theme.ink}>
       <span fg={GREEN_FG}>✓</span> {`Step ${index || "?"} complete${note ? ` — ${note}` : ""}`}
     </text>
   )

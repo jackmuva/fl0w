@@ -1,17 +1,18 @@
+import { MouseButton, type MouseEvent } from "@opentui/core"
 import { useMemo, useState, type ReactNode } from "react"
 import type { Fl0wMessage } from "../../../models/agent"
 import { describeToolCall } from "../../lib/format/journal"
 import { firstLine, formatMessageContent, truncateLine } from "../../lib/format/message"
 import { groupEntries, truncateMiddle, type PhaseSubagent, type TranscriptEntry } from "../../lib/format/segments"
-import { ExpandableRow } from "../primitives/ExpandableRow"
 import { EntryView, JournalEntry } from "./JournalEntry"
+import { theme } from "../../theme"
 
-const MUTED_FG = "#565f89"
+const MUTED_FG = theme.muted
 const PROSE_PREVIEW_MAX_LENGTH = 96
 
 const PHASE_ACCENT: Record<PhaseSubagent, string> = {
-  PLAN: "#bb9af7",
-  EXECUTE: "#7dcfff",
+  PLAN: theme.graphite,
+  EXECUTE: theme.moss,
 }
 
 type PhaseFrameProps = {
@@ -27,6 +28,38 @@ const countSteps = (messages: Fl0wMessage[]): number =>
   messages.reduce((count, { message }) => message.role === "assistant" && Array.isArray(message.content)
     ? count + message.content.filter((part) => part.type === "tool-call").length
     : count, 0)
+
+const CHAPTER_TITLE: Record<PhaseSubagent, string> = {
+  PLAN: "Plan",
+  EXECUTE: "Execute",
+}
+
+// A centered chapter heading between thin rules, like a section break in a book; clicking it folds the phase.
+const ChapterHeading = ({ children, onToggle }: { children: ReactNode; onToggle?: () => void }) => {
+  const [hovered, setHovered] = useState(false)
+  const handleMouseDown = (event: MouseEvent) => {
+    if (!onToggle || event.button !== MouseButton.LEFT) return
+    event.preventDefault()
+    onToggle()
+  }
+  return (
+    <box
+      flexDirection="row"
+      width="100%"
+      height={1}
+      flexShrink={0}
+      marginBottom={1}
+      backgroundColor={hovered && onToggle ? theme.hover : "transparent"}
+      onMouseOver={() => setHovered(true)}
+      onMouseOut={() => setHovered(false)}
+      onMouseDown={handleMouseDown}
+    >
+      <box flexGrow={1} height={1} border={["top"]} borderColor={theme.edge} />
+      <text fg={theme.ink} selectable={false} flexShrink={0} wrapMode="none">{children}</text>
+      <box flexGrow={1} height={1} border={["top"]} borderColor={theme.edge} />
+    </box>
+  )
+}
 
 const MutedLine = ({ text }: { text: string }) => (
   <box paddingLeft={2}>
@@ -55,7 +88,7 @@ export const PhaseFrame = ({ subagent, messages, live, latest, toolCallInputs }:
   const expanded = expandedOverride ?? latest
   const entries = useMemo(() => groupEntries(messages), [messages])
   const accent = PHASE_ACCENT[subagent]
-  const name = subagent.toLowerCase()
+  const title = CHAPTER_TITLE[subagent]
 
   const renderFull = () => entries.map((entry, index) => (
     <EntryView key={index} entry={entry} toolCallInputs={toolCallInputs} />
@@ -64,7 +97,9 @@ export const PhaseFrame = ({ subagent, messages, live, latest, toolCallInputs }:
   if (live) {
     return (
       <box flexDirection="column" flexShrink={0} width="100%">
-        <text fg={accent} selectable={false} marginBottom={1}>{`● ${name}…`}</text>
+        <ChapterHeading>
+          <span fg={accent}>{` ● ${title}… `}</span>
+        </ChapterHeading>
         {renderFull()}
       </box>
     )
@@ -80,14 +115,11 @@ export const PhaseFrame = ({ subagent, messages, live, latest, toolCallInputs }:
 
   return (
     <box flexDirection="column" flexShrink={0} width="100%" marginBottom={1}>
-      <box marginBottom={1}>
-        <ExpandableRow expanded={expanded} onToggle={() => setExpandedOverride(!expanded)} chevronFg={accent}>
-          <text selectable={false}>
-            <span fg={accent}>{name}</span>
-            <span fg={MUTED_FG}>{` · ${steps} ${steps === 1 ? "step" : "steps"}`}</span>
-          </text>
-        </ExpandableRow>
-      </box>
+      <ChapterHeading onToggle={() => setExpandedOverride(!expanded)}>
+        <span fg={MUTED_FG}>{expanded ? " ▾ " : " ▸ "}</span>
+        <span fg={accent}>{title}</span>
+        <span fg={MUTED_FG}>{` · ${steps} ${steps === 1 ? "step" : "steps"} `}</span>
+      </ChapterHeading>
       {expanded ? renderFull() : (
         <>
           {head.map((row) => <box key={row.index} width="100%">{row.node}</box>)}

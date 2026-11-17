@@ -1,16 +1,16 @@
 import type { KeyBinding, TextareaRenderable } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
 import { useEffect, useRef, useState } from "react"
-import { AGENT_BORDER_COLOR } from "../primitives/MessageFrame"
+import { textareaColors, theme } from "../../theme"
 
 const DIALOG_WIDTH = 64
 const DIALOG_PADDING = 2
 const DIALOG_BORDER = 2
 const PROMPT_WIDTH = 2
 const MAX_INPUT_LINES = 6
-const ACCENT_FG = "#e6d5b8"
-const TEXT_FG = "#c0caf5"
-const MUTED_FG = "#565f89"
+const ACCENT_FG = theme.graphite
+const TEXT_FG = theme.ink
+const MUTED_FG = theme.muted
 const HELP_TEXT = "Describe what should vary each run (e.g. \"customer email, date range\" and additional instructions"
 const HINT_TEXT = "Enter to generate · Shift+Enter for newline · Esc to cancel"
 
@@ -84,8 +84,8 @@ export const WorkflowInputsDialog = ({
         width="100%"
         height="100%"
         zIndex={5}
-        backgroundColor="#000000"
-        opacity={0.45}
+        backgroundColor={theme.shade}
+        opacity={0.18}
       />
       <box
         position="absolute"
@@ -94,18 +94,20 @@ export const WorkflowInputsDialog = ({
         width={dialogWidth}
         height={dialogHeight}
         zIndex={10}
-        border={true}
-        borderColor={AGENT_BORDER_COLOR}
-        backgroundColor="#1a1b26"
+        backgroundColor={theme.paperRaised}
         flexDirection="column"
-        padding={1}
+        paddingX={2}
+        paddingY={1}
       >
-        <text fg={AGENT_BORDER_COLOR} flexShrink={0}>Workflow inputs</text>
+        <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
+          <text fg={theme.ink}><strong>Workflow inputs</strong></text>
+        </box>
         <text fg={MUTED_FG} flexShrink={0}>{subtitle}</text>
         <text fg={TEXT_FG} flexShrink={0}>{HELP_TEXT}</text>
         <box flexDirection="row" marginTop={1} width="100%" height={lineCount} flexShrink={0}>
           <text fg={ACCENT_FG} width={PROMPT_WIDTH} flexShrink={0}>{"› "}</text>
           <textarea
+            {...textareaColors}
             ref={textareaRef}
             flexGrow={1}
             height={lineCount}

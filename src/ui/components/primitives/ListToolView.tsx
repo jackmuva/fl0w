@@ -1,5 +1,6 @@
 import type { ToolViewProps } from "../../../models/ui"
 import { MessageFrame } from "./MessageFrame"
+import { theme } from "../../theme"
 
 type ListToolViewProps = ToolViewProps & {
   items: string[]
@@ -19,11 +20,11 @@ export const ListToolView = ({
 }: ListToolViewProps) => (
   <MessageFrame title={toolName} subtitle={subtitle}>
     {isError ? (
-      <text fg="#f7768e">{text}</text>
+      <text fg={theme.error}>{text}</text>
     ) : (
       <>
         {items.map((item, index) => (
-          <text key={index}>
+          <text fg={theme.ink} key={index}>
             <span fg={markerColors?.[index]}>{markers?.[index] ?? "•"}</span> {item}
           </text>
         ))}

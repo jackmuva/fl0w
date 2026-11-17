@@ -1,10 +1,11 @@
 import type { PlanStepProgress } from "../../lib/format/message"
 import { GREEN_FG, ORANGE_FG } from "../primitives/MessageFrame"
 import { EDGE_FG } from "../primitives/WorkflowEdge"
+import { theme } from "../../theme"
 
 export type PlanStepState = "done" | "current" | "pending"
 
-export const PLAN_PENDING_FG = "#565f89"
+export const PLAN_PENDING_FG = theme.muted
 
 export const PLAN_STEP_GLYPH: Record<PlanStepState, string> = {
   done: "●",

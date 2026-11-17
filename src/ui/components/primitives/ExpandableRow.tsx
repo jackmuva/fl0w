@@ -1,9 +1,10 @@
 import { MouseButton, type MouseEvent } from "@opentui/core"
 import { useState, type ReactNode } from "react"
+import { theme } from "../../theme"
 
-export const CHEVRON_FG = "#7aa2f7"
-const HOVER_BG = "#292e42"
-const HOVER_CHEVRON_FG = "#e6d5b8"
+export const CHEVRON_FG = theme.muted
+const HOVER_BG = theme.hover
+const HOVER_CHEVRON_FG = theme.graphite
 
 type ExpandableRowProps = {
   expanded: boolean

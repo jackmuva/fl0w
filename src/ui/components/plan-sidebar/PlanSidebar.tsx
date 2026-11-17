@@ -1,5 +1,6 @@
 import type { PlanProgress } from "../../lib/format/message"
-import { CREAM_FG, GREEN_FG } from "../primitives/MessageFrame"
+import { theme } from "../../theme"
+import { GRAPHITE_FG, GREEN_FG } from "../primitives/MessageFrame"
 import { EDGE_FG } from "../primitives/WorkflowEdge"
 import { PLAN_PENDING_FG, PLAN_STEP_FG, PLAN_STEP_GLYPH, planEdgeColor, planStepStates } from "./plan-style"
 
@@ -28,12 +29,12 @@ export const PlanSidebar = ({ progress }: PlanSidebarProps) => {
       flexShrink={0}
       width={PLAN_SIDEBAR_WIDTH}
       height="100%"
-      border={["left"]}
+      border={["right"]}
       borderColor={EDGE_FG}
-      paddingLeft={1}
-      marginLeft={1}
+      paddingRight={1}
+      marginRight={2}
     >
-      <text fg={complete ? GREEN_FG : CREAM_FG} flexShrink={0}>
+      <text fg={complete ? GREEN_FG : GRAPHITE_FG} flexShrink={0}>
         <strong>{progress.title ?? "Plan"}</strong>
       </text>
       <text fg={complete ? GREEN_FG : PLAN_PENDING_FG} flexShrink={0}>
@@ -53,7 +54,7 @@ export const PlanSidebar = ({ progress }: PlanSidebarProps) => {
                 </box>
                 <box flexGrow={1} flexShrink={1} maxHeight={STEP_MAX_LINES} overflow="hidden">
                   <text
-                    fg={state === "pending" ? PLAN_PENDING_FG : state === "done" ? GREEN_FG : undefined}
+                    fg={state === "pending" ? PLAN_PENDING_FG : state === "done" ? GREEN_FG : theme.ink}
                     wrapMode="word"
                   >
                     {`${step.index}. ${stepHeadline(step.description)}`}

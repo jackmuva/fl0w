@@ -2,17 +2,18 @@ import type { BoxRenderable } from "@opentui/core"
 import type { ReactNode } from "react"
 import { createContext, useContext, useState } from "react"
 import { ExpandableRow } from "./ExpandableRow"
+import { theme } from "../../theme"
 
-export const AGENT_BORDER_COLOR = "#565f89"
-export const USER_INPUT_BORDER_COLOR = "#e0af68"
-export const CREAM_FG = "#e6d5b8"
-export const ORANGE_FG = "#ff9e64"
-export const GREEN_FG = "#9ece6a"
+export const AGENT_BORDER_COLOR = theme.muted
+export const USER_INPUT_BORDER_COLOR = theme.clay
+export const GRAPHITE_FG = theme.graphite
+export const ORANGE_FG = theme.orange
+export const GREEN_FG = theme.moss
 export const SUMMARY_BORDER_COLOR = ORANGE_FG
-export const WORKFLOW_BORDER_COLOR = CREAM_FG
+export const WORKFLOW_BORDER_COLOR = GRAPHITE_FG
 export const MESSAGE_FRAME_MAX_HEIGHT = 14
-const MUTED_FG = "#565f89"
-const CALL_LABEL_FG = CREAM_FG
+const MUTED_FG = theme.muted
+const CALL_LABEL_FG = GRAPHITE_FG
 const OUTPUT_LABEL_FG = GREEN_FG
 
 const NODE_LABEL: Record<MessageFrameKind, string> = {
@@ -62,7 +63,7 @@ export const MessageFrame = ({
 
   return (
     <box flexDirection="column" flexShrink={0} width={width} marginBottom={1}>
-      <text selectable={false}>
+      <text fg={theme.ink} selectable={false}>
         <span fg={accent}>{`~ ${label}${title}`}</span>
         {subtitle ? <span fg={MUTED_FG}>{` · ${subtitle}`}</span> : null}
       </text>

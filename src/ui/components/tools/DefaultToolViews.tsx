@@ -4,6 +4,7 @@ import { CodeToolView } from "../primitives/CodeToolView"
 import { DefaultToolView } from "../primitives/DefaultToolView"
 import { MarkdownToolView } from "../primitives/MarkdownToolView"
 import { MessageFrame } from "../primitives/MessageFrame"
+import { theme } from "../../theme"
 
 export const DefaultToolCallView = (props: ToolViewProps) => {
   const summary = props.input != null
@@ -23,7 +24,7 @@ export const DefaultToolCallView = (props: ToolViewProps) => {
 
   return (
     <MessageFrame title={callTitle(props.toolName)} subtitle={summary || undefined}>
-      <text>Running tool...</text>
+      <text fg={theme.ink}>Running tool...</text>
     </MessageFrame>
   )
 }

@@ -1,4 +1,5 @@
 import { syntaxStyle } from "../../lib/syntax-style"
+import { theme } from "../../theme"
 
 type HighlightedCodeProps = {
   content: string
@@ -12,13 +13,13 @@ export const HighlightedCode = ({
   startLine = 1,
 }: HighlightedCodeProps) => (
   <line-number
-    fg="#565f89"
+    fg={theme.muted}
     minWidth={3}
     paddingRight={1}
     showLineNumbers={true}
     lineNumberOffset={startLine - 1}
     width="100%"
   >
-    <code content={content} filetype={filetype} syntaxStyle={syntaxStyle} width="100%" />
+    <code content={content} filetype={filetype} syntaxStyle={syntaxStyle} fg={theme.ink} width="100%" />
   </line-number>
 )

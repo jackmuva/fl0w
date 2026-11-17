@@ -10,13 +10,13 @@ import {
   getQuestionPrompt,
   type QuestionAnswer,
 } from "../../../services/agent/utils/question-utils"
-import { AGENT_BORDER_COLOR } from "./MessageFrame"
+import { textareaColors, theme } from "../../theme"
 
 const OTHER_OPTION_ID = "other"
-const ACCENT_FG = "#e6d5b8"
-const TEXT_FG = "#c0caf5"
-const MUTED_FG = "#565f89"
-const DONE_FG = "#9ece6a"
+const ACCENT_FG = theme.graphite
+const TEXT_FG = theme.ink
+const MUTED_FG = theme.muted
+const DONE_FG = theme.moss
 
 const withOtherOption = (options: AskQuestionOption[]): AskQuestionOption[] =>
   options.some((option) => option.id === OTHER_OPTION_ID)
@@ -129,17 +129,16 @@ export const ClarifyQuestionBox = ({ input, onSubmit }: ClarifyQuestionBoxProps)
 
   return (
     <box
-      border={true}
-      borderColor={AGENT_BORDER_COLOR}
-      paddingLeft={1}
-      paddingRight={1}
+      backgroundColor={theme.paperDeep}
+      paddingX={2}
+      paddingY={1}
       marginY={1}
       width="100%"
       flexDirection="column"
       flexShrink={0}
     >
-      <box flexDirection="row" justifyContent="space-between" width="100%">
-        <text fg={MUTED_FG}>{input.title ?? "Clarifying questions"}</text>
+      <box flexDirection="row" justifyContent="space-between" width="100%" flexShrink={0} border={["bottom"]} borderColor={theme.edge}>
+        <text fg={theme.ink}><strong>{input.title ?? "Clarifying questions"}</strong></text>
         {total > 1 && <text fg={MUTED_FG}>{`${currentIndex + 1}/${total}`}</text>}
       </box>
 
@@ -174,6 +173,7 @@ export const ClarifyQuestionBox = ({ input, onSubmit }: ClarifyQuestionBoxProps)
         <box flexDirection="row" marginTop={1} width="100%">
           <text fg={ACCENT_FG}>{"› "}</text>
           <input
+            {...textareaColors}
             placeholder="Type your answer..."
             value={customText}
             flexGrow={1}

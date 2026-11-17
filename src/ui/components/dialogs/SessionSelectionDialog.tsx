@@ -3,7 +3,7 @@ import { useKeyboard } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import type { SessionRecord } from "../../../models/session"
 import { DeleteConfirmationDialog } from "../primitives/DeleteConfirmationDialog"
-import { AGENT_BORDER_COLOR } from "../primitives/MessageFrame"
+import { selectColors, theme } from "../../theme"
 
 const MAX_VISIBLE_ITEMS = 6
 const DIALOG_WIDTH = 56
@@ -152,8 +152,8 @@ export const SessionSelectionDialog = ({
         width="100%"
         height="100%"
         zIndex={5}
-        backgroundColor="#000000"
-        opacity={0.45}
+        backgroundColor={theme.shade}
+        opacity={0.18}
       />
       <box
         position="absolute"
@@ -162,18 +162,20 @@ export const SessionSelectionDialog = ({
         width={dialogWidth}
         height={dialogHeight}
         zIndex={10}
-        border={true}
-        borderColor={AGENT_BORDER_COLOR}
-        backgroundColor="#1a1b26"
+        backgroundColor={theme.paperRaised}
         flexDirection="column"
-        padding={1}
+        paddingX={2}
+        paddingY={1}
       >
-        <text fg={AGENT_BORDER_COLOR} flexShrink={0}>{title}</text>
-        <text fg="#565f89" flexShrink={0}>{instructions}</text>
+        <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
+          <text fg={theme.ink}><strong>{title}</strong></text>
+        </box>
+        <text fg={theme.muted} flexShrink={0}>{instructions}</text>
         {sessions.length === 0 ? (
-          <text fg="#565f89" flexShrink={0}>{emptyMessage}</text>
+          <text fg={theme.muted} flexShrink={0}>{emptyMessage}</text>
         ) : (
           <select
+            {...selectColors}
             options={options}
             selectedIndex={selectedIndex}
             showDescription={true}

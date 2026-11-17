@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { theme } from "../../theme"
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const
 
@@ -16,5 +17,5 @@ export const WorkingIndicator = ({ label = "WORKING" }: WorkingIndicatorProps) =
     return () => clearInterval(id)
   }, [])
 
-  return <text>{SPINNER_FRAMES[frame]} {label}</text>
+  return <text fg={theme.ink}>{SPINNER_FRAMES[frame]} {label}</text>
 }

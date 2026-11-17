@@ -2,6 +2,7 @@ import type { ToolViewProps } from "../../../models/ui"
 import { callTitle, readStringField } from "../../lib/format/message"
 import { MarkdownToolView } from "../primitives/MarkdownToolView"
 import { MessageFrame } from "../primitives/MessageFrame"
+import { theme } from "../../theme"
 
 const renderAnswerView = (
   props: ToolViewProps,
@@ -19,7 +20,7 @@ const renderAnswerView = (
 export const MessageAnswerToolCallView = (props: ToolViewProps) => {
   return (
     <MessageFrame title={callTitle(props.toolName)}>
-      <text>Preparing answer...</text>
+      <text fg={theme.ink}>Preparing answer...</text>
     </MessageFrame>
   )
 }

@@ -1,11 +1,26 @@
 import { RGBA, SyntaxStyle } from "@opentui/core"
+import { theme } from "../theme"
 
+const fg = (hex: string) => RGBA.fromHex(hex)
+
+// E-ink code: weight and greys carry structure; moss strings and clay numbers add a touch of color.
 export const syntaxStyle = SyntaxStyle.fromStyles({
-  keyword: { fg: RGBA.fromHex("#ff9e64"), bold: true },
-  string: { fg: RGBA.fromHex("#9ece6a") },
-  comment: { fg: RGBA.fromHex("#565f89"), italic: true },
-  number: { fg: RGBA.fromHex("#e0af68") },
-  function: { fg: RGBA.fromHex("#e6d5b8") },
-  type: { fg: RGBA.fromHex("#2ac3de") },
-  default: { fg: RGBA.fromHex("#c0caf5") },
+  keyword: { fg: fg(theme.ink), bold: true },
+  string: { fg: fg(theme.moss) },
+  comment: { fg: fg(theme.muted), italic: true },
+  number: { fg: fg(theme.clay) },
+  function: { fg: fg(theme.graphite) },
+  type: { fg: fg(theme.inkSoft), italic: true },
+  default: { fg: fg(theme.ink) },
+  "markup.heading": { fg: fg(theme.ink), bold: true },
+  "markup.strong": { fg: fg(theme.ink), bold: true },
+  "markup.italic": { fg: fg(theme.inkSoft), italic: true },
+  "markup.quote": { fg: fg(theme.muted), italic: true },
+  "markup.list": { fg: fg(theme.muted) },
+  "markup.raw": { fg: fg(theme.graphite) },
+  "markup.link": { fg: fg(theme.moss), underline: true },
+  "markup.link.label": { fg: fg(theme.moss), underline: true },
+  "markup.link.url": { fg: fg(theme.muted), underline: true },
+  conceal: { fg: fg(theme.faint) },
+  "punctuation.special": { fg: fg(theme.faint) },
 })

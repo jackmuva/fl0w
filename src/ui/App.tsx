@@ -39,6 +39,7 @@ import { resolveUserMessage } from "./lib/input-completion/at-files"
 import type { CapabilityCatalog, CapabilitySelection, Fl0wMessage, ModelMetadata, ModelSelection, SubagentType } from "../models/agent"
 import { ConfigDialog } from "./components/dialogs/ConfigDialog"
 import { activeWorkflowStore } from "../store/active-workflow-store"
+import { READING_WIDTH, theme } from "./theme"
 
 type AppProps = {
   initialMessage?: string | null
@@ -47,6 +48,17 @@ type AppProps = {
   initialWorkflows: WorkflowRecord[]
   capabilityCatalog: CapabilityCatalog
   models: ModelMetadata[]
+}
+
+// The e-reader's top-right clock, ticking on its own so the App doesn't re-render.
+const Clock = () => {
+  const format = () => new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+  const [time, setTime] = useState(format)
+  useEffect(() => {
+    const id = setInterval(() => setTime(format()), 15_000)
+    return () => clearInterval(id)
+  }, [])
+  return <text fg={theme.muted} selectable={false}>{time}</text>
 }
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error)
@@ -368,9 +380,20 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
     : "What would you like to do"
 
   return (
-    <box flexDirection="column" height={height} width="100%" padding={1} position="relative">
+    <box flexDirection="column" height={height} width="100%" paddingY={1} paddingX={3} position="relative" backgroundColor={theme.paper}>
+      <box flexDirection="row" flexShrink={0} width="100%" marginBottom={1} border={["bottom"]} borderColor={theme.edge}>
+        <box flexGrow={1} flexBasis={0} />
+        <box flexGrow={2} flexBasis={0} alignItems="center" minWidth={0}>
+          <text fg={theme.muted} selectable={false} wrapMode="none">{session.title ?? "New session"}</text>
+        </box>
+        <box flexGrow={1} flexBasis={0} alignItems="flex-end">
+          <Clock />
+        </box>
+      </box>
       <box flexDirection="row" flexGrow={1} flexShrink={1} minHeight={0} width="100%">
-        <box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0} height="100%">
+        {showPlanSidebar && planProgress && <PlanSidebar progress={planProgress} />}
+        <box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0} height="100%" alignItems="center">
+        <box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} width="100%" maxWidth={READING_WIDTH}>
           <box flexGrow={1} flexShrink={1} minHeight={0} width="100%" position="relative">
             <scrollbox
               flexGrow={1}
@@ -380,9 +403,10 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
               paddingRight={showMascot ? MASCOT_WIDTH + 1 : 0}
               stickyScroll={true}
               stickyStart="bottom"
+              scrollbarOptions={{ trackOptions: { backgroundColor: theme.paper, foregroundColor: theme.edge } }}
             >
-              {initialMessage && <text fg={"red"}>{initialMessage}</text>}
-              {notice && <text fg={"red"}>{notice}</text>}
+              {initialMessage && <text fg={theme.error}>{initialMessage}</text>}
+              {notice && <text fg={theme.error}>{notice}</text>}
               <Transcript
                 messages={visibleMessages}
                 toolCallInputs={toolCallInputs}
@@ -398,7 +422,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
             )}
           </box>
           <box flexDirection="column" flexShrink={0} width="100%" paddingTop={1}>
-            <box flexDirection="row" width="100%" justifyContent="space-between" alignItems="center">
+            <box flexDirection="row" width="100%" height={1} alignItems="center">
               {(status === "working" || generating) ? (
                 <WorkingIndicator
                   label={
@@ -410,20 +434,12 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
                   }
                 />
               ) : copiedVisible ? (
-                <text fg="#9ece6a">Copied</text>
-              ) : (
-                <box flexShrink={0} />
-              )}
-              <ContextCostStatusBar
-                contextPercent={contextPercent}
-                inputTokens={lastInputTokens}
-                sessionCostUsd={sessionCostUsd}
-                terminalWidth={width}
-              />
+                <text fg={theme.moss}>Copied</text>
+              ) : null}
             </box>
-            {status === "error" && <text fg="#f7768e">Run failed — see the assistant message above.</text>}
+            {status === "error" && <text fg={theme.error}>Run failed — see the assistant message above.</text>}
             {pendingWorkflow && (
-              <text fg="#565f89">
+              <text fg={theme.muted}>
                 {`Running workflow: ${pendingWorkflow.title} (Esc to cancel)`}
               </text>
             )}
@@ -442,9 +458,14 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
                 onSubmit={handleSubmit}
               />
             )}
+            <ContextCostStatusBar
+              contextPercent={contextPercent}
+              inputTokens={lastInputTokens}
+              sessionCostUsd={sessionCostUsd}
+            />
           </box>
         </box>
-        {showPlanSidebar && planProgress && <PlanSidebar progress={planProgress} />}
+        </box>
       </box>
       {completion.open && (
         <CompletionOverlayDialog

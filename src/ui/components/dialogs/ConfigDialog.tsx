@@ -12,7 +12,7 @@ import type {
 import { getFilterKeyAction } from "../../lib/dialog-filter-key"
 import { filterByFuzzyName } from "../../lib/input-completion/fuzzy-match"
 import { formatSessionCostUsd } from "../../lib/format/session-stats"
-import { AGENT_BORDER_COLOR } from "../primitives/MessageFrame"
+import { theme } from "../../theme"
 
 const DIALOG_WIDTH = 64
 const DIALOG_PADDING = 2
@@ -36,11 +36,11 @@ const MODEL_INSTRUCTIONS = [
 ]
 const POPUP_INSTRUCTIONS = "Space toggle · Enter apply · Esc cancel"
 const INSTRUCTION_SEPARATOR = " · "
-const ACCENT_FG = "#e6d5b8"
-const TEXT_FG = "#c0caf5"
-const MUTED_FG = "#565f89"
-const HIGHLIGHT_BG = "#283457"
-const DONE_FG = "#9ece6a"
+const ACCENT_FG = theme.graphite
+const TEXT_FG = theme.ink
+const MUTED_FG = theme.muted
+const HIGHLIGHT_BG = theme.highlight
+const DONE_FG = theme.moss
 
 type TabKind = "models" | CapabilityKind
 type Phase = SubagentType
@@ -471,8 +471,8 @@ export const ConfigDialog = ({
         width="100%"
         height="100%"
         zIndex={5}
-        backgroundColor="#000000"
-        opacity={0.45}
+        backgroundColor={theme.shade}
+        opacity={0.18}
       />
       <box
         position="absolute"
@@ -481,14 +481,13 @@ export const ConfigDialog = ({
         width={dialogWidth}
         height={dialogHeight}
         zIndex={10}
-        border={true}
-        borderColor={AGENT_BORDER_COLOR}
-        backgroundColor="#1a1b26"
+        backgroundColor={theme.paperRaised}
         flexDirection="column"
-        padding={1}
+        paddingX={2}
+        paddingY={1}
       >
-        <box flexDirection="row" justifyContent="space-between" width="100%" flexShrink={0}>
-          <text fg={AGENT_BORDER_COLOR}>Configure session</text>
+        <box flexDirection="row" justifyContent="space-between" width="100%" flexShrink={0} border={["bottom"]} borderColor={theme.edge}>
+          <text fg={theme.ink}><strong>Configure session</strong></text>
           {visibleTabs.length > 1 && (
             <text fg={MUTED_FG}>{`${tabIndex + 1}/${visibleTabs.length}`}</text>
           )}
@@ -627,15 +626,16 @@ export const ConfigDialog = ({
           width={popupWidth}
           height={popupHeight}
           zIndex={20}
-          border={true}
-          borderColor={ACCENT_FG}
-          backgroundColor="#1a1b26"
+          backgroundColor={theme.paperDeep}
           flexDirection="column"
-          padding={1}
+          paddingX={2}
+          paddingY={1}
         >
-          <text fg={ACCENT_FG} flexShrink={0} wrapMode="none">
-            {truncate(`Assign ${phasePopup.model}`, popupInnerWidth)}
-          </text>
+          <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
+            <text fg={theme.ink} wrapMode="none">
+              <strong>{truncate(`Assign ${phasePopup.model}`, popupInnerWidth)}</strong>
+            </text>
+          </box>
           <box flexDirection="column" width="100%" flexShrink={0} marginTop={1}>
             {popupOptions.map((option, index) => {
               const highlighted = index === phasePopup.cursor

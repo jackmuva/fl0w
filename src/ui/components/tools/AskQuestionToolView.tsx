@@ -1,9 +1,10 @@
 import type { ToolViewProps } from "../../../models/ui"
 import { asRecord } from "../../lib/format/message"
 import { USER_INPUT_BORDER_COLOR } from "../primitives/MessageFrame"
+import { theme } from "../../theme"
 
-const MUTED_FG = "#565f89"
-const ACCENT_FG = "#e6d5b8"
+const MUTED_FG = theme.muted
+const ACCENT_FG = theme.graphite
 
 const readPrompts = (input: unknown): string[] => {
   const questions = asRecord(input)?.questions
@@ -39,7 +40,7 @@ export const AskQuestionToolResultView = (props: ToolViewProps) => {
         const { prompt, answer } = splitAnswerLine(line, prompts)
         return (
           <box key={index} paddingLeft={2}>
-            <text>
+            <text fg={theme.ink}>
               {prompt ? <span fg={MUTED_FG}>{`${prompt} `}</span> : null}
               {answer}
             </text>

@@ -2,13 +2,14 @@ import type { ToolViewProps } from "../../../models/ui"
 import { callTitle, readStringField } from "../../lib/format/message"
 import { ListToolView } from "../primitives/ListToolView"
 import { MessageFrame } from "../primitives/MessageFrame"
+import { theme } from "../../theme"
 
 export const ListDirToolCallView = (props: ToolViewProps) => {
   const path = readStringField(props.input, "path") ?? "."
 
   return (
     <MessageFrame title={callTitle(props.toolName)} subtitle={path}>
-      <text>Listing directory...</text>
+      <text fg={theme.ink}>Listing directory...</text>
     </MessageFrame>
   )
 }
