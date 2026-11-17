@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { BROWSER_STATE_APPLIED_PATH, BROWSER_STATE_PATH } from '../../constants';
+import { BROWSER_STATE_PATH, CHROME_IMPORT_STATE_PATH } from '../../constants';
 import type { BrowserCookie, BrowserStateFile, Cdp, OriginStorage } from '../../models/browser';
 import { writeJsonAtomic } from '../service-utils';
 import { configSyncStore } from '../sync/config-sync';
@@ -9,7 +9,6 @@ import { jsonEqual } from '../sync/merge/config-merge';
  * Logins move between machines as plain cookies, localStorage and sessionStorage, not profile files: Chrome encrypts the profile's
  * cookies with an OS key (the macOS Keychain), so a copied profile can't be read on another machine or in the sandbox.
  */
-
 const COOKIE_FIELDS = ['name', 'value', 'domain', 'path', 'httpOnly', 'secure', 'sameSite', 'priority', 'sourceScheme', 'sourcePort', 'partitionKey'] as const;
 const SEED_LOAD_TIMEOUT_MS = 10_000;
 
@@ -18,7 +17,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isWebOrigin = (origin: string) => /^https?:\/\/[^/]+$/.test(origin);
 
-/** Drops expired cookies and CDP's read-only fields; sorts so an unchanged jar compares equal. */
 export function toStoredCookies(cookies: Record<string, unknown>[], now = Date.now()): BrowserCookie[] {
   return cookies
     .filter((cookie) => typeof cookie.name === 'string' && typeof cookie.value === 'string' && typeof cookie.domain === 'string')
@@ -40,7 +38,6 @@ const parseOriginStorage = (raw: unknown) => {
   return storage;
 };
 
-/** Parses browser-state.json leniently; anything unusable reads as empty. */
 export function parseBrowserState(raw: unknown): BrowserStateFile {
   const value = isRecord(raw) ? raw : {};
   const cookies = Array.isArray(value.cookies) ? toStoredCookies(value.cookies.filter(isRecord)) : [];
@@ -59,14 +56,9 @@ const parseJson = (text: string | null): unknown => {
   }
 };
 
-const readAppliedHash = () => readFile(BROWSER_STATE_APPLIED_PATH, 'utf8').then((text) => text.trim(), () => null);
-
-const writeAppliedHash = (text: string) => writeFile(BROWSER_STATE_APPLIED_PATH, `${sha256(text)}\n`, { mode: 0o600 });
-
 const mergeOpen = (previous: Record<string, Record<string, string>>, open: Record<string, Record<string, string>>) =>
   ({ ...previous, ...Object.fromEntries(Object.entries(open).filter(([origin]) => isWebOrigin(origin))) });
 
-/** Queues a push of browser-state.json to fl0w-work. */
 export const pushBrowserState = () => configSyncStore.notifyLocalWrite(BROWSER_STATE_PATH);
 
 /**
@@ -84,35 +76,48 @@ export async function exportBrowserState(browser: Cdp, open: OriginStorage, { pu
     localStorage: mergeOpen(previous.localStorage, open.localStorage),
     sessionStorage: mergeOpen(previous.sessionStorage, open.sessionStorage),
   };
-  if (text && jsonEqual(next, parseJson(text))) {
-    await writeAppliedHash(text);
-    return false;
-  }
+  if (text && jsonEqual(next, parseJson(text))) return false;
   await writeJsonAtomic(BROWSER_STATE_PATH, next);
-  await writeAppliedHash((await readStateText()) ?? '');
   if (push) pushBrowserState();
   return true;
 }
 
 /**
- * Loads browser-state.json into a freshly launched profile when it changed since the profile last saw it (e.g. it was
- * pulled from fl0w-work). An unchanged file is skipped so it can't overwrite newer cookies the profile kept on its own,
- * except for sessionStorage: Chrome never keeps it past the tab, so the file is its only copy and it is always seeded.
- * `page` must be a blank tab; it is used to seed localStorage and sessionStorage and left on about:blank. Pass the tab
- * fl0w goes on to drive, since sessionStorage seeded into it stays with that tab.
+ * Merges cookies read from the user's own Chrome into browser-state.json, which fl0w's browser loads at
+ * its next launch. Only cookies that are new or changed in Chrome since the last import are
+ * applied (fingerprints in chrome-import.json), so a login fl0w's browser renewed on its own isn't overwritten by
+ * Chrome's older copy at every sync. Returns how many cookies were applied.
  */
-export async function importBrowserState(browser: Cdp, page: Cdp | undefined): Promise<boolean> {
-  const text = await readStateText();
-  if (!text) return false;
-  const state = parseBrowserState(parseJson(text));
-  if (sha256(text) === await readAppliedHash()) {
-    if (page) await seedStorage(page, { localStorage: {}, sessionStorage: state.sessionStorage });
-    return false;
+export async function mergeImportedCookies(cookies: Record<string, unknown>[]): Promise<number> {
+  const key = (cookie: BrowserCookie) => JSON.stringify([cookie.domain, cookie.path, cookie.name, cookie.partitionKey ?? null]);
+  const imported = toStoredCookies(cookies);
+  const seenText = await readFile(CHROME_IMPORT_STATE_PATH, 'utf8').catch(() => null);
+  const seen = parseJson(seenText);
+  const seenFingerprints = isRecord(seen) ? seen : {};
+  const fingerprints = Object.fromEntries(imported.map((cookie) => [key(cookie), sha256(JSON.stringify(cookie))]));
+  const changed = imported.filter((cookie) => seenFingerprints[key(cookie)] !== fingerprints[key(cookie)]);
+  if (changed.length > 0) {
+    const previous = parseBrowserState(parseJson(await readStateText()));
+    const jar = new Map(previous.cookies.map((cookie) => [key(cookie), cookie]));
+    for (const cookie of changed) jar.set(key(cookie), cookie);
+    await writeJsonAtomic(BROWSER_STATE_PATH, { ...previous, cookies: toStoredCookies([...jar.values()]) });
   }
+  const nextSeenText = JSON.stringify(fingerprints);
+  if (nextSeenText !== seenText) await writeFile(CHROME_IMPORT_STATE_PATH, nextSeenText, { mode: 0o600 });
+  return changed.length;
+}
+
+/**
+ * Loads browser-state.json (cookies, localStorage, sessionStorage) into a freshly launched profile. `page` must be a
+ * blank tab; it is used to seed storage and left on about:blank. Pass the tab fl0w goes on to drive, since
+ * sessionStorage seeded into it stays with that tab. A missing file loads nothing.
+ */
+export async function importBrowserState(browser: Cdp, page: Cdp | undefined): Promise<void> {
+  const text = await readStateText();
+  if (!text) return;
+  const state = parseBrowserState(parseJson(text));
   await setCookies(browser, state.cookies);
   if (page) await seedStorage(page, state);
-  await writeAppliedHash(text);
-  return true;
 }
 
 async function setCookies(browser: Cdp, cookies: BrowserCookie[]): Promise<void> {

@@ -38,6 +38,9 @@ export const printFullSyncResult = (result: FullSyncResult): void => {
   console.log('Config files:');
   for (const line of formatConfig(result.config)) console.log(line);
 
+  if (result.chromeImport instanceof Error) console.log(`Chrome logins: error — ${result.chromeImport.message}`);
+  else if (result.chromeImport !== null) console.log(`Chrome logins: ${result.chromeImport ? `${result.chromeImport} cookies imported` : 'unchanged'}`);
+
   console.log(result.pendingWrites
     ? `Sessions and workflows: ${result.pendingWrites} writes could not be pushed yet; they retry on the next run`
     : 'Sessions and workflows: all writes pushed');
@@ -63,7 +66,8 @@ export const runSyncCommand = async (argv: string[]): Promise<number> => {
     if (HELP_FLAGS.has(arg)) {
       console.log(`Usage: fl0w sync
 
-Pull and push mcp.json, auth.json, browser-state.json (browser logins), skills, and user tools with
+Import logins (cookies) from your own Chrome into browser-state.json (only ones new or changed in Chrome since
+the last import), then pull and push mcp.json, auth.json, browser-state.json (browser logins), skills, and user tools with
 fl0w-work, and push any session and workflow writes still waiting in ~/.fl0w/outbox (fl0w-work is where
 TUI sessions and workflows live).
 

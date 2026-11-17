@@ -5,7 +5,7 @@ import type { DefaultToolEntry } from '../index';
 type BrowserOpenInput = { url?: string, headless?: boolean };
 
 const description = `Opens Google Chrome for browser automation (or reuses the open one) and optionally loads a URL. Returns a page snapshot.
-The browser uses a persistent fl0w profile (~/.fl0w/browser-profile), so logins made in it are kept across runs. Switching headless mode restarts the browser.
+Each launch starts a fresh profile loaded with the user's saved logins (cookies and site storage, including their own Chrome's); logins made in it are saved back when it closes and kept across runs. Switching headless mode restarts the browser.
 Other browser tools launch the browser automatically if it is not open.`;
 
 const inputSchema = {

@@ -125,6 +125,14 @@ key is a name, every other string is a field:
   only; `"*"` = any site). Referenced as `{"secret": "github.password"}`.
 - Values never reach the model and are redacted from tool output.
 
+The agent's browser starts signed in wherever your own Chrome is: at TUI
+start and on `fl0w sync`, fl0w copies cookies from your Chrome's last-used
+profile into `~/.fl0w/browser-state.json` (which syncs with fl0w-work) and
+loads them at the browser's next launch. Only cookies that are new or changed
+in Chrome since the last import are copied, so logins the agent renewed itself
+are kept. Your Chrome can stay open; on macOS, allow Keychain access to
+"Chrome Safe Storage" when asked.
+
 ### 4. Skills and custom tools
 
 - **Skills** — discovered in `<workspace>/.agents/skills`,

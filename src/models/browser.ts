@@ -61,6 +61,13 @@ export type BrowserState = {
   port: number,
   browserPath: string,
   headless: boolean,
+  /** Throwaway user data dir for this launch; deleted when Chrome exits. */
+  profileDir: string,
+  /**
+   * browser-state.json was loaded into the profile. Until then the profile holds none of the saved logins, so
+   * exporting it would wipe them from the file; a launch whose import failed never exports.
+   */
+  loaded: boolean,
   page?: { id: string, cdp: TabCdp },
   knownTargets: Set<string>,
   /** Headed only: periodically saves logins, since the user can quit Chrome before fl0w gets to export them. */

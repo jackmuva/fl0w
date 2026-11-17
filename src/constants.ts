@@ -24,13 +24,11 @@ export const FL0W_SKILLS_DIR = join(FL0W_HOME, 'skills');
 
 export const WORKSPACE_DIR = join(FL0W_HOME, 'workspace');
 
-export const BROWSER_PROFILE_DIR = join(FL0W_HOME, 'browser-profile');
-
 /** Cookies and localStorage exported from the browser profile; synced with fl0w-work like auth.json. */
 export const BROWSER_STATE_PATH = join(FL0W_HOME, 'browser-state.json');
 
-/** sha256 of the browser-state.json last exported from or imported into the profile. */
-export const BROWSER_STATE_APPLIED_PATH = join(FL0W_HOME, 'browser-state.applied');
+/** Fingerprints of the cookies last imported from the user's own Chrome, so only ones changed there since are imported again. Local only. */
+export const CHROME_IMPORT_STATE_PATH = join(FL0W_HOME, 'chrome-import.json');
 
 export const SECRETS_PATH = join(FL0W_HOME, 'secrets.json');
 

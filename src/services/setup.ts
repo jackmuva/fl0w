@@ -3,7 +3,8 @@ import { syncToolService } from './sync/sync-tools';
 import { configSyncStore } from './sync/config-sync';
 import { outboxStore } from './sync/outbox';
 import { authService } from './auth/auth-service';
-import { closeBrowser } from './browser/browser-session';
+import { closeBrowser, importChromeLogins } from './browser/browser-session';
+import { pushBrowserState } from './browser/browser-state';
 import { preferencesStore } from '../store/preferences-store';
 import { mkdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -26,6 +27,8 @@ export async function ensureFl0wHome(home = FL0W_HOME): Promise<void> {
 
 export type StartupSyncOptions = {
   log?: (message: string) => void;
+  /** Import logins from the user's own Chrome in the background (TUI only; headless runs are on the cloud machine). */
+  importChrome?: boolean;
 };
 
 export async function requireLogin(): Promise<boolean> {
@@ -42,6 +45,8 @@ export async function runStartupSync(options: StartupSyncOptions = {}): Promise<
   // after the sync, so a choice made on another device applies here
   await preferencesStore.load();
   configSyncStore.watchLocalConfigWrites();
+  // after the sync, so Chrome's changes merge into the latest file; launching Chrome takes seconds, so it doesn't block
+  if (options.importChrome) void importChromeLogins().then((changed) => { if (changed) pushBrowserState(); }, () => undefined);
   outboxStore.drainOutboxInBackground();
   void syncSkillService.syncAllSkillsInBackground();
   void syncToolService.syncAllToolsInBackground();

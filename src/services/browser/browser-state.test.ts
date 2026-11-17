@@ -1,23 +1,22 @@
 import { afterAll, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readdirSync } from 'node:fs';
 import { rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as constants from '../../constants';
 
 // constants may already be loaded by other test files, so patch the module instead of setting FL0W_HOME. The patch
-// outlives this file (other browser tests then share the profile), so it points outside the repo.
+// outlives this file (other browser tests then share the state file), so it points outside the repo.
 const home = mkdtempSync(join(tmpdir(), 'fl0w-browser-state-'));
 mock.module('../../constants', () => ({
   ...constants,
-  BROWSER_PROFILE_DIR: join(home, 'browser-profile'),
   BROWSER_STATE_PATH: join(home, 'browser-state.json'),
-  BROWSER_STATE_APPLIED_PATH: join(home, 'browser-state.applied'),
+  CHROME_IMPORT_STATE_PATH: join(home, 'chrome-import.json'),
 }));
-const { BROWSER_PROFILE_DIR, BROWSER_STATE_APPLIED_PATH, BROWSER_STATE_PATH } = await import('../../constants');
-// these tests write the browser profile and its exported logins; never let them reach the real ~/.fl0w
-if (![BROWSER_PROFILE_DIR, BROWSER_STATE_APPLIED_PATH, BROWSER_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('browser-state test is not isolated');
-const { exportBrowserState, parseBrowserState, toStoredCookies } = await import('./browser-state');
+const { BROWSER_STATE_PATH, CHROME_IMPORT_STATE_PATH } = await import('../../constants');
+// these tests write exported logins; never let them reach the real ~/.fl0w
+if (![BROWSER_STATE_PATH, CHROME_IMPORT_STATE_PATH].every((p) => p.startsWith(home))) throw new Error('browser-state test is not isolated');
+const { exportBrowserState, mergeImportedCookies, parseBrowserState, toStoredCookies } = await import('./browser-state');
 const { configSyncStore } = await import('../sync/config-sync');
 const { closeBrowser, findChromeExecutable, openBrowser } = await import('./browser-session');
 
@@ -72,7 +71,37 @@ describe('exportBrowserState', () => {
       notify.mockRestore();
       // the Chrome tests below start from an empty state
       await rm(BROWSER_STATE_PATH, { force: true });
-      await rm(BROWSER_STATE_APPLIED_PATH, { force: true });
+    }
+  });
+});
+
+describe('mergeImportedCookies', () => {
+  test('applies only cookies new or changed in Chrome since the last import, keeping fl0w\'s own', async () => {
+    try {
+      await writeFile(BROWSER_STATE_PATH, JSON.stringify({ cookies: [
+        { name: 'sid', value: 'old', domain: '.a.test', path: '/' },
+        { name: 'keep', value: '1', domain: 'b.test', path: '/' },
+      ], localStorage: { 'https://b.test': { k: 'v' } } }));
+      const chrome = [
+        { name: 'sid', value: 'chrome', domain: '.a.test', path: '/', session: true },
+        { name: 'other', value: 'x', domain: 'c.test', path: '/', session: true },
+      ];
+      expect(await mergeImportedCookies(chrome)).toBe(2);
+      const state = await readStateFile();
+      expect(state.cookies.map(({ name, value }) => [name, value])).toEqual([['sid', 'chrome'], ['keep', '1'], ['other', 'x']]);
+      expect(state.localStorage).toEqual({ 'https://b.test': { k: 'v' } });
+
+      // fl0w's browser renews sid; Chrome's unchanged copy must not overwrite it at the next sync
+      await writeFile(BROWSER_STATE_PATH, JSON.stringify({ ...state, cookies: state.cookies.map((c) => c.name === 'sid' ? { ...c, value: 'fl0w' } : c) }));
+      expect(await mergeImportedCookies(chrome)).toBe(0);
+      expect((await readStateFile()).cookies.find((c) => c.name === 'sid')?.value).toBe('fl0w');
+
+      // a new login in Chrome wins again
+      expect(await mergeImportedCookies([{ ...chrome[0]!, value: 'chrome2' }, chrome[1]!])).toBe(1);
+      expect((await readStateFile()).cookies.find((c) => c.name === 'sid')?.value).toBe('chrome2');
+    } finally {
+      await rm(BROWSER_STATE_PATH, { force: true });
+      await rm(CHROME_IMPORT_STATE_PATH, { force: true });
     }
   });
 });
@@ -106,9 +135,10 @@ describe.skipIf(!findChromeExecutable())('export and import (requires Chrome)', 
     return readState();
   };
 
-  test('closing exports the profile; a file pulled from fl0w-work is loaded on the next launch', async () => {
+  test('each launch starts from browser-state.json alone, and closing writes the profile back to it', async () => {
+    const profiles = () => readdirSync(tmpdir()).filter((name) => /^fl0w-browser-(?!state-)/.test(name));
+    const before = new Set(profiles());
     expect(await relaunch()).toEqual({ version: 1, cookies: [], localStorage: { [origin()]: {} }, sessionStorage: { [origin()]: {} } });
-    expect(await Bun.file(BROWSER_STATE_APPLIED_PATH).exists()).toBe(true);
 
     // as if `fl0w sync` pulled a newer file
     await writeFile(BROWSER_STATE_PATH, JSON.stringify(stateWith('pulled')));
@@ -117,16 +147,10 @@ describe.skipIf(!findChromeExecutable())('export and import (requires Chrome)', 
     expect(loaded.localStorage[origin()]).toEqual({ k: 'pulled' });
     // exported from the page fl0w navigated to after launch, so the seeded sessionStorage survived into the site
     expect(loaded.sessionStorage[origin()]).toEqual({ s: 'pulled' });
-  }, 60_000);
 
-  test('a file the profile already saw is not loaded again over its own cookies', async () => {
-    const stale = JSON.stringify(stateWith('stale'));
-    await writeFile(BROWSER_STATE_PATH, stale);
-    await writeFile(BROWSER_STATE_APPLIED_PATH, `${new Bun.CryptoHasher('sha256').update(stale).digest('hex')}\n`);
-    const kept = await relaunch();
-    expect(kept.cookies.map(({ value }) => value)).toEqual(['pulled']);
-    expect(kept.localStorage[origin()]).toEqual({ k: 'pulled' });
-    // Chrome drops sessionStorage with the tab, so the file's copy is seeded even when the rest is skipped
-    expect(kept.sessionStorage[origin()]).toEqual({ s: 'stale' });
-  }, 60_000);
+    // nothing outlives the file: replacing it replaces every login, and the throwaway profiles are gone
+    await writeFile(BROWSER_STATE_PATH, JSON.stringify(stateWith('replaced')));
+    expect((await relaunch()).cookies.map(({ value }) => value)).toEqual(['replaced']);
+    expect(profiles().filter((name) => !before.has(name))).toEqual([]);
+  }, 90_000);
 });

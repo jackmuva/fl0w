@@ -62,16 +62,21 @@ Stack: TypeScript, Bun (`>=1.3.0`), React 19, OpenTUI, MCP SDK, Vercel `ai` SDK.
   `default/read_full_tool_output` reads saved outputs; compaction keeps their references; deleting a
   session removes its folder.
 - **Browser** — `default/browser_*` tools drive one local Chrome over CDP (`services/browser/`, no
- dependencies; in-page JS in `page-scripts.ts`). It always uses one persistent user data dir,
- `BROWSER_PROFILE_DIR` (`~/.fl0w/browser-profile`). Snapshots number interactive elements;
+ dependencies; in-page JS in `page-scripts.ts`). Each launch uses a fresh throwaway user data dir
+ (`fl0w-browser-*` in the OS temp dir, deleted when Chrome exits). Snapshots number interactive elements;
  click/fill target those refs. `closeBrowser()` quits via `Browser.close` (signals drop unflushed
  cookies) from `finishHeadlessRun()` and TUI Ctrl+C; a sync kill on `exit` is the fallback.
  Logins sync through `BROWSER_STATE_PATH` (`~/.fl0w/browser-state.json`, a `SYNC_FILENAMES` config
- file; whole-file newer-wins), not the profile, whose cookies are OS-key encrypted (`browser-state.ts`).
+ file; whole-file newer-wins) — the only state that outlives a launch, so local and cloud start the same (`browser-state.ts`).
  `closeBrowser()` exports cookies + open tabs' localStorage and calls `notifyLocalWrite`, so
- `finishHeadlessRun()` closes the browser before flushing pushes. Launch imports the file only when
- its hash differs from `browser-state.applied` (so a stale file can't overwrite newer cookies);
- localStorage is seeded by loading each origin with `Fetch` answering locally.
+ `finishHeadlessRun()` closes the browser before flushing pushes. Launch always imports the whole file
+ into the fresh profile; if that fails, the launch never exports (`BrowserState.loaded`), since an empty jar
+ would wipe the saved logins. localStorage is seeded by loading each origin with `Fetch` answering locally.
+ Chrome import: the TUI's `runStartupSync({ importChrome: true })` (background) and `runFullSync()` call
+ `importChromeLogins()`, which copies the user's own Chrome profile's cookie DB + `Local State` to a temp dir and reads
+ it with a headless Chrome (Chrome blocks CDP on its default data dir). `mergeImportedCookies` applies only cookies whose
+ fingerprint changed since the last import (`CHROME_IMPORT_STATE_PATH`, local only).
+ Skipped with no Chrome data (cloud machine, headless runs).
 - **Secrets** — `SECRETS_PATH` (`~/.fl0w/secrets.json`, 0600, a `SYNC_FILENAMES` config file; whole-file newer-wins, synced by `fl0w secrets` itself) holds named credentials
  (`services/secrets/secret-store.ts`, managed by `fl0w secrets`). The model never sees values:
  `list_secrets` shows names/fields/sites, `browser_fill` resolves `secret: "<name>.<field>"` only on

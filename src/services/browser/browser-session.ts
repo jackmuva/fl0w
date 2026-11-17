@@ -1,11 +1,10 @@
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { homedir, platform, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { BROWSER_PROFILE_DIR } from '../../constants';
 import type { BrowserFillField, BrowserState, BrowserTarget, Cdp, CdpMessage, EvaluateResult, OriginStorage, PageTarget } from '../../models/browser';
 import { pageScript } from './page-scripts';
-import { exportBrowserState, importBrowserState, pushBrowserState } from './browser-state';
+import { exportBrowserState, importBrowserState, mergeImportedCookies, pushBrowserState } from './browser-state';
 import { readSecrets, resolveSecretRef } from '../secrets/secret-store';
 
 const LAUNCH_TIMEOUT_MS = 20_000;
@@ -16,16 +15,13 @@ const NAVIGATION_TIMEOUT_MS = 20_000;
 const SNAPSHOT_MAX_ELEMENTS = 300;
 const SNAPSHOT_MAX_TEXT = 4_000;
 
-const env = process.env;
-
 export const findChromeExecutable = (): string | undefined => {
-  if (env.FL0W_CHROME_PATH) return env.FL0W_CHROME_PATH;
   if (platform() === 'darwin') {
     return ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium',
       join(homedir(), 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome')].find(existsSync);
   }
   if (platform() === 'win32') {
-    return [env.PROGRAMFILES, env['PROGRAMFILES(X86)'], env.LOCALAPPDATA]
+    return [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA]
       .filter((dir): dir is string => !!dir)
       .map((dir) => join(dir, 'Google/Chrome/Application/chrome.exe'))
       .find(existsSync);
@@ -180,7 +176,7 @@ const readOpenTabsStorage = async (port: number, page: BrowserState['page']) => 
  * doesn't push every few seconds. The push happens when Chrome exits or is closed (or at the next startup sync).
  */
 const snapshotBrowserState = () => {
-  if (!state || snapshotInFlight) return;
+  if (!state?.loaded || snapshotInFlight) return;
   const { port, browserPath, page } = state;
   snapshotInFlight = writeSnapshot(port, browserPath, page).finally(() => { snapshotInFlight = undefined; });
 };
@@ -211,17 +207,19 @@ export const closeBrowser = async () => {
     pushUnpushedSnapshot();
     return false;
   }
-  const { process: chrome, page, port, browserPath, snapshotTimer } = state;
+  const { process: chrome, page, port, browserPath, snapshotTimer, profileDir, loaded } = state;
   clearInterval(snapshotTimer);
   state = undefined;
   // let a running snapshot finish so it can't overwrite the final export
   await snapshotInFlight;
   try {
     const browser = await CdpConnection.connect(`ws://127.0.0.1:${port}${browserPath}`);
-    await withTimeout(
-      (async () => exportBrowserState(browser, await readOpenTabsStorage(port, page)))(),
-      BROWSER_STATE_TIMEOUT_MS,
-    ).catch(() => undefined);
+    if (loaded) {
+      await withTimeout(
+        (async () => exportBrowserState(browser, await readOpenTabsStorage(port, page)))(),
+        BROWSER_STATE_TIMEOUT_MS,
+      ).catch(() => undefined);
+    }
     page?.cdp.close();
     await browser.send('Browser.close', {}, 3_000).catch(() => undefined);
     browser.close();
@@ -232,19 +230,24 @@ export const closeBrowser = async () => {
   // the final export finds the file unchanged when a snapshot already wrote it, so it won't have pushed
   pushUnpushedSnapshot();
   if (!(await Promise.race([chrome.exited.then(() => true), Bun.sleep(5_000).then(() => false)]))) chrome.kill();
+  await chrome.exited;
+  await rm(profileDir, { recursive: true, force: true }).catch(() => undefined);
   return true;
 };
 
+/**
+ * Each launch gets a fresh, throwaway profile: logins live only in browser-state.json (imported at launch, exported
+ * while running and on close), so the browser starts the same locally and on the cloud machine.
+ */
 const launchBrowser = async (headless: boolean) => {
   const executable = findChromeExecutable();
-  if (!executable) throw new Error('Google Chrome was not found. Install Chrome or set FL0W_CHROME_PATH to its executable.');
-  await mkdir(BROWSER_PROFILE_DIR, { recursive: true });
-  const portFile = join(BROWSER_PROFILE_DIR, 'DevToolsActivePort');
-  await rm(portFile, { force: true });
+  if (!executable) throw new Error('Google Chrome was not found. Install Chrome to use the browser.');
+  const profileDir = await mkdtemp(join(tmpdir(), 'fl0w-browser-'));
+  const portFile = join(profileDir, 'DevToolsActivePort');
 
   const chrome = Bun.spawn([
     executable,
-    `--user-data-dir=${BROWSER_PROFILE_DIR}`,
+    `--user-data-dir=${profileDir}`,
     '--remote-debugging-port=0',
     '--no-first-run',
     '--no-default-browser-check',
@@ -259,6 +262,7 @@ const launchBrowser = async (headless: boolean) => {
   void chrome.exited.then(() => {
     exited = true;
     if (state?.process !== chrome) return;
+    void rm(profileDir, { recursive: true, force: true }).catch(() => undefined);
     // the user quit Chrome: its last snapshot is the only copy of its logins, so push it now
     clearInterval(state.snapshotTimer);
     state = undefined;
@@ -276,20 +280,25 @@ const launchBrowser = async (headless: boolean) => {
   }
   if (!port) {
     chrome.kill();
-    throw new Error(exited
-      ? `Chrome exited during startup. The fl0w browser profile may already be open in another Chrome window; close it and retry.`
-      : `Chrome did not start within ${LAUNCH_TIMEOUT_MS / 1000}s.`);
+    await chrome.exited;
+    await rm(profileDir, { recursive: true, force: true }).catch(() => undefined);
+    throw new Error(exited ? 'Chrome exited during startup.' : `Chrome did not start within ${LAUNCH_TIMEOUT_MS / 1000}s.`);
   }
 
   if (!exitHookInstalled) {
     exitHookInstalled = true;
-    process.on('exit', () => state?.process.kill());
+    process.on('exit', () => {
+      if (!state) return;
+      state.process.kill();
+      try { rmSync(state.profileDir, { recursive: true, force: true }); } catch { /* the OS clears its temp dir */ }
+    });
   }
   chrome.unref();
-  state = { process: chrome, port, browserPath, headless, knownTargets: new Set() };
+  state = { process: chrome, port, browserPath, headless, profileDir, loaded: false, knownTargets: new Set() };
   const [first] = await listPages();
   const page = first ? await attachPage(first) : undefined;
-  await loadBrowserState(port, browserPath, page?.cdp);
+  const loaded = await loadBrowserState(port, browserPath, page?.cdp);
+  if (state) state.loaded = loaded;
   // after the import, so a snapshot can't export the profile before it has the synced logins
   if (!headless && state) {
     state.snapshotTimer = setInterval(snapshotBrowserState, SNAPSHOT_INTERVAL_MS);
@@ -297,14 +306,95 @@ const launchBrowser = async (headless: boolean) => {
   }
 };
 
-/** Loads logins synced from fl0w-work (browser-state.json) into the profile; a failure only leaves them signed out. */
+/** Where Chrome keeps the user's everyday profiles. */
+export const defaultChromeUserDataDir = (): string => {
+  if (platform() === 'darwin') return join(homedir(), 'Library/Application Support/Google/Chrome');
+  if (platform() === 'win32') return join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData/Local'), 'Google/Chrome/User Data');
+  return join(homedir(), '.config/google-chrome');
+};
+
+/**
+ * Reads every cookie of one of the user's own Chrome profiles (default: the last one used). Chrome refuses remote
+ * debugging on its default data dir and locks a profile that is open, so the profile's cookie database and the key
+ * that decrypts it (`Local State`) are copied to a temp dir and read there by a headless Chrome over CDP; the user's
+ * Chrome can stay open. On macOS Chrome may ask once for Keychain access to "Chrome Safe Storage".
+ */
+export const readChromeProfileCookies = async (options: { userDataDir?: string, profile?: string } = {}) => {
+  const executable = findChromeExecutable();
+  if (!executable) throw new Error('Google Chrome was not found. Install Chrome to use the browser.');
+  const source = options.userDataDir ?? defaultChromeUserDataDir();
+  const localStateText = await readFile(join(source, 'Local State'), 'utf8')
+    .catch(() => { throw new Error(`No Chrome data found at ${source}..`); });
+  const localState = JSON.parse(localStateText) as { profile?: { last_used?: string, info_cache?: Record<string, { name?: string }> } };
+  const profiles = localState.profile?.info_cache ?? {};
+  // accept a profile's display name ("Work") as well as its directory ("Profile 1")
+  const profile = Object.entries(profiles).find(([, info]) => options.profile && info.name === options.profile)?.[0]
+    ?? options.profile ?? localState.profile?.last_used ?? 'Default';
+  const cookieFiles = ['Cookies', 'Cookies-journal', 'Cookies-wal', 'Network/Cookies', 'Network/Cookies-journal', 'Network/Cookies-wal']
+    .filter((file) => existsSync(join(source, profile, file)));
+  if (!cookieFiles.some((file) => file.endsWith('Cookies'))) {
+    throw new Error(`Chrome profile "${profile}" has no cookies at ${join(source, profile)}. Profiles: ${Object.entries(profiles).map(([dir, info]) => `${dir} (${info.name ?? dir})`).join(', ') || 'none'}`);
+  }
+
+  const copy = await mkdtemp(join(tmpdir(), 'fl0w-chrome-import-'));
+  let chrome: ReturnType<typeof Bun.spawn> | undefined;
+  let browser: CdpConnection | undefined;
+  try {
+    await writeFile(join(copy, 'Local State'), localStateText);
+    await mkdir(join(copy, profile, 'Network'), { recursive: true });
+    for (const file of cookieFiles) await writeFile(join(copy, profile, file), await readFile(join(source, profile, file)));
+    chrome = Bun.spawn([
+      executable,
+      `--user-data-dir=${copy}`,
+      `--profile-directory=${profile}`,
+      '--remote-debugging-port=0',
+      '--headless=new',
+      '--no-first-run',
+      '--no-default-browser-check',
+      ...(platform() === 'linux' && process.getuid?.() === 0 ? ['--no-sandbox'] : []),
+      'about:blank',
+    ], { stdout: 'ignore', stderr: 'ignore', stdin: 'ignore' });
+    const deadline = Date.now() + LAUNCH_TIMEOUT_MS;
+    let lines: string[] = [];
+    while (!Number(lines[0]) && Date.now() < deadline && chrome.exitCode === null) {
+      lines = (await readFile(join(copy, 'DevToolsActivePort'), 'utf8').catch(() => '')).split('\n');
+      if (!Number(lines[0])) await Bun.sleep(100);
+    }
+    if (!Number(lines[0])) throw new Error('Chrome did not start to read the profile\'s cookies.');
+    browser = await CdpConnection.connect(`ws://127.0.0.1:${lines[0]}${lines[1]?.trim() ?? ''}`);
+    const { cookies } = await browser.send<{ cookies: Record<string, unknown>[] }>('Storage.getCookies');
+    await browser.send('Browser.close', {}, 3_000).catch(() => undefined);
+    return { profile, cookies };
+  } finally {
+    browser?.close();
+    if (chrome && !(await Promise.race([chrome.exited.then(() => true), Bun.sleep(5_000).then(() => false)]))) chrome.kill();
+    await rm(copy, { recursive: true, force: true });
+  }
+};
+
+/**
+ * Imports logins from the user's own Chrome into browser-state.json (part of the TUI's startup sync and `fl0w sync`).
+ * Returns how many cookies changed, or null when skipped: no Chrome or Chrome data here
+ * (e.g. the cloud machine). The caller pushes the file.
+ */
+export const importChromeLogins = async (): Promise<number | null> => {
+  if (!findChromeExecutable() || !existsSync(join(defaultChromeUserDataDir(), 'Local State'))) return null;
+  const { cookies } = await readChromeProfileCookies();
+  return mergeImportedCookies(cookies);
+};
+
+/**
+ * Loads logins (browser-state.json) into the fresh profile. A failure only leaves the browser signed out; returns
+ * whether it loaded, since exporting a profile without them would wipe them from the file.
+ */
 const loadBrowserState = async (port: number, browserPath: string, page: Cdp | undefined) => {
   let browser: CdpConnection | undefined;
   try {
     browser = await CdpConnection.connect(`ws://127.0.0.1:${port}${browserPath}`);
     await withTimeout(importBrowserState(browser, page), BROWSER_STATE_TIMEOUT_MS);
+    return true;
   } catch {
-    // the browser still works without the synced state
+    return false;
   } finally {
     browser?.close();
   }
@@ -320,7 +410,7 @@ const currentPage = async () => {
 };
 
 const defaultHeadless = () =>
-  env.FL0W_BROWSER_HEADLESS === '1' || (platform() === 'linux' && !env.DISPLAY && !env.WAYLAND_DISPLAY);
+  platform() === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY;
 
 const evaluate = async <T>(body: string, timeoutMs = COMMAND_TIMEOUT_MS): Promise<T> => {
   const cdp = await currentPage();

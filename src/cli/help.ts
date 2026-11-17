@@ -11,7 +11,7 @@ Usage:
   fl0w login                        Sign in to fl0w (model calls use your fl0w account)
   fl0w logout                       Sign out
   fl0w whoami                       Show signed-in account
-  fl0w sync                         Sync config, auth, skills, and tools with fl0w-work; push pending session/workflow writes
+  fl0w sync                         Import Chrome logins; sync config, auth, skills, and tools with fl0w-work; push pending writes
   fl0w reauth [server...]           Connect to all (or the named) MCP servers, running OAuth where needed
   fl0w mcp [list|add|remove]        Manage MCP servers in mcp.json (fl0w mcp --help)
   fl0w secrets [list|add|remove]    Manage credentials the agent can use without seeing them (fl0w secrets --help)

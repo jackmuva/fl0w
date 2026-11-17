@@ -74,7 +74,7 @@ switch (command) {
   default: {
     const { requireLogin, runStartupSync } = await import("./services/setup")
     if (!(await requireLogin())) process.exit(1)
-    const syncWarning = await runStartupSync()
+    const syncWarning = await runStartupSync({ importChrome: true })
     const { runTui } = await import("./tui")
     await runTui({ syncWarning })
   }
