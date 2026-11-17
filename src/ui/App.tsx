@@ -129,8 +129,8 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
   }, [visibleMessages, session.id])
 
   const showPlanSidebar = planProgress !== undefined && fitsPlanSidebar(width)
-  // Mascot sits in the transcript's corner; keep it only where there's room to spare.
-  const showMascot = width >= 80
+  const working = status === "working" || generating
+  const showMascot = width >= 80 && (working || visibleMessages.length === 0)
 
   const refreshWorkflows = useCallback(async () => {
     try {
@@ -393,7 +393,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
             </scrollbox>
             {showMascot && (
               <box position="absolute" right={1} bottom={0} zIndex={1}>
-                <Mascot working={status === "working" || generating} />
+                <Mascot working={working} />
               </box>
             )}
           </box>

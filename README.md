@@ -230,11 +230,11 @@ bun run build     # standalone binary → ./fl0w
 ## Releasing
 
 ```bash
-git tag -a v0.2.11 -m "v0.2.11"
-git push origin v0.2.11
+git tag -a v0.2.12 -m "v0.2.12"
+git push origin v0.2.12
 ```
 
-Replace `v0.2.11` with the version you are releasing.
+Replace `v0.2.12` with the version you are releasing.
 
 ## Project Structure
 
