@@ -1,6 +1,6 @@
 {
   "name": "fl0w",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "module": "src/index.tsx",
   "type": "module",
   "private": true,

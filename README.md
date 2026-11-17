@@ -230,9 +230,11 @@ bun run build     # standalone binary → ./fl0w
 ## Releasing
 
 ```bash
-git tag -a v0.2.7 -m "v0.2.7"
-git push origin v0.2.7
+git tag -a v0.2.11 -m "v0.2.11"
+git push origin v0.2.11
 ```
+
+Replace `v0.2.11` with the version you are releasing.
 
 ## Project Structure
 
@@ -262,4 +264,4 @@ Details in `AGENTS.md`.
    execute directly; saved workflows skip straight to execute. Context
    compacts before plan and execute when it grows large.
 5. **Shutdown** — closes MCP connections and flushes pending
-   session/workflow writes (sessions and workflows live on fl0w-work).
+   session/wo                                                          
