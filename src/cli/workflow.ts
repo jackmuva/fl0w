@@ -14,6 +14,7 @@ import { finishHeadlessRun } from '../services/setup';
 import { requireLogin, runStartupSync } from '../services/setup';
 import { buildWorkflowPlanMessages, buildWorkflowUserMessage } from '../services/workflow/build-message';
 import { activeWorkflowStore } from '../store/active-workflow-store';
+import { remoteStore } from '../store/remote-store';
 
 const HEADLESS_INSTRUCTIONS = [
   'You are running unattended: no human is available to answer questions.',
@@ -22,7 +23,7 @@ const HEADLESS_INSTRUCTIONS = [
 ].join(' ');
 
 const USAGE =
-  'Usage: fl0w workflow <workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>]';
+  'Usage: fl0w workflow <workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>] [--remote]';
 
 export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
@@ -31,6 +32,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
       input: { type: 'string', short: 'i' },
       session: { type: 'string', short: 's' },
       messages: { type: 'string', short: 'm' },
+      remote: { type: 'boolean' },
     },
     allowPositionals: true,
     strict: true,
@@ -67,6 +69,7 @@ export const runWorkflowCommand = async (argv: string[]): Promise<number> => {
   const syncWarning = await runStartupSync({ log: console.error });
   if (syncWarning) console.error(syncWarning);
 
+  remoteStore.set(values.remote === true);
   const workspace = resolve(process.cwd());
   const sessionIdArg = values.session?.trim() || undefined;
 

@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { APICallError, UnsupportedFunctionalityError } from 'ai';
 import {
+  alignInstructionsToSteps,
+  completeStepInstructions,
+  findMissingSteps,
   formatWorkflowInputs,
   isStructuredOutputUnsupported,
   mergePlanAndInstructions,
@@ -102,10 +105,59 @@ describe('mergePlanAndInstructions', () => {
     expect(workflow.steps[0]).toEqual({ index: 1, description: 'Find the code', instructions: 'Search' });
   });
 
-  test('throws when a plan step has no instructions', () => {
-    expect(() => mergePlanAndInstructions(plan, {
+  test('falls back to the step description when a plan step has no instructions', () => {
+    const workflow = mergePlanAndInstructions(plan, {
       steps: [{ index: 1, instructions: 'Search' }],
-    }, tools)).toThrow(WorkflowGenerationError);
+    }, tools);
+    expect(workflow.steps[1]).toEqual({ index: 2, description: 'Open a PR', instructions: 'Open a PR' });
+  });
+});
+
+describe('validateGeneratedInstructions', () => {
+  test('coerces numeric-string indices and drops blank instructions', () => {
+    expect(validateGeneratedInstructions({
+      steps: [
+        { index: '1', instructions: ' Search ' },
+        { index: 2, instructions: '   ' },
+        { index: 'two', instructions: 'Open' },
+      ],
+    })).toEqual({ steps: [{ index: 1, instructions: 'Search' }] });
+  });
+});
+
+describe('alignInstructionsToSteps', () => {
+  test('matches by position when indices are off but counts agree', () => {
+    const aligned = alignInstructionsToSteps(plan.steps, {
+      steps: [{ index: 1, instructions: 'Open' }, { index: 0, instructions: 'Search' }],
+    });
+    expect(aligned.steps).toEqual([{ index: 1, instructions: 'Search' }, { index: 2, instructions: 'Open' }]);
+  });
+
+  test('leaves entries alone when counts differ', () => {
+    const instructions = { steps: [{ index: 5, instructions: 'Search' }] };
+    expect(alignInstructionsToSteps(plan.steps, instructions)).toBe(instructions);
+  });
+});
+
+describe('completeStepInstructions', () => {
+  test('retries only the missing steps', async () => {
+    const calls: (number[] | undefined)[] = [];
+    const result = await completeStepInstructions(plan, async (onlySteps) => {
+      calls.push(onlySteps);
+      return onlySteps
+        ? { steps: [{ index: 2, instructions: 'Open' }] }
+        : { steps: [{ index: 1, instructions: 'Search' }] };
+    });
+    expect(calls).toEqual([undefined, [2]]);
+    expect(findMissingSteps(plan.steps, result)).toEqual([]);
+  });
+
+  test('keeps the first pass when the retry fails', async () => {
+    const result = await completeStepInstructions(plan, async (onlySteps) => {
+      if (onlySteps) throw new Error('boom');
+      return { steps: [{ index: 1, instructions: 'Search' }] };
+    });
+    expect(result.steps).toEqual([{ index: 1, instructions: 'Search' }]);
   });
 });
 

@@ -18,7 +18,7 @@ import {
 import { filetypeFromPath } from "../../lib/format/message"
 import { ExpandableRow } from "./ExpandableRow"
 import { HighlightedCode } from "./HighlightedCode"
-import { syntaxStyle } from "../../lib/syntax-style"
+import { LinkableMarkdown } from "./LinkableMarkdown"
 import {
   AGENT_BORDER_COLOR,
   GRAPHITE_FG,
@@ -194,7 +194,7 @@ export const MessageContent = ({ message: entry, toolCallInputs, hideToolCalls =
       {message.role === "assistant" && <ReasoningLine message={message} />}
       <box paddingLeft={isAgent ? 2 : 0} marginBottom={1} width="100%">
         {message.role === "assistant"
-          ? <markdown content={text} syntaxStyle={syntaxStyle} fg={theme.ink} />
+          ? <LinkableMarkdown content={text} />
           : message.role === "user" ? <UserLine text={text} /> : <text fg={theme.ink}>{text}</text>}
       </box>
       {/* Assistant messages can mix text with tool calls; show the calls after the text. */}

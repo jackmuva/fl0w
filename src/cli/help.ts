@@ -20,16 +20,17 @@ The TUI, workflow, and session commands require fl0w login. TUI sessions and wor
 
 Headless commands (agent output as JSON lines on stdout; MCP progress on stderr):
 
-  fl0w workflow <workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>]
+  fl0w workflow <workflow-id> [--input "<extra instructions>"] [--session <session-id>] [--messages <path.json>] [--remote]
       Run a saved workflow unattended; the CLI returns a transcript and does not persist it.
       Pass prior turns with --messages when continuing a run.
       Use --session for a stable session id. --messages loads prior messages from a JSON file.
       The run uses the models saved with the workflow (from the session it was generated from).
+      --remote tells the agent it runs in the fl0w-work sandbox and to link files as fl0w-work /remote/files URLs.
 
   fl0w capabilities
       List discoverable skills, MCP tools, user tools, and AGENTS.md (JSON lines).
 
-  fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--models '<json>'] [--messages <path.json>]
+  fl0w session [session-id] [--input "<message>"] [--answers '<json>'] [--capabilities '<json>'] [--models '<json>'] [--messages <path.json>] [--remote]
       Run or continue a session; the CLI returns a transcript and does not persist it. Omit session-id for a new id.
       Pass prior turns with --messages when continuing a run.
       --messages loads prior messages ([{"message":{...},"subagent"?:...}]) from a JSON file.
@@ -38,6 +39,7 @@ Headless commands (agent output as JSON lines on stdout; MCP progress on stderr)
       --capabilities sets CapabilitySelection: {"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}
       --models sets the model per phase: {"ROUTER":"<model>","PLAN":"<model>","EXECUTE":"<model>"}.
       Phases left out keep the session's choice; "" uses the default.
+      --remote tells the agent it runs in the fl0w-work sandbox and to link files as fl0w-work /remote/files URLs.
 
 Headless exit codes (workflow and session): 0 success, 1 error or stopped, 2 ended waiting on input.
 

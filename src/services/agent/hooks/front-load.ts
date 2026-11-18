@@ -1,5 +1,8 @@
 import type { ModelMessage } from 'ai';
-import { join, resolve } from 'path';
+import { homedir } from 'node:os';
+import { isAbsolute, join, relative, resolve } from 'path';
+import { FL0W_API_URL } from '../../../constants';
+import { remoteStore } from '../../../store/remote-store';
 import type { WorkflowRecord } from '../../../models/workflow';
 import {
   activeWorkflowStore,
@@ -54,6 +57,19 @@ export const formatWorkflowInstructions = ({ workflow, userInstructions }: Activ
   ].join('\n');
 };
 
+export const formatRemoteFileLinkInstructions = (workspace: string, home = homedir()): string => {
+  const rel = relative(home, workspace).split('\\').join('/');
+  const prefix = rel && !rel.startsWith('..') && !isAbsolute(rel) ? `${rel}/` : '';
+  const linkFor = (path: string) => `${FL0W_API_URL}/remote/files?path=${encodeURIComponent(`${prefix}${path}`)}`;
+  return [
+    'You are running remotely in the fl0w-work sandbox; the user cannot open local file paths.',
+    `When you mention or link a file in the workspace, link it as ${FL0W_API_URL}/remote/files?path=<path>, where <path> is ` +
+      `${prefix ? `"${prefix}" followed by ` : ''}the file's workspace-relative path, URL-encoded (encodeURIComponent, so "/" becomes "%2F").`,
+    `Example: "dashboards/morning.html" → [dashboards/morning.html](${linkFor('dashboards/morning.html')})`,
+    'Use these links in your responses instead of bare file paths.',
+  ].join('\n');
+};
+
 export const frontLoadMessages = async (rootDir = process.cwd()): Promise<ModelMessage[]> => {
   const workspace = resolve(rootDir);
   const messages: ModelMessage[] = [{
@@ -63,6 +79,10 @@ export const frontLoadMessages = async (rootDir = process.cwd()): Promise<ModelM
       'If you have file tools (read, edit, write, list_dir, glob), use paths relative to this directory (e.g. "src/index.ts"). ' +
       'Do not use root-relative paths like "/src/index.ts'
   }];
+
+  if (remoteStore.get()) {
+    messages.push({ role: 'system', content: formatRemoteFileLinkInstructions(workspace) });
+  }
 
   const agentsPath = join(rootDir, AGENTS_MD_FILENAME);
   const agentsFile = Bun.file(agentsPath);

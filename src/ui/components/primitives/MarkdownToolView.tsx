@@ -1,4 +1,4 @@
-import { syntaxStyle } from "../../lib/syntax-style"
+import { LinkableMarkdown } from "./LinkableMarkdown"
 import type { ToolViewProps } from "../../../models/ui"
 import { MessageFrame } from "./MessageFrame"
 import { theme } from "../../theme"
@@ -18,7 +18,7 @@ export const MarkdownToolView = ({
     {isError ? (
       <text fg={theme.error}>{content}</text>
     ) : (
-      <markdown content={content} syntaxStyle={syntaxStyle} fg={theme.ink} />
+      <LinkableMarkdown content={content} />
     )}
   </MessageFrame>
 )

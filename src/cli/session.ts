@@ -12,8 +12,9 @@ import { userToolLoader } from '../services/external-tools/user-tool-service';
 import { mcpClient } from '../services/external-tools/mcp-client';
 import { finishHeadlessRun } from '../services/setup';
 import { requireLogin, runStartupSync } from '../services/setup';
+import { remoteStore } from '../store/remote-store';
 
-const USAGE = 'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--models \'{"EXECUTE":"<model>"}\'] [--messages <path.json>]';
+const USAGE = 'Usage: fl0w session [session-id] [--input "<message>"] [--answers \'{"<question-id>":{"optionId":"<option-id>"}}\'] [--capabilities \'{"skills":[],"mcpServers":[],"userTools":[],"agentsMd":[]}\'] [--models \'{"EXECUTE":"<model>"}\'] [--messages <path.json>] [--remote]';
 
 const parseJson = (raw: string): unknown => {
   try {
@@ -52,6 +53,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
       models: { type: 'string' },
       answers: { type: 'string', short: 'a' },
       messages: { type: 'string', short: 'm' },
+      remote: { type: 'boolean' },
     },
     allowPositionals: true,
     strict: true,
@@ -100,6 +102,7 @@ export const runSessionCommand = async (argv: string[]): Promise<number> => {
   const syncWarning = await runStartupSync({ log: console.error });
   if (syncWarning) console.error(syncWarning);
 
+  remoteStore.set(values.remote === true);
   const workspace = resolve(process.cwd());
 
   // Headless runs are recorded by fl0w-work itself, which passes the transcript with --messages

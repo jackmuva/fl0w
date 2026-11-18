@@ -287,16 +287,80 @@ export const validateGeneratedPlan = (value: unknown): GeneratedPlan => {
   return { title, goal, steps };
 };
 
+type StepInstruction = GeneratedStepInstructions['steps'][number];
+
+/** Accepts integer indices and numeric strings ("2"), which the JSON fallback often emits. */
+const toStepIndex = (value: unknown): number | null => {
+  const index = typeof value === 'string' && value.trim() ? Number(value) : value;
+  return typeof index === 'number' && Number.isInteger(index) ? index : null;
+};
+
 export const validateGeneratedInstructions = (value: unknown): GeneratedStepInstructions => {
-  const steps = (value as Partial<GeneratedStepInstructions> | null)?.steps;
+  const steps = (value as { steps?: unknown } | null)?.steps;
   if (!Array.isArray(steps)) {
     throw new WorkflowGenerationError('Generated step instructions are missing required fields');
   }
   return {
-    steps: steps.filter((step) => Number.isInteger(step?.index) && typeof step.instructions === 'string'),
+    steps: (steps as Partial<Record<keyof StepInstruction, unknown>>[]).flatMap((step): StepInstruction[] => {
+      const index = toStepIndex(step?.index);
+      const instructions = typeof step?.instructions === 'string' ? step.instructions.trim() : '';
+      if (index === null || !instructions) return [];
+      return [{
+        index,
+        instructions,
+        ...(Array.isArray(step.tools) && { tools: step.tools as StepInstruction['tools'] }),
+      }];
+    }),
   };
 };
 
+/**
+ * Matches entries to the expected plan steps. When the indices don't line up (0-based, or the model's own numbering)
+ * but there is exactly one entry per expected step, entries are matched by position instead.
+ */
+export const alignInstructionsToSteps = (
+  expected: { index: number }[],
+  instructions: GeneratedStepInstructions,
+): GeneratedStepInstructions => {
+  const entries = instructions.steps;
+  const indices = new Set(entries.map((step) => step.index));
+  const aligned = expected.every((step) => indices.has(step.index));
+  if (aligned || entries.length !== expected.length || indices.size !== entries.length) return instructions;
+
+  const ordered = [...entries].sort((a, b) => a.index - b.index);
+  return { steps: ordered.map((step, position) => ({ ...step, index: expected[position]!.index })) };
+};
+
+export const findMissingSteps = <S extends { index: number }>(
+  expected: S[],
+  instructions: GeneratedStepInstructions,
+): S[] => {
+  const covered = new Set(instructions.steps.map((step) => step.index));
+  return expected.filter((step) => !covered.has(step.index));
+};
+
+/**
+ * Runs the instruction pass, then one targeted retry for any plan steps it skipped. Steps still missing afterwards
+ * fall back to their plan description in `mergePlanAndInstructions` rather than failing the workflow.
+ */
+export const completeStepInstructions = async (
+  plan: GeneratedPlan,
+  generate: (onlySteps?: number[]) => Promise<GeneratedStepInstructions>,
+): Promise<GeneratedStepInstructions> => {
+  const first = alignInstructionsToSteps(plan.steps, await generate());
+  const missing = findMissingSteps(plan.steps, first);
+  if (missing.length === 0) return first;
+
+  try {
+    const retry = alignInstructionsToSteps(missing, await generate(missing.map((step) => step.index)));
+    const missingIndices = new Set(missing.map((step) => step.index));
+    return { steps: [...first.steps, ...retry.steps.filter((step) => missingIndices.has(step.index))] };
+  } catch {
+    return first;
+  }
+};
+
+/** Joins plan and instructions by index; a step with no instructions falls back to its description, and tools not in the catalog are dropped. */
 export const mergePlanAndInstructions = (
   plan: GeneratedPlan,
   instructions: GeneratedStepInstructions,
@@ -307,16 +371,13 @@ export const mergePlanAndInstructions = (
 
   const steps = plan.steps.map((planStep): WorkflowStep => {
     const detail = byIndex.get(planStep.index);
-    if (!detail?.instructions.trim()) {
-      throw new WorkflowGenerationError(`Generated workflow has no instructions for step ${planStep.index}`);
-    }
-    const calls = (detail.tools ?? [])
+    const calls = (Array.isArray(detail?.tools) ? detail.tools : [])
       .filter((call) => typeof call?.tool === 'string' && knownTools.has(call.tool.trim()))
       .map((call) => ({ tool: call.tool, parameters: stringifyParameters(call.parameters) }));
     return normalizeWorkflowStep({
       index: planStep.index,
       description: planStep.description,
-      instructions: detail.instructions,
+      instructions: detail?.instructions.trim() || planStep.description,
       ...(calls.length > 0 && { tools: calls }),
     });
   });
@@ -355,18 +416,26 @@ ${context}`,
     validateGeneratedPlan,
   );
 
+const formatStepScope = (onlySteps?: number[]): string =>
+  onlySteps?.length
+    ? `Return one entry for each of plan steps ${onlySteps.join(', ')} only (the other steps already have instructions), using those exact indices.`
+    : 'Return exactly one entry for every plan step, using the index exactly as numbered in the plan below.';
+
 export const generateStepInstructions = (
   context: string,
   plan: GeneratedPlan,
   tools: WorkflowToolCatalogEntry[],
   model: string,
   inputSpec?: string,
+  onlySteps?: number[],
 ): Promise<GeneratedStepInstructions> =>
   generateStructured(
     model,
     `You write execution instructions for a workflow plan, using the agent session it was distilled from.
 
-For every plan step, give:
+${formatStepScope(onlySteps)}
+
+For each of those plan steps, give:
 - index: the plan step's index
 - instructions: imperative instructions an execution agent can follow without the original session
 - tools: the tools to call, in order, with their parameters. Only name tools from the catalog below, using the exact key. Base tool choices and parameters on the tool-call trace; omit tools when no specific tool can be pinned down.
@@ -411,7 +480,8 @@ export const generateWorkflowFromSession = async (
     .map(([, entry]) => entry);
   const context = buildSessionContext(conversation);
   const plan = await generateWorkflowPlan(context, model, inputSpec);
-  const instructions = await generateStepInstructions(context, plan, stepTools, model, inputSpec);
+  const instructions = await completeStepInstructions(plan, (onlySteps) =>
+    generateStepInstructions(context, plan, stepTools, model, inputSpec, onlySteps));
   return {
     ...mergePlanAndInstructions(plan, instructions, stepTools),
     requiredCapabilities: source.capabilities ?? emptyCapabilitySelection(),
