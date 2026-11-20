@@ -30,8 +30,7 @@ import { WorkflowInputsDialog } from "./components/dialogs/WorkflowInputsDialog"
 import { ChatInput } from "./components/input/ChatInput"
 import { ClarifyQuestionBox } from "./components/primitives/ClarifyQuestionBox"
 import { ContextCostStatusBar } from "./components/primitives/ContextCostStatusBar"
-import { WorkingIndicator } from "./components/primitives/WorkingIndicator"
-import { ReadingProgress } from "./components/primitives/ReadingProgress"
+import { LoadingBar } from "./components/primitives/LoadingBar"
 import { useCopyOnSelection } from "./hooks/useCopyOnSelection"
 import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
@@ -142,7 +141,6 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
 
   const showPlanSidebar = planProgress !== undefined && fitsPlanSidebar(width)
   const working = status === "working" || generating
-  const showReadingProgress = width >= 80 && working
 
   const refreshWorkflows = useCallback(async () => {
     try {
@@ -416,17 +414,9 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
             </scrollbox>
           </box>
           <box flexDirection="column" flexShrink={0} width="100%" paddingTop={1}>
-            <box flexDirection="row" width="100%" height={1} alignItems="center">
+            <box flexDirection="row" width="100%" minHeight={3} alignItems="center">
               {(status === "working" || generating) ? (
-                <WorkingIndicator
-                  label={
-                    stopping
-                      ? "Stopping…"
-                      : generating
-                        ? "Generating workflow…"
-                        : "Generating next step… (Ctrl+C to stop)"
-                  }
-                />
+                <LoadingBar label={stopping ? "Stopping…" : "Loading…"} />
               ) : copiedVisible ? (
                 <text fg={theme.moss}>Copied</text>
               ) : null}
@@ -461,11 +451,6 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
         </box>
         </box>
       </box>
-      {showReadingProgress && (
-        <box position="absolute" right={1} bottom={0} zIndex={1}>
-          <ReadingProgress />
-        </box>
-      )}
       {completion.open && (
         <CompletionOverlayDialog
           kind={completion.trigger.kind}
