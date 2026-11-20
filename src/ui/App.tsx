@@ -31,7 +31,7 @@ import { ChatInput } from "./components/input/ChatInput"
 import { ClarifyQuestionBox } from "./components/primitives/ClarifyQuestionBox"
 import { ContextCostStatusBar } from "./components/primitives/ContextCostStatusBar"
 import { WorkingIndicator } from "./components/primitives/WorkingIndicator"
-import { Mascot, MASCOT_WIDTH } from "./components/primitives/Mascot"
+import { Mascot } from "./components/primitives/Mascot"
 import { useCopyOnSelection } from "./hooks/useCopyOnSelection"
 import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
@@ -400,7 +400,6 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
               flexShrink={1}
               minHeight={0}
               width="100%"
-              paddingRight={showMascot ? MASCOT_WIDTH + 1 : 0}
               stickyScroll={true}
               stickyStart="bottom"
               scrollbarOptions={{ trackOptions: { backgroundColor: theme.paper, foregroundColor: theme.edge } }}
