@@ -25,7 +25,7 @@ import {
   MessageFrame,
   MessageFrameKindContext,
 } from "./MessageFrame"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 
 const REASONING_PREVIEW_MAX_LENGTH = 72
 
@@ -75,7 +75,7 @@ const ReasoningLine = ({ message }: { message: ModelMessage }) => {
       </ExpandableRow>
       {expanded && (
         <box border={["left"]} borderColor={AGENT_BORDER_COLOR} paddingLeft={1} width="100%">
-          <text fg={AGENT_BORDER_COLOR}>{reasoning}</text>
+          <text {...selectionColors} fg={AGENT_BORDER_COLOR}>{reasoning}</text>
         </box>
       )}
     </box>
@@ -85,7 +85,7 @@ const ReasoningLine = ({ message }: { message: ModelMessage }) => {
 const UserLine = ({ text }: { text: string }) => (
   <box flexDirection="row" width="100%">
     <text fg={GRAPHITE_FG} selectable={false} flexShrink={0}>{"› "}</text>
-    <text fg={theme.ink} flexGrow={1} flexShrink={1}>{text}</text>
+    <text {...selectionColors} fg={theme.ink} flexGrow={1} flexShrink={1}>{text}</text>
   </box>
 )
 
@@ -108,7 +108,7 @@ export const MessageContent = ({ message: entry, toolCallInputs, hideToolCalls =
       <box width="100%" paddingLeft={2}>
         <MessageFrameKindContext.Provider value="summary">
           <MessageFrame title="Conversation summary">
-            <text fg={theme.ink}>{text}</text>
+            <text {...selectionColors} fg={theme.ink}>{text}</text>
           </MessageFrame>
         </MessageFrameKindContext.Provider>
       </box>
@@ -160,7 +160,7 @@ export const MessageContent = ({ message: entry, toolCallInputs, hideToolCalls =
         <box width="100%" paddingLeft={2}>
           <MessageFrameKindContext.Provider value="workflow">
             <MessageFrame title={workflow.title}>
-              <text fg={theme.ink}>{workflow.content}</text>
+              <text {...selectionColors} fg={theme.ink}>{workflow.content}</text>
             </MessageFrame>
           </MessageFrameKindContext.Provider>
         </box>
@@ -195,7 +195,7 @@ export const MessageContent = ({ message: entry, toolCallInputs, hideToolCalls =
       <box paddingLeft={isAgent ? 2 : 0} marginBottom={1} width="100%">
         {message.role === "assistant"
           ? <LinkableMarkdown content={text} />
-          : message.role === "user" ? <UserLine text={text} /> : <text fg={theme.ink}>{text}</text>}
+          : message.role === "user" ? <UserLine text={text} /> : <text {...selectionColors} fg={theme.ink}>{text}</text>}
       </box>
       {/* Assistant messages can mix text with tool calls; show the calls after the text. */}
       {message.role === "assistant" && !hideToolCalls && <ToolCalls message={message} />}

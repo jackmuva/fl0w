@@ -1,7 +1,7 @@
 import type { ToolViewProps } from "../../../models/ui"
 import { asRecord } from "../../lib/format/message"
 import { USER_INPUT_BORDER_COLOR } from "../primitives/MessageFrame"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 
 const MUTED_FG = theme.muted
 const ACCENT_FG = theme.graphite
@@ -40,7 +40,7 @@ export const AskQuestionToolResultView = (props: ToolViewProps) => {
         const { prompt, answer } = splitAnswerLine(line, prompts)
         return (
           <box key={index} paddingLeft={2}>
-            <text fg={theme.ink}>
+            <text {...selectionColors} fg={theme.ink}>
               {prompt ? <span fg={MUTED_FG}>{`${prompt} `}</span> : null}
               {answer}
             </text>
@@ -57,11 +57,11 @@ export const AskQuestionToolCallView = (props: ToolViewProps) => {
 
   return (
     <box flexDirection="column" marginBottom={1} width="100%">
-      <text fg={ACCENT_FG}>
+      <text {...selectionColors} fg={ACCENT_FG}>
         {`? Asked ${count || "a"} clarifying question${count === 1 || count === 0 ? "" : "s"}`}
       </text>
       {prompts.map((prompt, index) => (
-        <text key={index} fg={MUTED_FG}>{`  ${prompt}`}</text>
+        <text key={index} {...selectionColors} fg={MUTED_FG}>{`  ${prompt}`}</text>
       ))}
     </box>
   )

@@ -13,7 +13,7 @@ import { renderToolCall, renderToolResult } from "../../tool-renderers"
 import { ExpandableRow } from "../primitives/ExpandableRow"
 import { MessageContent } from "../primitives/MessageContent"
 import { GRAPHITE_FG, GREEN_FG, MessageFrameKindContext } from "../primitives/MessageFrame"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 
 const JOURNAL_FG = theme.inkSoft
 const MUTED_FG = theme.muted
@@ -96,7 +96,7 @@ export const JournalEntry = ({ messages }: { messages: Fl0wMessage[] }) => {
       </ExpandableRow>
       {!expanded && failures.map((step) => (
         <box key={step.toolCallId} paddingLeft={2}>
-          <text fg={ERROR_PEEK_FG}>
+          <text {...selectionColors} fg={ERROR_PEEK_FG}>
             {`↳ ${truncateLine(firstLine(formatToolResultText(step.result!)), ERROR_PEEK_MAX_LENGTH)}`}
           </text>
         </box>

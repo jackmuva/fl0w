@@ -38,7 +38,7 @@ import { resolveUserMessage } from "./lib/input-completion/at-files"
 import type { CapabilityCatalog, CapabilitySelection, Fl0wMessage, ModelMetadata, ModelSelection, SubagentType } from "../models/agent"
 import { ConfigDialog } from "./components/dialogs/ConfigDialog"
 import { activeWorkflowStore } from "../store/active-workflow-store"
-import { READING_WIDTH, theme } from "./theme"
+import { selectionColors, READING_WIDTH, theme } from "./theme"
 
 type AppProps = {
   initialMessage?: string | null
@@ -402,8 +402,8 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
               stickyStart="bottom"
               scrollbarOptions={{ trackOptions: { backgroundColor: theme.paper, foregroundColor: theme.edge } }}
             >
-              {initialMessage && <text fg={theme.error}>{initialMessage}</text>}
-              {notice && <text fg={theme.error}>{notice}</text>}
+              {initialMessage && <text {...selectionColors} fg={theme.error}>{initialMessage}</text>}
+              {notice && <text {...selectionColors} fg={theme.error}>{notice}</text>}
               <Transcript
                 messages={visibleMessages}
                 toolCallInputs={toolCallInputs}
@@ -414,16 +414,16 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
             </scrollbox>
           </box>
           <box flexDirection="column" flexShrink={0} width="100%" paddingTop={1}>
-            <box flexDirection="row" width="100%" minHeight={3} alignItems="center">
+            <box flexDirection="row" width="100%" alignItems="center">
               {(status === "working" || generating) ? (
                 <LoadingBar label={stopping ? "Stopping…" : "Loading…"} />
               ) : copiedVisible ? (
-                <text fg={theme.moss}>Copied</text>
+                <text {...selectionColors} fg={theme.moss}>Copied</text>
               ) : null}
             </box>
-            {status === "error" && <text fg={theme.error}>Run failed — see the assistant message above.</text>}
+            {status === "error" && <text {...selectionColors} fg={theme.error}>Run failed — see the assistant message above.</text>}
             {pendingWorkflow && (
-              <text fg={theme.muted}>
+              <text {...selectionColors} fg={theme.muted}>
                 {`Running workflow: ${pendingWorkflow.title} (Esc to cancel)`}
               </text>
             )}

@@ -1,6 +1,6 @@
 import type { SelectOption } from "@opentui/core"
 import type { CompletionItem, CompletionKind } from "../../../models/ui"
-import { selectColors, theme } from "../../theme"
+import { selectionColors, selectColors, theme } from "../../theme"
 
 const MAX_VISIBLE_ITEMS = 6
 const DIALOG_WIDTH = 56
@@ -66,9 +66,9 @@ export const CompletionOverlayDialog = ({
         paddingY={1}
       >
         <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
-          <text fg={theme.ink}><strong>{kindTitle(kind)}</strong></text>
+          <text {...selectionColors} fg={theme.ink}><strong>{kindTitle(kind)}</strong></text>
         </box>
-        <text fg={theme.muted}>↑/↓ to navigate · Tab/Enter to accept · Esc to dismiss</text>
+        <text {...selectionColors} fg={theme.muted}>↑/↓ to navigate · Tab/Enter to accept · Esc to dismiss</text>
         <select
           {...selectColors}
           options={options}

@@ -1,7 +1,7 @@
 import { LinkableMarkdown } from "./LinkableMarkdown"
 import type { ToolViewProps } from "../../../models/ui"
 import { MessageFrame } from "./MessageFrame"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 
 type MarkdownToolViewProps = ToolViewProps & {
   content: string
@@ -16,7 +16,7 @@ export const MarkdownToolView = ({
 }: MarkdownToolViewProps) => (
   <MessageFrame title={toolName} subtitle={subtitle}>
     {isError ? (
-      <text fg={theme.error}>{content}</text>
+      <text {...selectionColors} fg={theme.error}>{content}</text>
     ) : (
       <LinkableMarkdown content={content} />
     )}

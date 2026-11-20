@@ -12,7 +12,7 @@ import type {
 import { getFilterKeyAction } from "../../lib/dialog-filter-key"
 import { filterByFuzzyName } from "../../lib/input-completion/fuzzy-match"
 import { formatSessionCostUsd } from "../../lib/format/session-stats"
-import { theme } from "../../theme"
+import { selectionColors, textOnBg, theme } from "../../theme"
 
 const DIALOG_WIDTH = 64
 const DIALOG_PADDING = 2
@@ -35,7 +35,7 @@ const MODEL_INSTRUCTIONS = [
   "Enter apply",
 ]
 const POPUP_INSTRUCTIONS = "Space toggle · Enter apply · Esc cancel"
-const INSTRUCTION_SEPARATOR = " · "
+const INSTRUCTION_SEPARATOR = "/"
 const ACCENT_FG = theme.graphite
 const TEXT_FG = theme.ink
 const MUTED_FG = theme.muted
@@ -488,12 +488,12 @@ export const ConfigDialog = ({
         paddingY={1}
       >
         <box flexDirection="row" justifyContent="space-between" width="100%" flexShrink={0} border={["bottom"]} borderColor={theme.edge}>
-          <text fg={theme.ink}><strong>Configure session</strong></text>
+          <text {...selectionColors} fg={theme.ink}><strong>Configure session</strong></text>
           {visibleTabs.length > 1 && (
-            <text fg={MUTED_FG}>{`${tabIndex + 1}/${visibleTabs.length}`}</text>
+            <text {...selectionColors} fg={MUTED_FG}>{`${tabIndex + 1}/${visibleTabs.length}`}</text>
           )}
         </box>
-        <text fg={MUTED_FG} flexShrink={0}>{`${totalEnabled} of ${totalItems} enabled`}</text>
+        <text {...selectionColors} fg={MUTED_FG} flexShrink={0}>{`${totalEnabled} of ${totalItems} enabled`}</text>
 
         <box flexDirection="row" width="100%" flexShrink={0} marginTop={1}>
           {visibleTabs.map((tab, index) => {
@@ -508,7 +508,7 @@ export const ConfigDialog = ({
               complete = count > 0 && selected === count
             }
             return (
-              <text key={tab.kind} fg={active ? ACCENT_FG : MUTED_FG} marginRight={1}>
+              <text key={tab.kind} {...selectionColors} fg={active ? ACCENT_FG : MUTED_FG} marginRight={1}>
                 {complete && !active ? <span fg={DONE_FG}>✓ </span> : null}
                 {active ? "❯ " : "  "}
                 {tab.label}
@@ -518,13 +518,13 @@ export const ConfigDialog = ({
         </box>
 
         {activeItems.length > 0 && (
-          <text fg={MUTED_FG} flexShrink={0} marginTop={1}>
+          <text {...selectionColors} fg={MUTED_FG} flexShrink={0} marginTop={1}>
             {tabSummary}
           </text>
         )}
 
         {activeItems.length > 0 && (
-          <text fg={filterQuery.length > 0 ? TEXT_FG : MUTED_FG} flexShrink={0} marginTop={1}>
+          <text {...selectionColors} fg={filterQuery.length > 0 ? TEXT_FG : MUTED_FG} flexShrink={0} marginTop={1}>
             {truncate(
               filterQuery.length > 0 ? `Filter: ${filterQuery}` : "Filter: (type to search)",
               innerWidth,
@@ -534,7 +534,7 @@ export const ConfigDialog = ({
 
         <box flexDirection="column" width="100%" flexShrink={0} marginTop={1}>
           {instructionLines.map((line, index) => (
-            <text key={`instructions-${index}`} fg={MUTED_FG} flexShrink={0} wrapMode="none">
+            <text key={`instructions-${index}`} {...selectionColors} fg={MUTED_FG} flexShrink={0} wrapMode="none">
               {line}
             </text>
           ))}
@@ -549,7 +549,7 @@ export const ConfigDialog = ({
           overflow="hidden"
         >
           {rows.length === 0 ? (
-            <text fg={MUTED_FG} flexShrink={0} wrapMode="none">
+            <text {...selectionColors} fg={MUTED_FG} flexShrink={0} wrapMode="none">
               {truncate(
                 activeItems.length === 0
                   ? EMPTY_MESSAGES[activeKind]
@@ -563,33 +563,38 @@ export const ConfigDialog = ({
               const highlighted = index === activeCursor
               if (row.type === "section") {
                 return (
-                  <text key={`${activeKind}-${index}`} fg={ACCENT_FG} flexShrink={0} wrapMode="none">
+                  <text key={`${activeKind}-${index}`} {...selectionColors} fg={ACCENT_FG} flexShrink={0} wrapMode="none">
                     {truncate(row.label, innerWidth)}
                   </text>
                 )
               }
               if (row.type === "model") {
                 const phases = assignedPhases(row.name).map(({ short }) => short).join(INSTRUCTION_SEPARATOR)
-                const priceLabel = `in ${formatSessionCostUsd(row.inputTokenPrice)} · out ${formatSessionCostUsd(row.outputTokenPrice)}`
-                const meta = priceLabel
-                const suffix = phases ? `${meta}  ${phases}` : meta
+                const priceLabel = `${formatSessionCostUsd(row.inputTokenPrice)}/${formatSessionCostUsd(row.outputTokenPrice)}`
+                const phaseSuffix = phases ? ` | ${phases}` : ""
                 const prefix = `${highlighted ? "❯" : " "} `
-                const nameWidth = Math.max(1, innerWidth - prefix.length - (suffix ? suffix.length + 1 : 0))
-                const name = `${prefix}${truncate(row.name, nameWidth)}`
+                // Reserve the complete phase suffix first, including its actual separator.
+                // Keep at least one cell for the name and a gap before any price.
+                const remaining = Math.max(0, innerWidth - prefix.length - phaseSuffix.length)
+                const priceWidth = Math.min(priceLabel.length, Math.max(0, remaining - 2))
+                const price = priceWidth > 0 ? truncate(priceLabel, priceWidth) : ""
+                const nameWidth = remaining - (price ? price.length + 1 : 0)
+                const name = `${prefix}${nameWidth > 0 ? truncate(row.name, nameWidth) : ""}`
                 return (
                   <text
                     key={`${activeKind}-${index}`}
-                    fg={highlighted || phases ? TEXT_FG : MUTED_FG}
+                    {...selectionColors}
+                    fg={highlighted ? textOnBg(HIGHLIGHT_BG, TEXT_FG) : phases ? TEXT_FG : MUTED_FG}
                     bg={highlighted ? HIGHLIGHT_BG : undefined}
                     flexShrink={0}
                     wrapMode="none"
                   >
-                    {name.padEnd(Math.max(name.length, innerWidth - suffix.length))}
-                    <span fg={MUTED_FG}>{truncate(meta, Math.max(0, innerWidth - name.length))}</span>
+                    {name.padEnd(innerWidth - phaseSuffix.length - price.length)}
+                    <span fg={highlighted ? textOnBg(HIGHLIGHT_BG, MUTED_FG) : MUTED_FG}>{price}</span>
                     {phases ? (
                       <>
                         {" | "}
-                        <span fg={DONE_FG}>{truncate(phases, Math.max(0, innerWidth - name.length))}</span>
+                        <span fg={highlighted ? textOnBg(HIGHLIGHT_BG, DONE_FG) : DONE_FG}>{phases}</span>
                       </>
                     ) : null}
                   </text>
@@ -607,7 +612,8 @@ export const ConfigDialog = ({
               return (
                 <text
                   key={`${activeKind}-${index}`}
-                  fg={highlighted ? TEXT_FG : row.type === "selectAll" ? TEXT_FG : MUTED_FG}
+                  {...selectionColors}
+                  fg={highlighted ? textOnBg(HIGHLIGHT_BG, TEXT_FG) : row.type === "selectAll" ? TEXT_FG : MUTED_FG}
                   bg={highlighted ? HIGHLIGHT_BG : undefined}
                   flexShrink={0}
                   wrapMode="none"
@@ -633,7 +639,7 @@ export const ConfigDialog = ({
           paddingY={1}
         >
           <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
-            <text fg={theme.ink} wrapMode="none">
+            <text {...selectionColors} fg={theme.ink} wrapMode="none">
               <strong>{truncate(`Assign ${phasePopup.model}`, popupInnerWidth)}</strong>
             </text>
           </box>
@@ -644,7 +650,8 @@ export const ConfigDialog = ({
               return (
                 <text
                   key={`phase-${index}`}
-                  fg={highlighted || isSelectAll ? TEXT_FG : MUTED_FG}
+                  {...selectionColors}
+                  fg={highlighted ? textOnBg(HIGHLIGHT_BG, TEXT_FG) : isSelectAll ? TEXT_FG : MUTED_FG}
                   bg={highlighted ? HIGHLIGHT_BG : undefined}
                   flexShrink={0}
                   wrapMode="none"
@@ -657,7 +664,7 @@ export const ConfigDialog = ({
               )
             })}
           </box>
-          <text fg={MUTED_FG} flexShrink={0} marginTop={1} wrapMode="none">
+          <text {...selectionColors} fg={MUTED_FG} flexShrink={0} marginTop={1} wrapMode="none">
             {truncate(POPUP_INSTRUCTIONS, popupInnerWidth)}
           </text>
         </box>

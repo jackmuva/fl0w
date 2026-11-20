@@ -1,5 +1,5 @@
 import type { PlanProgress } from "../../lib/format/message"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 import { GRAPHITE_FG, GREEN_FG } from "../primitives/MessageFrame"
 import { EDGE_FG } from "../primitives/WorkflowEdge"
 import { PLAN_PENDING_FG, PLAN_STEP_FG, PLAN_STEP_GLYPH, planEdgeColor, planStepStates } from "./plan-style"
@@ -34,10 +34,10 @@ export const PlanSidebar = ({ progress }: PlanSidebarProps) => {
       paddingRight={1}
       marginRight={2}
     >
-      <text fg={complete ? GREEN_FG : GRAPHITE_FG} flexShrink={0}>
+      <text {...selectionColors} fg={complete ? GREEN_FG : GRAPHITE_FG} flexShrink={0}>
         <strong>{progress.title ?? "Plan"}</strong>
       </text>
-      <text fg={complete ? GREEN_FG : PLAN_PENDING_FG} flexShrink={0}>
+      <text {...selectionColors} fg={complete ? GREEN_FG : PLAN_PENDING_FG} flexShrink={0}>
         {complete ? `✓ complete · ${steps.length} steps` : `${done}/${steps.length} complete`}
       </text>
       <scrollbox flexGrow={1} flexShrink={1} minHeight={0} width="100%" marginTop={1}>
@@ -50,10 +50,10 @@ export const PlanSidebar = ({ progress }: PlanSidebarProps) => {
               )}
               <box flexDirection="row" width="100%">
                 <box flexShrink={0} width={3}>
-                  <text fg={PLAN_STEP_FG[state]}>{` ${PLAN_STEP_GLYPH[state]}`}</text>
+                  <text {...selectionColors} fg={PLAN_STEP_FG[state]}>{` ${PLAN_STEP_GLYPH[state]}`}</text>
                 </box>
                 <box flexGrow={1} flexShrink={1} maxHeight={STEP_MAX_LINES} overflow="hidden">
-                  <text
+                  <text {...selectionColors}
                     fg={state === "pending" ? PLAN_PENDING_FG : state === "done" ? GREEN_FG : theme.ink}
                     wrapMode="word"
                   >

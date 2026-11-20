@@ -1,6 +1,6 @@
 import { MouseButton, type MouseEvent } from "@opentui/core"
 import { useState, type ReactNode } from "react"
-import { theme } from "../../theme"
+import { textOnBg, theme } from "../../theme"
 
 export const CHEVRON_FG = theme.muted
 const HOVER_BG = theme.hover
@@ -32,7 +32,7 @@ export const ExpandableRow = ({ expanded, onToggle, children, chevronFg = CHEVRO
       onMouseOut={() => setHovered(false)}
       onMouseDown={handleMouseDown}
     >
-      <text fg={hovered ? HOVER_CHEVRON_FG : chevronFg} selectable={false} flexShrink={0}>
+      <text fg={hovered ? textOnBg(HOVER_BG, HOVER_CHEVRON_FG) : chevronFg} selectable={false} flexShrink={0}>
         {expanded ? "▾ " : "▸ "}
       </text>
       <box flexGrow={1} flexShrink={1}>{children}</box>

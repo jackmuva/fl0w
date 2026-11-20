@@ -1,3 +1,5 @@
+import { RGBA } from "@opentui/core"
+
 // E-reader palette: greyscale e-ink paper and obsidian ink, with fl0w-work's
 // moss/olive green and clay orange kept for status accents.
 export const theme = {
@@ -6,7 +8,7 @@ export const theme = {
   paperRaised: "#f7f6f2", // dialogs, sheets lifted toward the light
   paperDeep: "#e4e2db", // the writing well (chat input)
   hover: "#e0ded6", // pencil wash on hover
-  highlight: "#d8d6ce", // grey selection, like an e-ink invert
+  highlight: "#4a4843", // dark graphite selection, like an e-ink invert
   shade: "#2a2a28", // shadow behind dialogs
 
   // Ink: greyscale ramp from obsidian down to pencil
@@ -29,18 +31,34 @@ export const theme = {
   removedBg: "#ead9d3",
 } as const
 
+// Perceived luminance (Rec. 601 weights); below half reads as dark.
+export const isDarkColor = (color: string): boolean => {
+  const { r, g, b } = RGBA.fromHex(color)
+  return 0.299 * r + 0.587 * g + 0.114 * b < 0.5
+}
+
+// Text color that stays readable on a highlight/hover background: white when the
+// background is dark (matching the textarea's native selection), else the given fg.
+export const textOnBg = (bg: string, fg: string): string => (isDarkColor(bg) ? "#FFFFFF" : fg)
+
+export const selectionColors = {
+  selectionBg: theme.highlight,
+  selectionFg: "#FFFFFF",
+} as const
+
 export const selectColors = {
   backgroundColor: theme.paperRaised,
   focusedBackgroundColor: theme.paperRaised,
   textColor: theme.ink,
   focusedTextColor: theme.ink,
   selectedBackgroundColor: theme.highlight,
-  selectedTextColor: theme.ink,
+  selectedTextColor: textOnBg(theme.highlight, theme.ink),
   descriptionColor: theme.muted,
-  selectedDescriptionColor: theme.inkSoft,
+  selectedDescriptionColor: textOnBg(theme.highlight, theme.inkSoft),
 } as const
 
 export const textareaColors = {
+  ...selectionColors,
   textColor: theme.ink,
   focusedTextColor: theme.ink,
   backgroundColor: theme.paperDeep,
@@ -49,5 +67,4 @@ export const textareaColors = {
   cursorColor: theme.clay,
 } as const
 
-// Widest line of transcript text, like the measure of a printed page.
 export const READING_WIDTH = 92

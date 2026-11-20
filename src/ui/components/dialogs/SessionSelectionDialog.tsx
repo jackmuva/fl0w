@@ -3,7 +3,7 @@ import { useKeyboard } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import type { SessionRecord } from "../../../models/session"
 import { DeleteConfirmationDialog } from "../primitives/DeleteConfirmationDialog"
-import { selectColors, theme } from "../../theme"
+import { selectionColors, selectColors, theme } from "../../theme"
 
 const MAX_VISIBLE_ITEMS = 6
 const DIALOG_WIDTH = 56
@@ -168,11 +168,11 @@ export const SessionSelectionDialog = ({
         paddingY={1}
       >
         <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
-          <text fg={theme.ink}><strong>{title}</strong></text>
+          <text {...selectionColors} fg={theme.ink}><strong>{title}</strong></text>
         </box>
-        <text fg={theme.muted} flexShrink={0}>{instructions}</text>
+        <text {...selectionColors} fg={theme.muted} flexShrink={0}>{instructions}</text>
         {sessions.length === 0 ? (
-          <text fg={theme.muted} flexShrink={0}>{emptyMessage}</text>
+          <text {...selectionColors} fg={theme.muted} flexShrink={0}>{emptyMessage}</text>
         ) : (
           <select
             {...selectColors}

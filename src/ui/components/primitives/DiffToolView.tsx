@@ -1,7 +1,7 @@
 import { syntaxStyle } from "../../lib/syntax-style"
 import type { ToolViewProps } from "../../../models/ui"
 import { MessageFrame } from "./MessageFrame"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 
 type DiffToolViewProps = ToolViewProps & {
   diff: string
@@ -19,9 +19,9 @@ export const DiffToolView = ({
 }: DiffToolViewProps) => (
   <MessageFrame title={toolName} subtitle={subtitle ?? (isError ? undefined : text.split("\n")[0])}>
     {isError ? (
-      <text fg={theme.error}>{text}</text>
+      <text {...selectionColors} fg={theme.error}>{text}</text>
     ) : (
-      <diff
+      <diff {...selectionColors}
         diff={diff}
         view="unified"
         syntaxStyle={syntaxStyle}

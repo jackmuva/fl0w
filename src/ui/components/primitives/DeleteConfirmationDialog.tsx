@@ -1,5 +1,5 @@
 import { useKeyboard } from "@opentui/react"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 const DIALOG_WIDTH = 52
 const DIALOG_PADDING = 2
 const DIALOG_BORDER = 2
@@ -71,10 +71,10 @@ export const DeleteConfirmationDialog = ({
         paddingY={1}
       >
         <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
-          <text fg={WARNING_FG}><strong>{title}</strong></text>
+          <text {...selectionColors} fg={WARNING_FG}><strong>{title}</strong></text>
         </box>
-        <text fg={TEXT_FG} flexShrink={0} wrapMode="word">{message}</text>
-        <text fg={MUTED_FG} flexShrink={0}>Enter to delete · Esc to cancel</text>
+        <text {...selectionColors} fg={TEXT_FG} flexShrink={0} wrapMode="word">{message}</text>
+        <text {...selectionColors} fg={MUTED_FG} flexShrink={0}>Enter to delete · Esc to cancel</text>
       </box>
     </>
   )

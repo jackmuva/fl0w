@@ -1,5 +1,5 @@
 import { syntaxStyle } from "../../lib/syntax-style"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 
 type HighlightedCodeProps = {
   content: string
@@ -20,6 +20,6 @@ export const HighlightedCode = ({
     lineNumberOffset={startLine - 1}
     width="100%"
   >
-    <code content={content} filetype={filetype} syntaxStyle={syntaxStyle} fg={theme.ink} width="100%" />
+    <code {...selectionColors} content={content} filetype={filetype} syntaxStyle={syntaxStyle} fg={theme.ink} width="100%" />
   </line-number>
 )

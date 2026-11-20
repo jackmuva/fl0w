@@ -2,11 +2,11 @@ import type { ToolViewProps } from "../../../models/ui"
 import { callTitle, readStringField } from "../../lib/format/message"
 import { MarkdownToolView } from "../primitives/MarkdownToolView"
 import { MessageFrame } from "../primitives/MessageFrame"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 
 export const SubagentToolCallView = (props: ToolViewProps) => (
   <MessageFrame title={callTitle(props.toolName)} subtitle={readStringField(props.input, "description")}>
-    <text fg={theme.muted}>{readStringField(props.input, "prompt") ?? ""}</text>
+    <text {...selectionColors} fg={theme.muted}>{readStringField(props.input, "prompt") ?? ""}</text>
   </MessageFrame>
 )
 

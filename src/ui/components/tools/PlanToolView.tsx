@@ -9,7 +9,7 @@ import {
 } from "../../lib/format/message"
 import { GREEN_FG, MessageFrame } from "../primitives/MessageFrame"
 import { PLAN_PENDING_FG, PLAN_STEP_FG, PLAN_STEP_GLYPH, planStepStates } from "../plan-sidebar/plan-style"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 
 const ERROR_FG = theme.error
 
@@ -20,7 +20,7 @@ export const PlanToolCallView = (props: ToolViewProps) => {
   const count = readPlanSteps(props.input).length
   return (
     <MessageFrame title={callTitle(props.toolName)}>
-      <text fg={theme.ink}>{count > 0 ? `Creating plan with ${count} steps…` : "Creating plan…"}</text>
+      <text {...selectionColors} fg={theme.ink}>{count > 0 ? `Creating plan with ${count} steps…` : "Creating plan…"}</text>
     </MessageFrame>
   )
 }
@@ -33,7 +33,7 @@ export const PlanToolResultView = (props: ToolViewProps) => {
   if (props.isError || steps.length === 0) {
     return (
       <MessageFrame title={title}>
-        <text fg={ERROR_FG}>{props.text || "Plan could not be created"}</text>
+        <text {...selectionColors} fg={ERROR_FG}>{props.text || "Plan could not be created"}</text>
       </MessageFrame>
     )
   }
@@ -43,7 +43,7 @@ export const PlanToolResultView = (props: ToolViewProps) => {
     return (
       <MessageFrame title={title} subtitle={`${steps.length} steps · superseded`}>
         {steps.map((step) => (
-          <text key={step.index} fg={PLAN_PENDING_FG}>{`${step.index}. ${step.description}`}</text>
+          <text key={step.index} {...selectionColors} fg={PLAN_PENDING_FG}>{`${step.index}. ${step.description}`}</text>
         ))}
       </MessageFrame>
     )
@@ -56,7 +56,7 @@ export const PlanToolResultView = (props: ToolViewProps) => {
       {tracked.map((step, index) => {
         const state = states[index]!
         return (
-          <text fg={theme.ink} key={step.index}>
+          <text key={step.index} {...selectionColors} fg={theme.ink}>
             <span fg={PLAN_STEP_FG[state]}>{PLAN_STEP_GLYPH[state]}</span>
             {` ${step.index}. ${step.description}`}
           </text>
@@ -69,11 +69,11 @@ export const PlanToolResultView = (props: ToolViewProps) => {
 export const MarkStepCompleteToolCallView = () => null
 
 export const MarkStepCompleteToolResultView = (props: ToolViewProps) => {
-  if (props.isError) return <text fg={ERROR_FG}>{props.text}</text>
+  if (props.isError) return <text {...selectionColors} fg={ERROR_FG}>{props.text}</text>
   const index = readNumberField(props.input, "index", 0)
   const note = readStringField(props.input, "note")
   return (
-    <text fg={theme.ink}>
+    <text {...selectionColors} fg={theme.ink}>
       <span fg={GREEN_FG}>✓</span> {`Step ${index || "?"} complete${note ? ` — ${note}` : ""}`}
     </text>
   )

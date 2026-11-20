@@ -1,7 +1,7 @@
 import type { KeyBinding, TextareaRenderable } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
 import { useEffect, useRef, useState } from "react"
-import { textareaColors, theme } from "../../theme"
+import { selectionColors, textareaColors, theme } from "../../theme"
 
 const DIALOG_WIDTH = 64
 const DIALOG_PADDING = 2
@@ -100,12 +100,12 @@ export const WorkflowInputsDialog = ({
         paddingY={1}
       >
         <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
-          <text fg={theme.ink}><strong>Workflow inputs</strong></text>
+          <text {...selectionColors} fg={theme.ink}><strong>Workflow inputs</strong></text>
         </box>
-        <text fg={MUTED_FG} flexShrink={0}>{subtitle}</text>
-        <text fg={TEXT_FG} flexShrink={0}>{HELP_TEXT}</text>
+        <text {...selectionColors} fg={MUTED_FG} flexShrink={0}>{subtitle}</text>
+        <text {...selectionColors} fg={TEXT_FG} flexShrink={0}>{HELP_TEXT}</text>
         <box flexDirection="row" marginTop={1} width="100%" height={lineCount} flexShrink={0}>
-          <text fg={ACCENT_FG} width={PROMPT_WIDTH} flexShrink={0}>{"› "}</text>
+          <text {...selectionColors} fg={ACCENT_FG} width={PROMPT_WIDTH} flexShrink={0}>{"› "}</text>
           <textarea
             {...textareaColors}
             ref={textareaRef}
@@ -120,7 +120,7 @@ export const WorkflowInputsDialog = ({
             focused={true}
           />
         </box>
-        <text fg={MUTED_FG} marginTop={1} flexShrink={0}>{HINT_TEXT}</text>
+        <text {...selectionColors} fg={MUTED_FG} marginTop={1} flexShrink={0}>{HINT_TEXT}</text>
       </box>
     </>
   )

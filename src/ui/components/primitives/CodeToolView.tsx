@@ -1,7 +1,7 @@
 import type { ToolViewProps } from "../../../models/ui"
 import { HighlightedCode } from "./HighlightedCode"
 import { MessageFrame } from "./MessageFrame"
-import { theme } from "../../theme"
+import { selectionColors, theme } from "../../theme"
 
 type CodeToolViewProps = ToolViewProps & {
   content: string
@@ -20,7 +20,7 @@ export const CodeToolView = ({
 }: CodeToolViewProps) => (
   <MessageFrame title={toolName} subtitle={subtitle}>
     {isError ? (
-      <text fg={theme.error}>{content}</text>
+      <text {...selectionColors} fg={theme.error}>{content}</text>
     ) : (
       <HighlightedCode content={content} filetype={filetype} startLine={startLine} />
     )}

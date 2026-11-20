@@ -10,7 +10,7 @@ import {
   getQuestionPrompt,
   type QuestionAnswer,
 } from "../../../services/agent/utils/question-utils"
-import { textareaColors, theme } from "../../theme"
+import { selectionColors, textareaColors, theme } from "../../theme"
 
 const OTHER_OPTION_ID = "other"
 const ACCENT_FG = theme.graphite
@@ -138,14 +138,14 @@ export const ClarifyQuestionBox = ({ input, onSubmit }: ClarifyQuestionBoxProps)
       flexShrink={0}
     >
       <box flexDirection="row" justifyContent="space-between" width="100%" flexShrink={0} border={["bottom"]} borderColor={theme.edge}>
-        <text fg={theme.ink}><strong>{input.title ?? "Clarifying questions"}</strong></text>
-        {total > 1 && <text fg={MUTED_FG}>{`${currentIndex + 1}/${total}`}</text>}
+        <text {...selectionColors} fg={theme.ink}><strong>{input.title ?? "Clarifying questions"}</strong></text>
+        {total > 1 && <text {...selectionColors} fg={MUTED_FG}>{`${currentIndex + 1}/${total}`}</text>}
       </box>
 
       {answered.map((item) => {
         const answer = answers[item.id]
         return (
-          <text key={item.id} fg={MUTED_FG}>
+          <text key={item.id} {...selectionColors} fg={MUTED_FG}>
             <span fg={DONE_FG}>✓ </span>
             {getQuestionPrompt(item)}
             {answer ? <span fg={TEXT_FG}>{` ${answerLabel(item, answer)}`}</span> : null}
@@ -153,7 +153,7 @@ export const ClarifyQuestionBox = ({ input, onSubmit }: ClarifyQuestionBoxProps)
         )
       })}
 
-      <text fg={TEXT_FG} marginTop={answered.length > 0 ? 1 : 0}>
+      <text {...selectionColors} fg={TEXT_FG} marginTop={answered.length > 0 ? 1 : 0}>
         <strong>{getQuestionPrompt(question)}</strong>
       </text>
 
@@ -161,7 +161,7 @@ export const ClarifyQuestionBox = ({ input, onSubmit }: ClarifyQuestionBoxProps)
         {options.map((option, index) => {
           const active = index === highlightedIndex
           return (
-            <text key={option.id} fg={active ? ACCENT_FG : TEXT_FG}>
+            <text key={option.id} {...selectionColors} fg={active ? ACCENT_FG : TEXT_FG}>
               {active ? "❯ " : "  "}
               {option.label}
             </text>
@@ -171,7 +171,7 @@ export const ClarifyQuestionBox = ({ input, onSubmit }: ClarifyQuestionBoxProps)
 
       {typingOther && (
         <box flexDirection="row" marginTop={1} width="100%">
-          <text fg={ACCENT_FG}>{"› "}</text>
+          <text {...selectionColors} fg={ACCENT_FG}>{"› "}</text>
           <input
             {...textareaColors}
             placeholder="Type your answer..."
@@ -183,7 +183,7 @@ export const ClarifyQuestionBox = ({ input, onSubmit }: ClarifyQuestionBoxProps)
         </box>
       )}
 
-      <text fg={MUTED_FG} marginTop={1}>
+      <text {...selectionColors} fg={MUTED_FG} marginTop={1}>
         {hint}
       </text>
     </box>

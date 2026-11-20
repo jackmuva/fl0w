@@ -5,7 +5,7 @@ import type { WorkflowRecord } from "../../../models/workflow"
 import { DeleteConfirmationDialog } from "../primitives/DeleteConfirmationDialog"
 import { getFilterKeyAction } from "../../lib/dialog-filter-key"
 import { filterByFuzzyName } from "../../lib/input-completion/fuzzy-match"
-import { selectColors, theme } from "../../theme"
+import { selectionColors, selectColors, theme } from "../../theme"
 
 const MAX_VISIBLE_ITEMS = 6
 const DIALOG_WIDTH = 56
@@ -174,10 +174,10 @@ export const WorkflowSelectionDialog = ({
 
   const listBody = (() => {
     if (workflows.length === 0) {
-      return <text fg={MUTED_FG} flexShrink={0}>No saved workflows</text>
+      return <text {...selectionColors} fg={MUTED_FG} flexShrink={0}>No saved workflows</text>
     }
     if (filteredWorkflows.length === 0) {
-      return <text fg={MUTED_FG} flexShrink={0}>No matches for filter</text>
+      return <text {...selectionColors} fg={MUTED_FG} flexShrink={0}>No matches for filter</text>
     }
     return (
       <select
@@ -225,24 +225,24 @@ export const WorkflowSelectionDialog = ({
         paddingY={1}
       >
         <box flexShrink={0} width="100%" border={["bottom"]} borderColor={theme.edge}>
-          <text fg={theme.ink}><strong>Run workflow</strong></text>
+          <text {...selectionColors} fg={theme.ink}><strong>Run workflow</strong></text>
         </box>
         {workflows.length > 0 && (
-          <text fg={MUTED_FG} flexShrink={0}>
+          <text {...selectionColors} fg={MUTED_FG} flexShrink={0}>
             {filterQuery.length > 0
               ? `${filteredWorkflows.length} of ${workflows.length} shown`
               : `${workflows.length} saved workflow${workflows.length === 1 ? "" : "s"}`}
           </text>
         )}
         {workflows.length > 0 && (
-          <text fg={filterQuery.length > 0 ? TEXT_FG : MUTED_FG} flexShrink={0}>
+          <text {...selectionColors} fg={filterQuery.length > 0 ? TEXT_FG : MUTED_FG} flexShrink={0}>
             {truncate(
               filterQuery.length > 0 ? `Filter: ${filterQuery}` : "Filter: (type to search)",
               innerWidth,
             )}
           </text>
         )}
-        <text fg={MUTED_FG} flexShrink={0}>{INSTRUCTIONS}</text>
+        <text {...selectionColors} fg={MUTED_FG} flexShrink={0}>{INSTRUCTIONS}</text>
         {listBody}
       </box>
       {pendingDelete && onDelete && (

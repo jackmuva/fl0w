@@ -5,7 +5,7 @@ import { describeToolCall } from "../../lib/format/journal"
 import { firstLine, formatMessageContent, truncateLine } from "../../lib/format/message"
 import { groupEntries, truncateMiddle, type PhaseSubagent, type TranscriptEntry } from "../../lib/format/segments"
 import { EntryView, JournalEntry } from "./JournalEntry"
-import { theme } from "../../theme"
+import { selectionColors, textOnBg, theme } from "../../theme"
 
 const MUTED_FG = theme.muted
 const PROSE_PREVIEW_MAX_LENGTH = 96
@@ -35,8 +35,11 @@ const CHAPTER_TITLE: Record<PhaseSubagent, string> = {
 }
 
 // A centered chapter heading between thin rules, like a section break in a book; clicking it folds the phase.
-const ChapterHeading = ({ children, onToggle }: { children: ReactNode; onToggle?: () => void }) => {
+const ChapterHeading = ({ children, onToggle }: { children: (fgOnHover: (fg: string) => string) => ReactNode; onToggle?: () => void }) => {
   const [hovered, setHovered] = useState(false)
+  const hovering = hovered && Boolean(onToggle)
+  // Text on the hover wash goes white when that wash is dark, like the textarea's selection.
+  const fgOnHover = (fg: string) => (hovering ? textOnBg(theme.hover, fg) : fg)
   const handleMouseDown = (event: MouseEvent) => {
     if (!onToggle || event.button !== MouseButton.LEFT) return
     event.preventDefault()
@@ -49,13 +52,13 @@ const ChapterHeading = ({ children, onToggle }: { children: ReactNode; onToggle?
       height={1}
       flexShrink={0}
       marginBottom={1}
-      backgroundColor={hovered && onToggle ? theme.hover : "transparent"}
+      backgroundColor={hovering ? theme.hover : "transparent"}
       onMouseOver={() => setHovered(true)}
       onMouseOut={() => setHovered(false)}
       onMouseDown={handleMouseDown}
     >
       <box flexGrow={1} height={1} border={["top"]} borderColor={theme.edge} />
-      <text fg={theme.ink} selectable={false} flexShrink={0} wrapMode="none">{children}</text>
+      <text fg={fgOnHover(theme.ink)} selectable={false} flexShrink={0} wrapMode="none">{children(fgOnHover)}</text>
       <box flexGrow={1} height={1} border={["top"]} borderColor={theme.edge} />
     </box>
   )
@@ -63,7 +66,7 @@ const ChapterHeading = ({ children, onToggle }: { children: ReactNode; onToggle?
 
 const MutedLine = ({ text }: { text: string }) => (
   <box paddingLeft={2}>
-    <text fg={MUTED_FG}>{text}</text>
+    <text {...selectionColors} fg={MUTED_FG}>{text}</text>
   </box>
 )
 
@@ -98,7 +101,7 @@ export const PhaseFrame = ({ subagent, messages, live, latest, toolCallInputs }:
     return (
       <box flexDirection="column" flexShrink={0} width="100%">
         <ChapterHeading>
-          <span fg={accent}>{` ● ${title}… `}</span>
+          {(fgOnHover) => <span fg={fgOnHover(accent)}>{` ● ${title}… `}</span>}
         </ChapterHeading>
         {renderFull()}
       </box>
@@ -116,9 +119,13 @@ export const PhaseFrame = ({ subagent, messages, live, latest, toolCallInputs }:
   return (
     <box flexDirection="column" flexShrink={0} width="100%" marginBottom={1}>
       <ChapterHeading onToggle={() => setExpandedOverride(!expanded)}>
-        <span fg={MUTED_FG}>{expanded ? " ▾ " : " ▸ "}</span>
-        <span fg={accent}>{title}</span>
-        <span fg={MUTED_FG}>{` · ${steps} ${steps === 1 ? "step" : "steps"} `}</span>
+        {(fgOnHover) => (
+          <>
+            <span fg={fgOnHover(MUTED_FG)}>{expanded ? " ▾ " : " ▸ "}</span>
+            <span fg={fgOnHover(accent)}>{title}</span>
+            <span fg={fgOnHover(MUTED_FG)}>{` · ${steps} ${steps === 1 ? "step" : "steps"} `}</span>
+          </>
+        )}
       </ChapterHeading>
       {expanded ? renderFull() : (
         <>
