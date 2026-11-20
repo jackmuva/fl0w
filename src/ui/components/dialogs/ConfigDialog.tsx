@@ -79,7 +79,7 @@ const EMPTY_MESSAGES: Record<TabKind, string> = {
 type Row =
   | { type: "selectAll" }
   | { type: "item", name: string, description?: string }
-  | { type: "model", name: string, inputTokenPrice: number }
+  | { type: "model", name: string, inputTokenPrice: number, outputTokenPrice: number }
   | { type: "section", label: string }
 
 type PhasePopup = {
@@ -191,6 +191,7 @@ export const ConfigDialog = ({
             type: "model" as const,
             name: entry.model,
             inputTokenPrice: entry.inputTokenPrice,
+            outputTokenPrice: entry.outputTokenPrice,
           })),
         ]
       })
@@ -569,7 +570,7 @@ export const ConfigDialog = ({
               }
               if (row.type === "model") {
                 const phases = assignedPhases(row.name).map(({ short }) => short).join(INSTRUCTION_SEPARATOR)
-                const priceLabel = formatSessionCostUsd(row.inputTokenPrice)
+                const priceLabel = `in ${formatSessionCostUsd(row.inputTokenPrice)} · out ${formatSessionCostUsd(row.outputTokenPrice)}`
                 const meta = priceLabel
                 const suffix = phases ? `${meta}  ${phases}` : meta
                 const prefix = `${highlighted ? "❯" : " "} `

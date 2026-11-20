@@ -21,7 +21,7 @@ export const routingAgent = async (messages: Fl0wMessage[], model: string, abort
     questions: {
       agent: {
         type: 'choice',
-        instructions: `Based on the user's latest request and the assistant's most recent response (if any), do we need to clarify the problem and do background research, create a plan to complete the task, start executing the task${options.taskComplete ? ', or is the task already done' : ''}?`,
+        instructions: `Based on the user's latest request and the assistant's most recent response (if any), do we need to create a plan to complete the task or start executing the task${options.taskComplete ? ', or is the task already done' : ''}?`,
         criteria,
       },
     },

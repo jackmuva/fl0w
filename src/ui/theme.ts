@@ -7,7 +7,6 @@ export const theme = {
   paperDeep: "#e4e2db", // the writing well (chat input)
   hover: "#e0ded6", // pencil wash on hover
   highlight: "#d8d6ce", // grey selection, like an e-ink invert
-  stone: "#bdb9b0", // mid grey (mascot body)
   shade: "#2a2a28", // shadow behind dialogs
 
   // Ink: greyscale ramp from obsidian down to pencil

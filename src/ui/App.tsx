@@ -31,7 +31,7 @@ import { ChatInput } from "./components/input/ChatInput"
 import { ClarifyQuestionBox } from "./components/primitives/ClarifyQuestionBox"
 import { ContextCostStatusBar } from "./components/primitives/ContextCostStatusBar"
 import { WorkingIndicator } from "./components/primitives/WorkingIndicator"
-import { Mascot } from "./components/primitives/Mascot"
+import { ReadingProgress } from "./components/primitives/ReadingProgress"
 import { useCopyOnSelection } from "./hooks/useCopyOnSelection"
 import { useProviderMetadata } from "./hooks/useProviderMetadata"
 import type { CompletionState } from "../models/ui"
@@ -142,7 +142,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
 
   const showPlanSidebar = planProgress !== undefined && fitsPlanSidebar(width)
   const working = status === "working" || generating
-  const showMascot = width >= 80 && (working || visibleMessages.length === 0)
+  const showReadingProgress = width >= 80 && working
 
   const refreshWorkflows = useCallback(async () => {
     try {
@@ -461,9 +461,9 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
         </box>
         </box>
       </box>
-      {showMascot && (
+      {showReadingProgress && (
         <box position="absolute" right={1} bottom={0} zIndex={1}>
-          <Mascot working={working} />
+          <ReadingProgress />
         </box>
       )}
       {completion.open && (

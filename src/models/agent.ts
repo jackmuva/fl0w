@@ -75,6 +75,8 @@ export type ModelMetadata = {
   contextWindow: number,
   /** USD per 1M input tokens */
   inputTokenPrice: number,
+  /** USD per 1M output tokens */
+  outputTokenPrice: number,
   type: "text" | "decision",
 }
 
