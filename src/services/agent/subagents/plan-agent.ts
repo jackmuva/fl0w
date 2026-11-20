@@ -11,15 +11,11 @@ import { DEFAULT_CREATE_PLAN_TOOL } from "../default-tools/tool-utils";
 const planCreated: StopCondition<ToolSet> = ({ steps }) =>
   steps.at(-1)?.toolResults.some((result) => result.toolName === DEFAULT_CREATE_PLAN_TOOL) ?? false;
 
-/**
- * Every step must call a tool, so the phase can only end with a plan (or a pending ask_question, which has no
- * executor and stops the loop). The final steps are forced to create_plan, leaving room to retry an invalid plan.
- */
-const forcePlan = (inner: PrepareStepFunction<ToolSet> | undefined): PrepareStepFunction<ToolSet> => async (options) => {
+/** Restrict the final steps to plan creation without using tool choices unsupported by some providers. */
+export const preparePlanStep = (inner: PrepareStepFunction<ToolSet> | undefined): PrepareStepFunction<ToolSet> => async (options) => {
   const prepared = (await inner?.(options)) ?? {};
-  if (options.stepNumber < MAX_ITERATIONS - PLAN_CHECK_MAX_RETRIES - 1) return { ...prepared, toolChoice: "required" };
-  const activeTools = prepared.activeTools && [...new Set([...prepared.activeTools, DEFAULT_CREATE_PLAN_TOOL])];
-  return { ...prepared, ...(activeTools && { activeTools }), toolChoice: { type: "tool", toolName: DEFAULT_CREATE_PLAN_TOOL } };
+  if (options.stepNumber < MAX_ITERATIONS - PLAN_CHECK_MAX_RETRIES - 1) return { ...prepared, toolChoice: "auto" };
+  return { ...prepared, activeTools: [DEFAULT_CREATE_PLAN_TOOL], toolChoice: "auto" };
 };
 
 export const planAgent = async (messages: Fl0wMessage[], model: string, reasoning: ReasoningLevel, abort: AbortSignal, onStreamText: (text: string) => void, tools: ToolOptions | undefined, onStep: (stepMessages: ModelMessage[]) => void): Promise<AgentResult> => {
@@ -39,7 +35,7 @@ You must finish by calling default/create_plan — every task gets a plan, even 
     instructions,
     messages: toModelMessages(messages),
     ...tools,
-    prepareStep: forcePlan(tools?.prepareStep),
+    prepareStep: preparePlanStep(tools?.prepareStep),
     stopWhen: [planCreated, isStepCount(MAX_ITERATIONS)],
     abortSignal: abort,
     onChunk: ({ chunk }) => {
