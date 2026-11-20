@@ -416,7 +416,7 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
           <box flexDirection="column" flexShrink={0} width="100%" paddingTop={1}>
             <box flexDirection="row" width="100%" alignItems="center">
               {(status === "working" || generating) ? (
-                <LoadingBar label={stopping ? "Stopping…" : "Loading…"} />
+                <LoadingBar label={stopping ? "Stopping…" : "Loading… (Ctrl+C to stop)"} />
               ) : copiedVisible ? (
                 <text {...selectionColors} fg={theme.moss}>Copied</text>
               ) : null}

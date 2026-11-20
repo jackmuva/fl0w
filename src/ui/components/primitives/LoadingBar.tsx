@@ -17,7 +17,7 @@ const nextDelay = () => {
 // A retro video-game style loading bar: chunky blocks fill one at a time at an
 // uneven, deliberate pace, hold when full, then clear and restart.
 // Mounted only while the agent loop is working.
-export const LoadingBar = ({ label = "Loading…" }: {label: string}) => {
+export const LoadingBar = ({ label = "Loading… (Ctrl+C to stop)" }: {label: string}) => {
   const [filled, setFilled] = useState(0)
 
   useEffect(() => {
