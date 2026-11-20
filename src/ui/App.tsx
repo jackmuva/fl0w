@@ -414,11 +414,6 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
                 streamingText={streamingText}
               />
             </scrollbox>
-            {showMascot && (
-              <box position="absolute" right={1} bottom={0} zIndex={1}>
-                <Mascot working={working} />
-              </box>
-            )}
           </box>
           <box flexDirection="column" flexShrink={0} width="100%" paddingTop={1}>
             <box flexDirection="row" width="100%" height={1} alignItems="center">
@@ -466,6 +461,11 @@ export function App({ initialMessage, initialSession, initialWorkflows, capabili
         </box>
         </box>
       </box>
+      {showMascot && (
+        <box position="absolute" right={1} bottom={0} zIndex={1}>
+          <Mascot working={working} />
+        </box>
+      )}
       {completion.open && (
         <CompletionOverlayDialog
           kind={completion.trigger.kind}

@@ -17,7 +17,7 @@ irm https://raw.githubusercontent.com/jackmuva/fl0w/main/install.ps1 | iex
 ```
 
 Installs a standalone `fl0w` binary (default `~/.local/bin` on Unix;
-no Bun needed). Set `FL0W_VERSION=v0.2.15` to pin a version;
+no Bun needed). Set `FL0W_VERSION=v0.2.16` to pin a version;
 `FL0W_INSTALL_DIR` / `FL0W_BIN_NAME` override location and name.
 
 ## Setup
@@ -230,11 +230,11 @@ bun run build     # standalone binary → ./fl0w
 ## Releasing
 
 ```bash
-git tag -a v0.2.15 -m "v0.2.15"
-git push origin v0.2.15
+git tag -a v0.2.16 -m "v0.2.16"
+git push origin v0.2.16
 ```
 
-Replace `v0.2.15` with the version you are releasing.
+Replace `v0.2.16` with the version you are releasing.
 
 ## Project Structure
 
